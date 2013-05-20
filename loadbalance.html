@@ -1,0 +1,338 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type" />
+  <title>Load Balancing Search - Modern GPU</title>
+  <link href="mgpu.css" rel="stylesheet" type="text/css" />
+  <script src="syntaxhighlighter_3.0.83/scripts/shCore.js" type="text/javascript"></script>
+  <script src="syntaxhighlighter_3.0.83/scripts/shBrushCpp.js" type="text/javascript"></script>
+  <link href="syntaxhighlighter_3.0.83/styles/shThemeDefault.css" rel="stylesheet" type="text/css" />
+  <link href="syntaxhighlighter_3.0.83/styles/shCore.css" rel="stylesheet" type="text/css" />
+  <script type="text/javascript"> SyntaxHighlighter.all() </script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25772750-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</head><body class="tutorial">
+<a href="https://github.com/NVlabs/moderngpu"><img style="position: absolute; top: 0; right: 0; border: 0;" width="149" height="149" src="forkme_right_green_007200.png" alt="Fork me on GitHub" /></a>
+<div class="copyright">
+<p><strong>&copy; 2013, NVIDIA CORPORATION. All rights reserved.</strong></p>
+<p>Code and text by <a href="https://www.twitter.com/moderngpu">Sean Baxter</a>, NVIDIA Research.</p>
+<p>(Click <a href="faq.html#license">here</a> for license. Click <a href="faq.html#contact">here</a> for contact information.)</p>
+</div><br />
+<div class="toclist"><ul>
+ 	<li class="tocprev">&laquo; <a href="sortedsearch.html">Vectorized Sorted Search</a></li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="intervalmove.html">IntervalMove</a> &raquo;</li></ul>
+</div><br/>
+<h1>Load-Balancing Search</h1>
+<p>Load-balancing search is a specialization of vectorized sorted search. It coordinates output items with the input objects that generated them. The CTA load-balancing search is a fundamental tool for partitioning irregular problems.</p>
+
+<h2><a id="benchmark">Benchmark and usage</a></h2>
+<div class="figure"><img src="benchmark_lbs.png" width="703" height="420" alt=" " /></div><div class="figure"><img src="benchmark_lbs2.png" width="703" height="420" alt=" " /></div>
+<p class="cap">Load-balancing search benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarkloadbalance.cu">tests/benchmarkloadbalance.cu</a></p>
+<div class="snip"><p>Load-balancing search demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 411">void DemoLBS(CudaContext&amp; context) {
+	printf("\n\nLOAD-BALANCING SEARCH DEMONSTRATION:\n\n");
+	
+	// Use CudaContext::GenRandom to generate work counts between 0 and 5.
+	int N = 50;
+	MGPU_MEM(int) counts = context.GenRandom&lt;int>(N, 0, 5);
+	
+	printf("Object counts\n");
+	PrintArray(*counts, "%4d", 10);
+
+	// Scan the counts.
+	int total = Scan(counts->get(), N, context);
+	printf("\nScan of object counts:\n");
+	PrintArray(*counts, "%4d", 10);
+	printf("Total: %4d\n", total);
+
+	// Allocate space for the object references and run load-balancing search.
+	MGPU_MEM(int) refsData = context.Malloc&lt;int>(total);
+	LoadBalanceSearch(total, counts->get(), N, refsData->get(), context);
+
+	printf("\nObject references:\n");
+	PrintArray(*refsData, "%4d", 10);
+}</pre><hr /><pre>LOAD-BALANCING SEARCH DEMONSTRATION:
+
+Object counts
+    0:     0    3    5    2    1    3    1    5    4    5
+   10:     2    5    4    0    2    3    1    4    0    5
+   20:     4    3    2    4    2    4    3    3    0    3
+   30:     1    4    4    4    4    2    0    3    0    5
+   40:     0    0    0    0    2    2    3    0    4    4
+
+Scan of object counts:
+    0:     0    0    3    8   10   11   14   15   20   24
+   10:    29   31   36   40   40   42   45   46   50   50
+   20:    55   59   62   64   68   70   74   77   80   80
+   30:    83   84   88   92   96  100  102  102  105  105
+   40:   110  110  110  110  110  112  114  117  117  121
+Total:  125
+
+Object references:
+    0:     1    1    1    2    2    2    2    2    3    3
+   10:     4    5    5    5    6    7    7    7    7    7
+   20:     8    8    8    8    9    9    9    9    9   10
+   30:    10   11   11   11   11   11   12   12   12   12
+   40:    14   14   15   15   15   16   17   17   17   17
+   50:    19   19   19   19   19   20   20   20   20   21
+   60:    21   21   22   22   23   23   23   23   24   24
+   70:    25   25   25   25   26   26   26   27   27   27
+   80:    29   29   29   30   31   31   31   31   32   32
+   90:    32   32   33   33   33   33   34   34   34   34
+  100:    35   35   37   37   37   39   39   39   39   39
+  110:    44   44   45   45   46   46   46   48   48   48
+  120:    48   49   49   49   49</pre></div>
+  <h2><a id="host">Host function</a></h2>
+  <div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 378">////////////////////////////////////////////////////////////////////////////////
+// kernels/loadbalance.cuh
+
+// LoadBalanceSearch is a special vectorized sorted search. Consider bCount
+// objects that generate a variable number of work items, with aCount work
+// items in total. The caller computes an exclusive scan of the work-item counts
+// into b_global.
+
+// indices_global has aCount outputs. indices_global[i] is the index of the 
+// object that generated the i'th work item.
+// Eg:
+// work-item counts:  2,  5,  3,  0,  1.
+// scan counts:       0,  2,  7, 10, 10.   aCount = 11.
+// 
+// LoadBalanceSearch computes the upper-bound of counting_iterator&lt;int>(0) with
+// the scan of the work-item counts and subtracts 1:
+// LBS: 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 4.
+
+// This is equivalent to expanding the index of each object by the object's
+// work-item count.
+
+MGPU_HOST void LoadBalanceSearch(int aCount, const int* b_global, int bCount,
+	int* indices_global, CudaContext&amp; context);</pre></div>
+<h2><a id="algorithm">Algorithm</a></h2>
+<p>Consider an array of objects O[i] (i &lt; N) that each generate a non-negative variable number of work-items counts[i]. The sum of counts is M:</p>
+<div class="snip">
+  <pre>Work-item counts:
+    0:     1    2    4    0    4    4    3    3    2    4
+   10:     0    0    1    2    1    1    0    2    2    1
+   20:     1    4    2    3    2    2    1    1    3    0
+   30:     2    1    1    3    4    2    2    4    0    4
+
+Exc-scan of counts:
+    0:     0    1    3    7    7   11   15   18   21   23
+   10:    27   27   27   28   30   31   32   32   34   36
+   20:    37   38   42   44   47   49   51   52   53   56
+   30:    56   58   59   60   63   67   69   71   75   75
+
+Inc-scan of counts:
+    0:     1    3    7    7   11   15   18   21   23   27
+   10:    27   27   28   30   31   32   32   34   36   37
+   20:    38   42   44   47   49   51   52   53   56   56
+   30:    58   59   60   63   67   69   71   75   75   79
+
+Total work-items: 79</pre></div>
+<p>It is simple to calculate the range of work-items that each object creates. We exclusive scan the work-item counts: these are the 'begin' indices for each object's run of outputs. The 'end' indices, if desired, are the inclusive scan of the objects' counts, or the exclusive scan plus the counts.</p>
+<p>Consider this mapping of object counts into work-items a <em>forward</em> transformation. The corresponding <em>inverse</em> transformation, which maps work-items into the objects that generated them, is not as straight-forward.</p>
+<div class="snip">
+  <pre>Lower-bound search of work-items into exc-scan of counts:
+    0:     0    1    <span class="red">2</span>    2    <span class="red">3    3    3    3    5    5</span>
+   10:     <span class="red">5</span>    5    <span class="red">6    6    6</span>    6    <span class="red">7    7</span>    7    <span class="red">8</span>
+   20:     <span class="red">8</span>    8    <span class="red">9</span>    9   <span class="red">10   10   10   10</span>   13   <span class="red">14</span>
+   30:    14   15   <span class="red">16   18</span>   18   <span class="red">19</span>   19   20   21   <span class="red">22</span>
+   40:    <span class="red">22   22</span>   22   <span class="red">23 </span>  23  <span class="red"> 24   24</span>   24   <span class="red">25</span>   25
+   50:    <span class="red">26</span>   26   27   28   <span class="red">29   29   29   31</span>   31   32
+   60:    33   <span class="red">34   34</span>   34   <span class="red">35   35   35</span>   35   <span class="red">36</span>   36
+   70:    <span class="red">37</span>   37   <span class="red">38   38   38   38   40   40   40</span>
+   
+Lower-bound search of work-items into inc-scan of counts:
+    0:     0    <span class="red">0</span>    1    <span class="red">1</span>    2    2    2    <span class="red">2</span>    4    4
+   10:     4    <span class="red">4</span>    5    5    5    <span class="red">5</span>    6    6    <span class="red">6</span>    7
+   20:     7    <span class="red">7</span>    8   <span class="red"> 8</span>    9    9    9    <span class="red">9   12</span>   13
+   30:    <span class="red">13   14   15</span>   17   <span class="red">17</span>   18   <span class="red">18   19   20</span>   21
+   40:    21   21   <span class="red">21</span>   22   <span class="red">22</span>   23   23   <span class="red">23</span>   24   <span class="red">24</span>
+   50:    25   <span class="red">25   26   27</span>   28   28   <span class="red">28</span>   30   <span class="red">30   31</span>
+   60:    <span class="red">32</span>   33   33   <span class="red">33</span>   34   34   34   <span class="red">34</span>   35   <span class="red">35</span>
+   70:    36   <span class="red">36</span>   37   37   37   <span class="red">37</span>   39   39   39</pre></div>
+<p>The 40 objects generated 79 work-items. Running a lower-bound search from each work-item index (i.e. keys from 0 to 78) on either the exclusive or inclusive scan of object counts doesn't quite work&mdash;the indices in red indicate mismatches. What does work is taking the upper-bound of work-item indices with the exclusive scan of the counts and subtracting one:</p>
+<div class="snip">
+  <pre>Work-item counts:
+    0:     1    2    4    0    4    4    3    3    2    4
+   10:     0    0    1    2    1    1    0    2    2    1
+   20:     1    4    2    3    2    2    1    1    3    0
+   30:     2    1    1    3    4    2    2    4    0    4
+
+Exc-scan of counts:
+    0:     0    1    3    7    7   11   15   18   21   23
+   10:    27   27   27   28   30   31   32   32   34   36
+   20:    37   38   42   44   47   49   51   52   53   56
+   30:    56   58   59   60   63   67   69   71   75   75
+   
+Load-balancing search:
+    0:    <span class="green"> 0    1    1    2    2    2    2    4    4    4</span>
+   10:    <span class="green"> 4    5    5    5    5    6    6    6    7    7</span>
+   20:     <span class="green">7    8    8    9    9    9    9   12   13   13</span>
+   30:    <span class="green">14   15   17   17   18   18   19   20   21   21</span>
+   40:    <span class="green">21   21   22   22   23   23   23   24   24   25</span>
+   50:    <span class="green">25   26   27   28   28   28   30   30   31   32</span>
+   60:    <span class="green">33   33   33   34   34   34   34   35   35   36</span>
+   70:    <span class="green">36   37   37   37   37   39   39   39   39</span>
+
+Work-item rank (i - excscan[LBS[i]]):
+    0:     0    0    1    0    1    2    3    0    1    2
+   10:     3    0    1    2    3    0    1    2    0    1
+   20:     2    0    1    0    1    2    3    0    0    1
+   30:     0    0    0    1    0    1    0    0    0    1
+   40:     2    3    0    1    0    1    2    0    1    0
+   50:     1    0    0    0    1    2    0    1    0    0
+   60:     0    1    2    0    1    2    3    0    1    0
+   70:     1    0    1    2    3    0    1    2    3</pre></div>
+   <p>The load-balancing search providhes each work-item with the index of the object that generated it. The object index can then be used to find the work-item's rank <em>within the generating object</em>. For example, work-item 10 in the figure above was generated by object 4 (see element 10 in the load-balancing search). The scan of counts at position 4 is 7. The difference between the work-item's index (10) and the object's scan (7) is the work-item's rank within the object: 10 - 7 = 3. </p>
+<div class="snip">
+<p>CPULoadBalanceSearch from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarkloadbalance.cu">tests/benchmarkloadbalance.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 40">void CPULoadBalanceSearch(int aCount, const int* b, int bCount, int* indices) {
+	int ai = 0, bi = 0;
+	while(ai &lt; aCount || bi &lt; bCount) {
+		bool p;
+		if(bi >= bCount) p = true;
+		else if(ai >= aCount) p = false;
+		else p = ai &lt; b[bi];	// aKey &lt; bKey is upper-bound condition.
+        
+		if(p) indices[ai++] = bi - 1;	// subtract 1 from the upper-bound.
+		else ++bi;
+	}
+}</pre></div>
+<p>The serial implementation for the load-balancing search is very simple. We only support integer types and the A array is just the sequence of natural numbers. When written this way it's clear that the load-balancing search is immediately parallelizable, and as both input arrays are monotonically non-decreasing, it is in fact a special case of the <a href="sortedsearch.html">vectorized sorted search</a> from the previous page.</p>
+<p class="important"><span class="idiom">Important: </span><strong>Load-balancing search is kind of scan inverse.</strong> It operates on scanned work-item counts and returns the index of the object that generated each work-item. It's more accurate to consider the load-balancing search as an idiom or pattern rather than an algorithm. It's not a step-by-step procedure and it's not intended to directly solve problems. Rather, <strong>the load-balancing search is a concept that helps the programmer better understand scheduling in problems with irregular parallelism</strong>.</p>
+<h2><a id="ctaloadbalance">CTALoadBalance</a></h2>
+<p><code>CTALoadBalance</code> is a very light-weight operator. It can be included at the top of kernels as boilerplate, transforming thread IDs (or global output IDs) into the coordinate space of generating objects. The next two algorithms covered, <a href="intervalmove.html">Interval Move</a> and <a href="join.html">relational join</a>, use this embedded form of load-balancing search.</p>
+<p>You'll usually need to call <code><a href="mergesort.html#mergepathpartitions">MergePathPartitions</a></code> in the host code immediately prior to launching a kernel that uses intra-CTA load-balancing search. This global search runs an <em>upper-bound</em> binary search to find the intersection of each CTA's cross-diagonal with the Merge Path curve defined by the set of all work-item indices (a <code>counting_iterator&lt;int&gt;</code>) and the exclusive scan of work-item counts.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctaloadbalance.cuh">include/device/ctaloadbalance.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 48">template&lt;int VT, bool RangeCheck>
+MGPU_DEVICE void DeviceSerialLoadBalanceSearch(const int* b_shared, int aBegin,
+	int aEnd, int bFirst, int bBegin, int bEnd, int* a_shared) {
+
+	int bKey = b_shared[bBegin];
+
+	#pragma unroll
+	for(int i = 0; i &lt; VT; ++i) {
+		bool p;
+		if(RangeCheck) 
+			p = (aBegin &lt; aEnd) &amp;&amp; ((bBegin >= bEnd) || (aBegin &lt; bKey));
+		else
+			p = aBegin &lt; bKey;
+
+		if(p)
+			// Advance A (the needle).
+			a_shared[aBegin++] = bFirst + bBegin;
+		else
+			// Advance B (the haystack).
+			bKey = b_shared[++bBegin];
+	}
+}</pre></div>
+<p>We'll start with the serial loop <code>DeviceSerialLoadBalanceSearch</code>, a GPU treatment of <code>CPULoadBalanceSearch</code>. The interval of scan elements available to the thread, <code>b_shared</code>, are passed to the function in shared memory. Elements of the A array are output (work-item) indices and are generated directly from the interval range. </p>
+<p>Because the A inputs take no space in shared memory, and because we emit one output per A input, we store search results directly to shared memory rather than to register array. This is a break from the other routines in this library, where we gather sources from shared memory and keep temporary outputs in register, synchronize, then store back to shared memory to conserve space. The sequential nature of the A inputs lets us store the upper-bound - 1 directly into shared memory, simplifying the routine.<br />
+</p>
+<p>Like vectorized sorted search, full tiles that load a halo element at the end of the CTA's B interval can elide range checking. The nominal form of <code>DeviceSerialLoadBalanceSearch</code> makes only a single comparison (<code>aBegin &lt; bKey</code>) per iteration, giving us a very lightweight and low-latency function.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctaloadbalance.cuh">include/device/ctaloadbalance.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 79">template&lt;int NT, int VT>
+MGPU_DEVICE int4 CTALoadBalance(int destCount, const int* b_global, 
+	int sourceCount, int block, int tid, const int* mp_global, 
+	int* indices_shared, bool loadPrecedingB) {
+		    
+	int4 range = ComputeMergeRange(destCount, sourceCount, block, 0, NT * VT, 
+		mp_global);
+
+	int a0 = range.x;
+	int a1 = range.y;
+	int b0 = range.z;
+	int b1 = range.w;
+
+	if(loadPrecedingB) { 
+		if(!b0) loadPrecedingB = false;
+		else --b0;
+	}
+
+	bool extended = a1 &lt; destCount &amp;&amp; b1 &lt; sourceCount;
+	int aCount = a1 - a0;
+	int bCount = b1 - b0;
+
+	int* a_shared = indices_shared;
+	int* b_shared = indices_shared + aCount;
+
+	// Load the b values (scan of work item counts).
+	DeviceMemToMemLoop&lt;NT>(bCount + (int)extended, b_global + b0, tid, 
+		b_shared);
+
+	// Run a merge path to find the start of the serial merge for each thread.
+	int diag = min(VT * tid, aCount + bCount - (int)loadPrecedingB);
+	int mp = MergePath&lt;MgpuBoundsUpper>(mgpu::counting_iterator&lt;int>(a0),
+		aCount, b_shared + (int)loadPrecedingB, bCount - (int)loadPrecedingB,
+		diag, mgpu::less&lt;int>());
+
+	int a0tid = a0 + mp;
+	int b0tid = diag - mp + (int)loadPrecedingB;
+	
+	// Subtract 1 from b0 because we want to return upper_bound - 1.
+	if(extended)
+		DeviceSerialLoadBalanceSearch&lt;VT, false>(b_shared, a0tid, a1, b0 - 1, 
+			b0tid, bCount, a_shared - a0);
+	else
+		DeviceSerialLoadBalanceSearch&lt;VT, true>(b_shared, a0tid, a1, b0 - 1, 
+			b0tid, bCount, a_shared - a0);
+	__syncthreads();
+
+	return make_int4(a0, a1, b0, b1);
+}</pre></div>
+<p><code>CTALoadBalance</code> is the standard CTA-entry point for load-balancing search and a function we've demonstrated back in the <a href="intro.html#expand">introduction</a>. </p>
+<p>An upper-bound <code>MergePath</code> search divides input arrays A (the natural numbers) and B (the scan of counts) into distinct, non-overlapping ranges. <code>ComputeMergeRange</code> returns the tuple (a0, a1, b0, b1) of input intervals. Scan offsets are loaded into shared memory with <code>DeviceMemToMemLoop</code>, a device function that cooperatively loads intervals that are expected to be much smaller than NV elements.</p>
+<p><code>MergePath&lt;MgpuBoundsUpper&gt;</code> is called on <code>counting_iterator&lt;int&gt;(0)</code> to divide the input domains into equal-size partitions. <code>DeviceSerialLoadBalance</code> sequentially traverses the inputs and stores search indices to the start of shared memory, where the caller expects to see them returned.</p>
+<div class="snip"><pre>A array:
+    0:    <span class="green"> 0    1    2    3    4    5    6    7    8    9</span>
+   10:    <span class="green">10   11   12   13   14   15   16   17   18   19</span>
+   20:    <span class="green">20   </span><span class="red">21   22   23   24   25   26   27   28   29</span>
+   30:    <span class="red">30   31   32   33   34   35   36   37   </span><span class="blue">38   39</span>
+   40:    <span class="blue">40   41   42   43   44   45   46   47   48   49</span>
+   50:    <span class="blue">50   51   52   53   54   55   56   57   </span><span class="orange">58   59</span>
+   60:    <span class="orange">60   61   62   63   64   65   66   67   68   69</span>
+   70:   <span class="orange"> 70   71   72   73   74   75   76   77   78</span>
+
+B array (Exc-scan of counts):
+    0:    <span class="green"> 0    1    3    7    7   11   15   18   21</span><span class="red">   23</span>
+   10:    <span class="red">27   27   27   28   30   31   32   32   34   36</span>
+   20:    <span class="red">37   </span><span class="blue">38   42   44   47   49   51</span>   <span class="blue">52   53   56</span>
+   30:   <span class="blue"> 56   </span><span class="orange">58   59   60   63   67   69   71   75   75</span>
+
+Divide into 4 equal partitions:
+Tile 0: A = ( 0, 21)  B = ( 0,  9)
+Tile 1: A = (21, 38)  B = ( 9, 22)
+Tile 2: A = (38, 58)  B = (22, 31)
+Tile 3: A = (58, 79)  B = (31, 40)
+
+Load-balancing search:
+    0:    <span class="green"> 0    1    1    2    2    2    2    4    4    4</span>
+   10:    <span class="green"> 4    5    5    5    5    6    6    6    7    7</span>
+   20:     <span class="green">7    </span><span class="red">8    8    9    9    9    9   12   13   13</span>
+   30:    <span class="red">14   15   17   17   18   18   19   20   </span><span class="blue">21   21</span>
+   40:    <span class="blue">21   21   22   22   23   23   23   24   24   25</span>
+   50:    <span class="blue">25   26   27   28   28   28   30   30</span><span class="orange">   31   32</span>
+   60:    <span class="orange">33   33   33   34   34   34   34   35   35   36</span>
+   70:    <span class="orange">36   37   37   37   37   39   39   39   39</span></pre>
+</div>
+<p>There is a minor complication regarding the ranges of data to load. Consider dividing the sample objects into four evenly-sized parts. Tile 0 loads, notionally, (0, 21) from A and (0, 9) from B. Tile 1 loads (21, 38) from A and (9, 22) from B; etc. If a CTA only wishes to compute the load-balancing search, adhering to this non-overlapping coverage is adequete, as we know from dealing with vectorized sorted search.</p>
+<p>If, on the other hand, the caller wishes to compute the <em>rank</em> of each work-item within its generating object in addition to that object's index, a modification is required. Take, for example, the tile that loads the elements in red. Its first work-item (item 21) is generated by object 8 (see index 21 in the load-balancing search). We try to compute the rank of item 21 by looking up element 8 of the scan of counts, but that element is mapped into a different tile! This is due to the upper-bound Merge Path consuming elements of B (the scan) before consuming equal elements of A (the work-item indices).</p>
+<p>We rectify this problem by simply loading the <em>preceding element of B</em>, if available. This element consumes an extra shared memory slot but doesn't complicate the serial search: each thread still traverses exactly VT elements. We simply load the preceding element of B to make it available when computing work-item ranks.</p>
+<p>Load-balancing search, when used from inside a kernel, maps a variable number of work-items to each tile. <code>CTALoadBalance</code> returns an <code>int4</code> type with the ranges (a0, a1, b0, b1), where (a0, a1) is the non-overlapping interval of outputs and (b0, b1) is the range of inputs (potentially overlapping by 1 if <code>precedingB</code> is true). This decomposition of work is unusual in GPU programming but is actually very helpful when it comes to negotiating storage inside the CTA. <a href="intervalmove.html#intervalexpand">IntervalExpand</a> and <a href="intervalmove.html#intervalmove">IntervalMove</a> on the next page exploit this irregular division of output to enable some powerful new primitives.</p><br />
+<div class="toclist"><ul>
+ 	<li class="tocprev">&laquo; <a href="sortedsearch.html">Vectorized Sorted Search</a></li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="intervalmove.html">IntervalMove</a> &raquo;</li></ul>
+</div><br/>
+  </body>
+</html>

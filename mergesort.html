@@ -1,0 +1,591 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type" />
+  <title>Mergesort - Modern GPU</title>
+  <link href="mgpu.css" rel="stylesheet" type="text/css" />
+  <script src="syntaxhighlighter_3.0.83/scripts/shCore.js" type="text/javascript"></script>
+  <script src="syntaxhighlighter_3.0.83/scripts/shBrushCpp.js" type="text/javascript"></script>
+  <link href="syntaxhighlighter_3.0.83/styles/shThemeDefault.css" rel="stylesheet" type="text/css" />
+  <link href="syntaxhighlighter_3.0.83/styles/shCore.css" rel="stylesheet" type="text/css" />
+  <script type="text/javascript"> SyntaxHighlighter.all() </script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25772750-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</head><body class="tutorial">
+<a href="https://github.com/NVlabs/moderngpu"><img style="position: absolute; top: 0; right: 0; border: 0;" width="149" height="149" src="forkme_right_green_007200.png" alt="Fork me on GitHub" /></a>
+<div class="copyright">
+<p><strong>&copy; 2013, NVIDIA CORPORATION. All rights reserved.</strong></p>
+<p>Code and text by <a href="https://www.twitter.com/moderngpu">Sean Baxter</a>, NVIDIA Research.</p>
+<p>(Click <a href="faq.html#license">here</a> for license. Click <a href="faq.html#contact">here</a> for contact information.)</p>
+</div><br />
+<div class="toclist"><ul>
+ 	<li class="tocprev">&laquo; <a href="merge.html">Merge</a></li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="segsort.html">Segmented Sort</a> &raquo;</li></ul>
+</div><br/>
+<h1>Mergesort</h1>
+<p>A high-throughput mergesort that is perfectly load-balanced over all threads. Develops partitioning and scheduling functions that are used throughout these pages. This mergesort is the basis for high-performance segmented and locality sorts that work with structured data (i.e. non-uniformly random).</p>
+
+<h2><a id="benchmark">Benchmark and usage</a></h2>
+<div class="figure"><img src="benchmark_sortkeys.png" width="703" height="420" alt="" /></div><p class="cap">Sort Keys benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarksort.cu">tests/benchmarksort.cu</a></p>
+<div class="snip">
+  <p>Sort keys demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 196">void DemoSortKeys(CudaContext&amp; context) {
+	printf("\n\nSORT KEYS DEMONSTRATION:\n\n");
+
+	// Use CudaContext::GenRandom to generate 100 random integers between 0 and
+	// 199.
+	int N = 100;
+	MGPU_MEM(int) data = context.GenRandom&lt;int>(N, 0, 99);
+	
+	printf("Input:\n");
+	PrintArray(*data, "%4d", 10);
+
+	// Mergesort keys.
+	MergesortKeys(data->get(), N, mgpu::less&lt;int>(), context);
+
+	printf("\nSorted output:\n");
+	PrintArray(*data, "%4d", 10);
+}</pre><hr /><pre>SORT KEYS DEMONSTRATION:
+
+Input:
+    0:     5   95   68   53    4   87    7   93   52   66
+   10:     9   28   81    6   81   23   72   70   14   19
+   20:    65   42   51   93   97   14   64   64   80   47
+   30:    45   43   43   24   82   50    8   90   13    7
+   40:    17   71   39   61   83   18   80   39    6   27
+   50:    39   85   52   90   41   61   65   18   62   51
+   60:    29   82   43   35    1   81   98   29   16   17
+   70:    10   49   37   19   19   86   48   20   33   61
+   80:    95   87   92   39    5   94   73   16   26   97
+   90:    42   56   54   59   94   13   41   56   98   55
+
+Sorted output:
+    0:     1    4    5    5    6    6    7    7    8    9
+   10:    10   13   13   14   14   16   16   17   17   18
+   20:    18   19   19   19   20   23   24   26   27   28
+   30:    29   29   33   35   37   39   39   39   39   41
+   40:    41   42   42   43   43   43   45   47   48   49
+   50:    50   51   51   52   52   53   54   55   56   56
+   60:    59   61   61   61   62   64   64   65   65   66
+   70:    68   70   71   72   73   80   80   81   81   81
+   80:    82   82   83   85   86   87   87   90   90   92
+   90:    93   93   94   94   95   95   97   97   98   98</pre></div><div class="figure">.<img src="benchmark_sortpairs.png" width="703" height="420" alt=""/></div>
+   <p class="cap">Sort Pairs benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarksort.cu">tests/benchmarksort.cu</a></p>
+<div class="snip"><p>Sort pairs demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 217">void DemoSortPairs(CudaContext&amp; context) {
+	printf("\n\nSORT PAIRS DEMONSTRATION:\n\n");
+
+	// Use CudaContext::GenRandom to generate 100 random integers between 0 and
+	// 99.
+	int N = 100;
+	MGPU_MEM(int) keys = context.GenRandom&lt;int>(N, 0, 99);
+	MGPU_MEM(int) vals = context.FillAscending&lt;int>(N, 0, 1);
+
+	printf("Input keys:\n");
+	PrintArray(*keys, "%4d", 10);
+
+	// Mergesort pairs.
+	MergesortPairs(keys->get(), vals->get(), N, mgpu::less&lt;int>(), context);
+
+	printf("\nSorted keys:\n");
+	PrintArray(*keys, "%4d", 10);
+
+	printf("\nSorted values:\n");
+	PrintArray(*vals, "%4d", 10);
+}</pre><hr /><pre>Input:
+    0:    30   31   70   12   66   73   53   24   69   82
+   10:    66   18   17   31   12   88   99   67   17   73
+   20:     3    6   56   13   88    8   66    0   19   45
+   30:    36   63   46   52   98   49   15   33   85   25
+   40:    64   23   37   17   19   59   42   72   48   87
+   50:    12   70   58   23   22   47   38    1   58   74
+   60:    25   65   29    7   61   47   26   99   82   53
+   70:    98   89   73   77   34   20   58   90   10   37
+   80:    90   84   87   32   81   32   26   65   59   58
+   90:     2    4   42   76   31   49   16   48   17   42
+
+Sorted keys:
+    0:     0    1    2    3    4    6    7    8   10   12
+   10:    12   12   13   15   16   17   17   17   17   18
+   20:    19   19   20   22   23   23   24   25   25   26
+   30:    26   29   30   31   31   31   32   32   33   34
+   40:    36   37   37   38   42   42   42   45   46   47
+   50:    47   48   48   49   49   52   53   53   56   58
+   60:    58   58   58   59   59   61   63   64   65   65
+   70:    66   66   66   67   69   70   70   72   73   73
+   80:    73   74   76   77   81   82   82   84   85   87
+   90:    87   88   88   89   90   90   98   98   99   99
+
+Sorted values:
+    0:    27   57   90   20   91   21   63   25   78    3
+   10:    14   50   23   36   96   12   18   43   98   11
+   20:    28   44   75   54   41   53    7   39   60   66
+   30:    86   62    0    1   13   94   83   85   37   74
+   40:    30   42   79   56   46   92   99   29   32   55
+   50:    65   48   97   35   95   33    6   69   22   52
+   60:    58   76   89   45   88   64   31   40   61   87
+   70:     4   10   26   17    8    2   51   47    5   19
+   80:    72   59   93   73   84    9   68   81   38   49
+   90:    82   15   24   71   77   80   34   70   16   67</pre></div>
+<h2><a id="host">Host functions</a></h2>
+<div class="snip">
+  <p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 159">////////////////////////////////////////////////////////////////////////////////
+// kernels/mergesort.cuh
+
+// MergesortKeys sorts data_global using comparator Comp.
+// If !comp(b, a), then a comes before b in the output. The data is sorted
+// in-place.
+template&lt;typename T, typename Comp>
+MGPU_HOST void MergesortKeys(T* data_global, int count, Comp comp,
+	CudaContext&amp; context);
+
+// MergesortKeys specialized with Comp = mgpu::less&lt;T>.
+template&lt;typename T>
+MGPU_HOST void MergesortKeys(T* data_global, int count, CudaContext&amp; context);
+
+// MergesortPairs sorts data by key, copying data. This corresponds to 
+// sort_by_key in Thrust.
+template&lt;typename KeyType, typename ValType, typename Comp>
+MGPU_HOST void MergesortPairs(KeyType* keys_global, ValType* values_global,
+	int count, Comp comp, CudaContext&amp; context);
+
+// MergesortPairs specialized with Comp = mgpu::less&lt;KeyType>.
+template&lt;typename KeyType, typename ValType>
+MGPU_HOST void MergesortPairs(KeyType* keys_global, ValType* values_global,
+	int count, CudaContext&amp; context);
+
+// MergesortIndices is like MergesortPairs where values_global is treated as
+// if initialized with integers (0 ... count - 1). 
+template&lt;typename KeyType, typename Comp>
+MGPU_HOST void MergesortIndices(KeyType* keys_global, int* values_global,
+	int count, Comp comp, CudaContext&amp; context);
+
+// MergesortIndices specialized with Comp = mgpu::less&lt;KeyType>.
+template&lt;typename KeyType>
+MGPU_HOST void MergesortIndices(KeyType* keys_global, int* values_global,
+	int count, CudaContext&amp; context);</pre></div>
+<h2><a id="algorithm">Algorithm</a></h2>
+<p><a href="http://en.wikipedia.org/wiki/Merge_sort">Mergesort</a> recursively merges sorted lists until the sequence is fully sorted.</p>
+<div class="snip">
+<pre>
+Input array is treated as sequence of sorted lists of length 1:
+   <span class="green">13  </span><strong>90  </strong><span class="green">83  </span><strong>12  </strong><span class="green">96  </span><strong>91  </strong><span class="green">22  </span><strong>63  </strong><span class="green">30  </span><strong> 9  </strong><span class="green">54  </span><strong>27  </strong><span class="green">18  </span><strong>54  </strong><span class="green">99  </span><strong>95  </strong>
+  
+Merge adjacent pairs of length-1 lists into sequence of length-2 lists:
+   <span class="green">13  90</span>  <strong>12  83</strong>  <span class="green">91  96</span>  <strong>22  63</strong>   <span class="green">9  30</span>  <strong>27  54</strong>  <span class="green">18  54</span>  <strong>95  99</strong>
+   
+Merge adjacent pairs of length-2 lists into sequence of length-4 lists:
+   <span class="green">12  13  83  90</span>  <strong>22  63  91  96</strong>   <span class="green">9  27  30  54</span>  <strong>18  54  95  99</strong>
+
+Merge adjacent pairs of length-4 lists into sequence of length-8 lists:
+   <span class="green">12  13  22  63  83  90  91  96</span>   <strong>9  18  27  30  54  54  95  99</strong>
+   
+Merge adjacent pairs of length-8 lists into final length-16 output:   
+    <span class="green">9  12  13  18  22  27  30  54  54  63  83  90  91  95  96  99</span></pre></div>
+    <p>Although mergesort takes one unsorted array as in input, thematically it is the same as the functions that make up the bulk of MGPU: take two sorted inputs and emit one sorted output. This is clear if treat consecutive input elements as two sorted lists of length 1. Mergesort is type of multi-pass vectorized merge: the first iteration executes N / 2 merges with inputs of length 1; the second iteration executes N / 4 merges with inputs of length 2; etc.</p>
+    <p>The number of batched merge passes is log(N) and the work per pass is N. This O(N log N) work-efficiency hurts mergesort's scalability compared to radix sort. This mergesort implementation runs at about half the throughput on large arrays with 32-bit keys as the fastest GPU radix sorts. But it still clocks about 100x faster than calling std::stable_sort on an i7 Sandy Bridge. If the sort is truly on a critical path, it may be worth pulling a radix sort from <a href="https://code.google.com/p/back40computing/source/browse/#svn%2Fbranches%2FFastSortSm20%2Fb40c%2Fradix_sort">B40C/FastSortSm20</a>. Otherwise you can get by just fine with this very hackable mergesort, or use one of MGPU's higher-performance derivative sorts (<a href="segsort.html#segsortbenchmark">segmented sort</a> or <a href="segsort.html#localitysortbenchmark">locality sort</a>).</p>
+    <p>O(N log N) complexity aside, mergesort has some notable advantages over radix sort:</p>
+    <ol class="idiom"><li>
+      <p>Mergesort is a comparison sort. While radix sort requires types to have the same lexicographical order as integers, limiting practical use to numeric types like ints and floats, mergesort accepts a user-defined comparator function. This allows mergesort to efficiently handle types like strings by calling <code>strcmp</code> from the comparator.</p></li>
+      <li>
+        <p>Mergesort scales better as keys get larger. Radix sort's work-efficiency is O(k N), where k is the key size in bits. Mergesort's complexity is only dependent on the number of input elements.</p></li>
+        <li>
+          <p>Mergesort provides  extremely fast CTA-level blocksorts. On small inputs (like data mapped into an individual tile) the O(log N) penalty is on order with radix sort's O(k) penalty. Mergesort's simpler, faster inner loop allows blocksorts that are more flexible, easier to maintain, and often quicker than radix blocksorts.</p></li>
+        <li>
+          <p>Mergesort makes data progressively more sorted, never less. Even when launched on fully-sorted inputs, LSB radix sort randomly scatters data each pass, only putting the data into sorted order during the final pass. On fully sorted inputs, mergesort simply copies the data log(N) times. This pass-to-pass coherence allows detection of sorted intervals and early-exits to reduce unnecessary work. The O(N log N) complexity is only for uniform random inputs&mdash;data with exploitable structure can be sorted with far fewer comparisons. The <a href="segsort.html">next page</a> builds special-case mergesorts that detect input structure and early-exit out of unnecessary operations.</p></li>
+    </ol>
+    <p>Mergesort on GPU runs best when written in two distinct stages:</p>
+<ol class="idiom">
+	<li>
+	  <p>A blocksort kernel sorts random inputs into tile-length sorted lists, communicating with low-latency, high-bandwidth shared memory .The CTA blocksort forms a convenient re-usable component for MGPU's customers.</p></li>
+	<li>
+	  <p>Multiple launches of <a href="merge.html">MGPU Merge</a> iteratively merge sorted lists, starting with the output of <span class="idiom">1</span>, communicating between passes with high-latency, high-capacity DRAM. </p></li>
+</ol>
+<div class="figure"><img src="mergesort_coop2.png" width="360" height="360" alt=" " /></div>
+<p class="cap">Mergesort merge pass with coop = 2</p>
+<div class="figure"><img src="mergesort_coop4.png" width="360" height="360" alt=" " /></div>
+<p class="cap">Mergesort merge pass with coop = 4</p>
+<p>Both the blocksort and global merge passes follow the structure illustrated above. Pairs of threads (or CTAs for the global merge passes) cooperatively merge two VT-length lists (or two NV-length lists) into one list. This phase is noted <code>coop = 2</code>, for <em>2</em> threads cooperating on each pair of input lists. During the <code>coop = 4</code> pass, <em>4</em> threads cooperatively merge two lists into one; during <code>coop = 8</code>, <em>8</em> threads cooperatively merge two lists; and so on. Although there are many sorted lists in the data, threads cooperatively merge from only two of them at a time.</p>
+<p>The figure at the top shows 16 sorted lists (each segment along the top and right of a square is a list). Two threads cooperate to merge each pair of lists (a square) into a single list (a segment) for the <code>coop = 4</code> pass. Threads 0 and 1 merge the top and right segments of the first pair in <code>coop = 2</code> into the top segment of the first pair in <code>coop = 4</code>; threads 2 and 3 merge the top and right segments of the second pair in <code>coop = 2</code> into the right segment of the first pair in <code>coop = 4</code>; etc. This process continues until only a single sorted list remains.</p>
+<p>For each global merge pass, a call to <code>MergePathPartitions</code> partitions the input arrays into tile-sized chunks. <code>ComputeMergeRange</code> is invoked early in <code>KernelMerge</code> to identify the intervals of the input to load. We then hand the intra-CTA merging to <code>DeviceMerge</code>, developed in the <a href="merge.html#algorithm">previous page</a>.</p>
+<h2><a id="sortnetworks">Sorting networks</a></h2>
+
+<p>MGPU's blocksort loads VT values per thread over NT threads per CTA. Merging requires dynamic indexing, which means shared memory. The first few rounds of merges can be replaced by an in-register sorting network. <a href="http://en.wikipedia.org/wiki/Batcher_odd%E2%80%93even_mergesort">Batcher's odd-even mergesort</a> sorts inputs in O(n log<sup>2 </sup>n time) using only comparisons and swaps. The <a href="http://en.wikipedia.org/wiki/Odd%E2%80%93even_sort">odd-even transposition sort</a> takes O(n<sup>2</sup>) comparisons but adds stability. These sorting networks are relatively inefficient, but expose great amounts of immediate parallelism, making them effective tools for sorting small inputs.</p>
+    <p> Although MGPU includes an implementation for Batcher's odd-even mergesort (in <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/sortnetwork.cuh">sortnetwork.cuh</a>), the slower odd-even transposition sort is preferred, because it is stable. It takes more comparisons to sort a thread using this network, but the cost is small compared to the cost of the many recursive merge passes that follow.</p>
+<div class="snip">
+<pre> <u>13   90   83   12   96   91   22   63   30    9   54   27   18   54   99   95</u>
+
+(<strong>13   90</strong>) (<span class="green">12   83</span>) (<strong>91   96</strong>) (<span class="green">22   63</span>) (<strong> 9   30</strong>) (<span class="green">27   54</span>) (<strong>18   54</strong>) (<span class="green">95   99</span>)
+     (<span class="green">12   90</span>) (<strong>83   91</strong>) (<span class="green">22   96</span>) (<strong> 9   63</strong>) (<span class="green">27   30</span>) (<strong>18   54</strong>) (<span class="green">54   95</span>)
+(<strong>12   13</strong>) (<span class="green">83   90</span>) (<strong>22   91</strong>) (<span class="green"> 9   96</span>) (<strong>27   63</strong>) (<span class="green">18   30</span>) (<strong>54   54</strong>) (<span class="green">95   99</span>)
+     (<span class="green">13   83</span>) (<strong>22   90</strong>) (<span class="green"> 9   91</span>) (<strong>27   96</strong>) (<span class="green">18   63</span>) (<strong>30   54</strong>) (<span class="green">54   95</span>)
+(<strong>12   13</strong>) (<span class="green">22   83</span>) (<strong> 9   90</strong>) (<span class="green">27   91</span>) (<strong>18   96</strong>) (<span class="green">30   63</span>) (<strong>54   54</strong>) (<span class="green">95   99</span>)
+     (<span class="green">13   22</span>) (<strong> 9   83</strong>) (<span class="green">27   90</span>) (<strong>18   91</strong>) (<span class="green">30   96</span>) (<strong>54   63</strong>) (<span class="green">54   95</span>)
+(<strong>12   13</strong>) (<span class="green"> 9   22</span>) (<strong>27   83</strong>) (<span class="green">18   90</span>) (<strong>30   91</strong>) (<span class="green">54   96</span>) (<strong>54   63</strong>) (<span class="green">95   99</span>)
+     (<span class="green"> 9   13</span>) (<strong>22   27</strong>) (<span class="green">18   83</span>) (<strong>30   90</strong>) (<span class="green">54   91</span>) (<strong>54   96</strong>) (<span class="green">63   95</span>)
+(<strong> 9   12</strong>) (<span class="green">13   22</span>) (<strong>18   27</strong>) (<span class="green">30   83</span>) (<strong>54   90</strong>) (<span class="green">54   91</span>) (<strong>63   96</strong>) (<span class="green">95   99</span>)
+     (<span class="green">12   13</span>) (<strong>18   22</strong>) (<span class="green">27   30</span>) (<strong>54   83</strong>) (<span class="green">54   90</span>) (<strong>63   91</strong>) (<span class="green">95   96</span>)
+(<strong> 9   12</strong>) (<span class="green">13   18</span>) (<strong>22   27</strong>) (<span class="green">30   54</span>) (<strong>54   83</strong>) (<span class="green">63   90</span>) (<strong>91   95</strong>) (<span class="green">96   99</span>)
+     (<span class="green">12   13</span>) (<strong>18   22</strong>) (<span class="green">27   30</span>) (<strong>54   54</strong>) (<span class="green">63   83</span>) (<strong>90   91</strong>) (<span class="green">95   96</span>)
+(<strong> 9   12</strong>) (<span class="green">13   18</span>) (<strong>22   27</strong>) (<span class="green">30   54</span>) (<strong>54   63</strong>) (<span class="green">83   90</span>) (<strong>91   95</strong>) (<span class="green">96   99</span>)
+     (<span class="green">12   13</span>) (<strong>18   22</strong>) (<span class="green">27   30</span>) (<strong>54   54</strong>) (<span class="green">63   83</span>) (<strong>90   91</strong>) (<span class="green">95   96</span>)
+(<strong> 9   12</strong>) (<span class="green">13   18</span>) (<strong>22   27</strong>) (<span class="green">30   54</span>) (<strong>54   63</strong>) (<span class="green">83   90</span>) (<strong>91   95</strong>) (<span class="green">96   99</span>)
+     (<span class="green">12   13</span>) (<strong>18   22</strong>) (<span class="green">27   30</span>) (<strong>54   54</strong>) (<span class="green">63   83</span>) (<strong>90   91</strong>) (<span class="green">95   96</span>)
+ <u>                                                                             </u>
+  9   12   13   18   22   27   30   54   54   63   83   90   91   95   96   99</pre></div>
+    <p>Sorting an array of N inputs needs N transposition passes. Stability is gained by only comparing pairs of <em>neighboring</em> elements, and only exchanging when the element on the right is smaller. 16 inputs are sorted in this illustration. Pairs starting at offset 0 are compared and swapped on even passes; pairs starting at offset 1 are compared and swapped on odd passes. Items in the same pair are drawn in the same color - observe that the second pair of values (83, 12) are swapped into (12, 83) during the first pass. The small 9 that starts in the middle is moved peristaltically to the front of the array.</p>
+    <p>We get the problem started by loading and transposing VT elements per thread into register, so that each thread has items VT * tid + i in register. Each thread calls <code>OddEvenTransposeSort</code> to sort its own set of elements in register. This phase of the blocksort uses no shared memory and has high ILP (all of the compare-and-swaps in each row can be performed in parallel).</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/sortnetwork.cuh">include/device/sortnetwork.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 49">template&lt;int VT, typename T, typename V, typename Comp>
+MGPU_DEVICE void OddEvenTransposeSort(T* keys, V* values, Comp comp) {
+	#pragma unroll
+	for(int level = 0; level &lt; VT; ++level) {
+
+		#pragma unroll
+		for(int i = 1 &amp; level; i &lt; VT - 1; i += 2) {
+			if(comp(keys[i + 1], keys[i])) {
+				mgpu::swap(keys[i], keys[i + 1]);
+				mgpu::swap(values[i], values[i + 1]);
+			}
+		}
+	}
+}</pre></div>
+    <p>Odd-even transposition sort has two nested loops: the outer iterates over the number of inputs (each row in the figure); the inner iterates over the number of pairs, as shown above. Unfortunately CUDA's <code>#pragma unroll</code> feature still has some kinks, and the compiler currently fails to unroll all the static indexing when the function is written this way. Spills result.</p>
+<div class="snip"><p> <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/sortnetwork.cuh">include/device/sortnetwork.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 64">template&lt;int I, int VT>
+struct OddEvenTransposeSortT {
+	// Sort segments marked by head flags. If the head flag between i and i + 1
+	// is set (so that (2&lt;&lt; i) &amp; flags is true), the values belong to different 
+	// segments and are not swapped.
+	template&lt;typename K, typename V, typename Comp>
+	static MGPU_DEVICE void Sort(K* keys, V* values, int flags, 
+		Comp comp) {
+		#pragma unroll
+		for(int i = 1 &amp; I; i &lt; VT - 1; i += 2)
+			if((0 == ((2&lt;&lt; i) &amp; flags)) &amp;&amp; comp(keys[i + 1], keys[i])) {
+				mgpu::swap(keys[i], keys[i + 1]);
+				mgpu::swap(values[i], values[i + 1]);
+			}
+		OddEvenTransposeSortT&lt;I + 1, VT>::Sort(keys, values, flags, comp);
+	}
+};
+template&lt;int I> struct OddEvenTransposeSortT&lt;I, I> {
+	template&lt;typename K, typename V, typename Comp>
+	static MGPU_DEVICE void Sort(K* keys, V* values, int flags,
+		Comp comp) { }
+};
+
+template&lt;int VT, typename K, typename V, typename Comp>
+MGPU_DEVICE void OddEvenTransposeSort(K* keys, V* values, Comp comp) {
+	OddEvenTransposeSortT&lt;0, VT>::Sort(keys, values, 0, comp);
+}
+template&lt;int VT, typename K, typename V, typename Comp>
+MGPU_DEVICE void OddEvenTransposeSortFlags(K* keys, V* values, int flags, 
+	Comp comp) {
+	OddEvenTransposeSortT&lt;0, VT>::Sort(keys, values, flags, comp);
+}</pre></div>
+<p>We bend to pragmatism and write the code like this. Template loop unrolling replaces the <code>#pragma unroll</code> nesting, allowing the sorting network to compile correctly. This implementation takes a bitfield of segment head flags to support the segmented sort (we'll revisit this part on the next page). For standard mergesort, the bitfield is always 0 and the associated logic is eliminated by the compiler.</p>
+<h2><a id="blocksort">Blocksort</a></h2>
+<div class="snip">
+<p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctamerge.cuh">include/device/ctamerge.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 184">template&lt;int NT, int VT, bool HasValues, typename KeyType, typename ValType,
+	typename Comp>
+MGPU_DEVICE void CTAMergesort(KeyType threadKeys[VT], ValType threadValues[VT],
+	KeyType* keys_shared, ValType* values_shared, int count, int tid,
+	Comp comp) {
+
+	// Stable sort the keys in the thread.
+	if(VT * tid &lt; count)
+		OddEvenTransposeSort&lt;VT>(threadKeys, threadValues, comp);
+
+	// Store the locally sorted keys into shared memory.
+	DeviceThreadToShared&lt;VT>(threadKeys, tid, keys_shared);
+
+	// Recursively merge lists until the entire CTA is sorted.
+	DeviceBlocksortLoop&lt;NT, VT, HasValues>(threadValues, keys_shared, 
+		values_shared, tid, count, comp);
+}</pre></div>
+<p><code>CTAMergesort</code> is a reusable block-level mergesort. MGPU uses this function for the <a href="segsort.html">locality sort</a> function in addition to standard mergesort. If the user wants to only sort keys, set <code>HasValues</code> to false and <code>ValType</code> to int. Use this function by passing unsorted keys and values in thread order (i.e. VT * tid + i) through register. On return, the same register arrays contain fully-sorted data. Shared memory is also filled with the sorted keys, making coalesced stores back to global memory convenient.</p>
+<p>When sorting a partial tile, pad out the last valid thread (the last thread in the CTA with with in-range values) with copies of the largest key in that thread. The actual mergesort can handle partial blocks just fine: this padding helps keep the sorting network simple. (We only specialize the sorting network for one size, VT.)<br />
+</p>
+<p>After running the intra-thread sorting network we need to recursively merge sorted lists. Start with pairs of threads cooperating on one destination. Call this pass <code>coop = 2</code>, because two threads cooperate on each output list. As the list size doubles, so does the number of cooperating threads per list. We loop until only a single sorted list remains.</p>
+<div class="snip">
+  <p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctamerge.cuh">include/device/ctamerge.cuh</a></p>
+  <pre class="brush: cpp; toolbar: false; first-line: 154">template&lt;int NT, int VT, bool HasValues, typename KeyType, typename ValType,
+	typename Comp>
+MGPU_DEVICE void CTABlocksortLoop(ValType threadValues[VT], 
+	KeyType* keys_shared, ValType* values_shared, int tid, int count, 
+	Comp comp) {
+
+	#pragma unroll
+	for(int coop = 2; coop &lt;= NT; coop *= 2) {
+		int indices[VT];
+		KeyType keys[VT];
+		CTABlocksortPass&lt;NT, VT>(keys_shared, tid, count, coop, keys,
+			indices, comp);
+
+		if(HasValues) {
+			// Exchange the values through shared memory.
+			DeviceThreadToShared&lt;VT>(threadValues, tid, values_shared);
+			DeviceGather&lt;NT, VT>(NT * VT, values_shared, indices, tid, 
+				threadValues);
+		}
+
+		// Store results in shared memory in sorted order.
+		DeviceThreadToShared&lt;VT>(keys, tid, keys_shared);
+	}
+}</pre></div>
+<p><code>CTABlocksortLoop</code> is called with keys sorted into VT-length lists in shared memory. Values are passed in thread order in register (<code>threadValues</code>). Log(NT) loop iterations are made. <code>CTABlocksortPass</code> returns merged keys and indices in register. With the merged keys in safely in register, the function writes back the new lists with D<code>DeviceThreadToShared</code>. It gathers them back into register with <code>DeviceGather</code>.</p>
+<p>Note that we only have the input or output data staged in shared memory at any one time, not both. MGPU Mergesort is fast because it intelligently manages occupancy this way.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctamerge.cuh">include/device/ctamerge.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 136">template&lt;int NT, int VT, typename T, typename Comp>
+MGPU_DEVICE void CTABlocksortPass(T* keys_shared, int tid, 
+	int count, int coop, T* keys, int* indices, Comp comp) {
+
+	int list = ~(coop - 1) &amp; tid;
+	int diag = min(count, VT * ((coop - 1) &amp; tid));
+	int start = VT * list;
+	int a0 = min(count, start);
+	int b0 = min(count, start + VT * (coop / 2));
+	int b1 = min(count, start + VT * coop);
+
+	int p = MergePath&lt;MgpuBoundsLower>(keys_shared + a0, b0 - a0,
+		keys_shared + b0, b1 - b0, diag, comp);
+
+	SerialMerge&lt;VT, true>(keys_shared, a0 + p, b0, b0 + diag - p, b1, keys, 
+		indices, comp);
+}</pre></div>
+<p>Locating each thread's pair of source lists, destination list, and position within the output is the first task of the vectorized merge function <code>CTABlocksortPass</code>. <code>~(coop - 1) &amp; tid</code> masks out the bits that position each thread's cross-diagonal within the destination list. This expression serves as a scaled destination list index and is mulitplied by VT to target the start of the A list in shared memory. The expression <code>VT * ((coop - 1) &amp; tid</code>) locates each thread's cross-diagonal in the local coordinate system of the output list.</p>
+<div class="snip">
+<pre>NT = 8, VT = 7, count = 49 (full tile)
+<u>
+tid         coop = 2                     coop = 4                     coop = 8           </u>
+ 0:  A=( 0,  7),B=( 7, 14),d= 0   A=( 0, 14),B=(14, 28),d= 0   A=( 0, 28),B=(28, 56),d= 0
+ 1:  A=( 0,  7),B=( 7, 14),d= 7   A=( 0, 14),B=(14, 28),d= 7   A=( 0, 28),B=(28, 56),d= 7
+ 2:  A=(14, 21),B=(21, 28),d= 0   A=( 0, 14),B=(14, 28),d=14   A=( 0, 28),B=(28, 56),d=14
+ 3:  A=(14, 21),B=(21, 28),d= 7   A=( 0, 14),B=(14, 28),d=21   A=( 0, 28),B=(28, 56),d=21
+ 4:  A=(28, 35),B=(35, 42),d= 0   A=(28, 42),B=(42, 56),d= 0   A=( 0, 28),B=(28, 56),d=28
+ 5:  A=(28, 35),B=(35, 42),d= 7   A=(28, 42),B=(42, 56),d= 7   A=( 0, 28),B=(28, 56),d=35
+ 6:  A=(42, 49),B=(49, 56),d= 0   A=(28, 42),B=(42, 56),d=14   A=( 0, 28),B=(28, 56),d=42
+ 7:  A=(42, 49),B=(49, 56),d= 7   A=(28, 42),B=(42, 56),d=21   A=( 0, 28),B=(28, 56),d=49</pre></div>
+<p>These intervals illustrate all blocksort passes for a full tile with 8 threads and 7 values per thread. You can work them out using the bit-twiddling described above. The length of the cross-diagonal in a Merge Path search is constrained by the length of the shorter of the two input arrays. The cross-diagonal length doubles each iteration: 7, 14, 28... Correspondingly the depth (and cost) of the binary search increments as we progress in the mergesort: 3, 4, 5... This simple iterative approach to blocksort perfectly load balances scheduling and merging work over the CTA.</p>
+<h2><a id="mergepartitioning">Flexible merge partitioning</a></h2>
+<p>After the blocksort we have NV-length lists sorted in global memory. We recursively run a merge on pairs of lists until the entire array is sorted. Just like the CTA mergesort uses code from our CTA-level merge, the global mergesort uses code from the global merge. </p>
+<div class="snip">
+  <p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctamerge.cuh">include/device/ctamerge.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 74">// Returns (offset of a, offset of b, length of list).
+MGPU_HOST_DEVICE int3 FindMergesortFrame(int coop, int block, int nv) {
+	// coop is the number of CTAs or threads cooperating to merge two lists into
+	// one. We round block down to the first CTA's ID that is working on this
+	// merge.
+	int start = ~(coop - 1) &amp; block;
+	int size = nv * (coop>> 1);
+	return make_int3(nv * start, nv * start + size, size);
+}
+
+// Returns (a0, a1, b0, b1) into mergesort input lists between mp0 and mp1.
+MGPU_HOST_DEVICE int4 FindMergesortInterval(int3 frame, int coop, int block,
+	int nv, int count, int mp0, int mp1) {
+
+	// Locate diag from the start of the A sublist.
+	int diag = nv * block - frame.x;
+	int a0 = frame.x + mp0;
+	int a1 = min(count, frame.x + mp1);
+	int b0 = min(count, frame.y + diag - mp0);
+	int b1 = min(count, frame.y + diag + nv - mp1);
+	
+	// The end partition of the last block for each merge operation is computed
+	// and stored as the begin partition for the subsequent merge. i.e. it is
+	// the same partition but in the wrong coordinate system, so its 0 when it
+	// should be listSize. Correct that by checking if this is the last block
+	// in this merge operation.
+	if(coop - 1 == ((coop - 1) &amp; block)) {
+		a1 = min(count, frame.x + frame.z);
+		b1 = min(count, frame.y + frame.z);
+	}
+	return make_int4(a0, a1, b0, b1);
+}</pre></div>
+
+<p>For clarity and maintainability, we factor out mergesort's list-making logic into <code>FindMergesortFrame</code> and <code>FindMergesortInterval</code>. The former finds the start of the A list by masking out the bits below <code>coop</code> and multiplying by the grain size (either NV, or VT, depending on context). The latter function uses the intersections of the cross-diagonals with the Merge Path to calculate a CTA's or thread's input range within the provided A and B lists.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctamerge.cuh">include/device/ctamerge.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 110">MGPU_HOST_DEVICE int4 ComputeMergeRange(int aCount, int bCount, int block, 
+	int coop, int NV, const int* mp_global) {
+
+	// Load the merge paths computed by the partitioning kernel.
+	int mp0 = mp_global[block];
+	int mp1 = mp_global[block + 1];
+	int gid = NV * block;
+
+	// Compute the ranges of the sources in global memory.
+	int4 range;
+	if(coop) {
+		int3 frame = FindMergesortFrame(coop, block, NV);
+		range = FindMergesortInterval(frame, coop, block, NV, aCount, mp0, 
+			mp1);
+	} else {
+		range.x = mp0;											// a0
+		range.y = mp1;											// a1
+		range.z = gid - range.x;								// b0
+		range.w = min(aCount + bCount, gid + NV) - range.y;		// b1
+	}
+	return range;
+}</pre></div>
+<p><code>ComputeMergeRange</code> is the range-calculating entry point for merge, mergesort, segmented and locality sorts. This is called at the top of those respective kernels, and the A and B input-list intervals are loaded into shared memory. This unified function reduces the number of kernels needed to support this diversity of functionality.</p>
+<div class="snip">
+  <p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/merge.cuh">include/kernels/merge.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 46">template&lt;typename Tuning, bool HasValues, bool MergeSort, typename KeysIt1, 
+	typename KeysIt2, typename KeysIt3, typename ValsIt1, typename ValsIt2,
+	typename ValsIt3, typename Comp>
+MGPU_LAUNCH_BOUNDS void KernelMerge(KeysIt1 aKeys_global, ValsIt1 aVals_global,
+	int aCount, KeysIt2 bKeys_global, ValsIt2 bVals_global, int bCount,
+	const int* mp_global, int coop, KeysIt3 keys_global, ValsIt3 vals_global,
+	Comp comp) {
+
+	typedef MGPU_LAUNCH_PARAMS Params;
+	typedef typename std::iterator_traits&lt;KeysIt1>::value_type KeyType;
+	typedef typename std::iterator_traits&lt;ValsIt1>::value_type ValType;
+
+	const int NT = Params::NT;
+	const int VT = Params::VT;
+	const int NV = NT * VT;
+	union Shared {
+		KeyType keys[NT * (VT + 1)];
+		int indices[NV];
+	};
+	__shared__ Shared shared;
+
+	int tid = threadIdx.x;
+	int block = blockIdx.x;
+
+	int4 range = ComputeMergeRange(aCount, bCount, block, coop, NT * VT, 
+		mp_global);
+
+	DeviceMerge&lt;NT, VT, HasValues>(aKeys_global, aVals_global, bKeys_global,
+		bVals_global, tid, block, range, shared.keys, shared.indices, 
+		keys_global, vals_global, comp);
+}</pre></div>
+<p><code>KernelMerge</code> is called by both the Merge and Mergesort host functions. Mergesort is considerably more involved, but this complexity has been factored out into <code>ComputeMergeRange</code>, allowing the heavy lifting for both functions to be defined by <code>DeviceMerge</code>. Note that the keys and indices are unioned in shared memory, so as to not waste resources. This is an idiom used throughput Modern GPU, and an important one to follow if your goal is high throughput.</p>
+<h2><a id="mergepathpartitions">MergePathPartitions</a></h2>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/search.cuh">include/kernels/search.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 75">template&lt;int NT, MgpuBounds Bounds, typename It1, typename It2, typename Comp>
+__global__ void KernelMergePartition(It1 a_global, int aCount, It2 b_global, 
+	int bCount, int nv, int coop, int* mp_global, int numSearches, Comp comp) {
+
+	int partition = NT * blockIdx.x + threadIdx.x;
+	if(partition &lt; numSearches) {
+		int a0 = 0, b0 = 0;
+		int gid = nv * partition;
+		if(coop) {
+			int3 frame = FindMergesortFrame(coop, partition, nv);
+			a0 = frame.x;
+			b0 = min(aCount, frame.y);
+			bCount = min(aCount, frame.y + frame.z) - b0;
+			aCount = min(aCount, frame.x + frame.z) - a0;
+
+			// Put the cross-diagonal into the coordinate system of the input
+			// lists.
+			gid -= a0;
+		}
+		int mp = MergePath&lt;Bounds>(a_global + a0, aCount, b_global + b0, bCount,
+			min(gid, aCount + bCount), comp);
+		mp_global[partition] = mp;
+	}
+}
+
+template&lt;MgpuBounds Bounds, typename It1, typename It2, typename Comp>
+MGPU_MEM(int) MergePathPartitions(It1 a_global, int aCount, It2 b_global,
+	int bCount, int nv, int coop, Comp comp, CudaContext&amp; context) {
+
+	const int NT = 64;
+	int numPartitions = MGPU_DIV_UP(aCount + bCount, nv);
+	int numPartitionBlocks = MGPU_DIV_UP(numPartitions + 1, NT);
+	MGPU_MEM(int) partitionsDevice = context.Malloc&lt;int>(numPartitions + 1);
+
+	KernelMergePartition&lt;T, Bounds>
+		&lt;&lt;&lt;numPartitionBlocks, NT, 0, context.Stream()>>>(a_global, aCount,
+		b_global, bCount, nv, coop, partitionsDevice->get(), numPartitions + 1, 
+		comp);
+	return partitionsDevice;
+}</pre></div>
+<p><code>KernelMergePartition</code> performs coarse-granularity partitioning for both MGPU Merge and Mergesort. It fills out the <code>mp_global</code> Merge Path/cross-diagonal intersections that are consumed by <code>ComputeMergeRange</code>. This is a simple and efficient division of labor&mdash;coarse-grained scheduling is achieved by first calling <code>MergePathPartitions</code> to fill out <code>mp_global</code>, which is subsequently provided to <code>ComputeMergeRange</code> in an algorithm's kernel.</p>
+<p>The <code>MergePathPartitions</code> function is central to the MGPU library. The argument <code>nv</code> is the granularity of the partition and typically is set to the number of values per CTA, <code>NV</code>, a product of <code>LaunchBoxVT</code> parameters VT and NT, and a template argument for most of MGPU's kernels. <code>coop</code> is the number of  CTAs cooperating to merge pairs of sorted lists in the mergesort routine&mdash;this is non-zero for all other functions (like merge, vectorized sorted search, etc.).</p>
+<p>The list of callers of <code>MergePathPartitions</code> is extensive:</p>
+<ol class="idiom">
+	<li>
+	  <p><a href="bulkinsert.html">Bulk Insert</a>. Bulk Remove uses a standard binary search for global partitioning.</p></li>
+	<li><p><a href="merge.html">Merge</a>.</p></li>
+	<li>
+	  <p><a href="mergesort.html">Mergesort</a>.</p></li>
+	<li>
+	  <p><a href="sortedsearch.html">Vectorized sorted search</a> calls both the lower- and upper-bound specializations of <code>MergePathPartitions</code>.</p></li>
+	<li>
+	  <p><a href="loadbalance.html">Load-balancing search</a> calls the upper-bound function and only specializes on integer types. Additionally, all load-balancing search clients use MergePathPartitions indirectly:</p>
+      <ol class="idiom" type="a">
+      	<li><p><a href="intervalmove.html#intervalexpand">IntervalExpand</a></p></li>
+      	<li><p><a href="intervalmove.html#intervalmove">IntervalMove</a></p></li>
+      	<li><p><a href="join.html">Relational joins</a></p></li>
+      </ol>
+  </li>
+</ol>    
+<p>Other methods don't call <code>MergePathPartitions</code>, but still opt into this two-phase scheduling and sequential-work approach:</p>
+<ol class="idiom" start="6">
+  <li>
+  <p>The high-performance <a href="segsort.html#segsortbenchmark">segmented</a> and <a href="segsort.html#localitysortbenchmark">locality sorts</a> of the next section fuse coarse-grained partitioning with  work queueing, exploiting the sortedness of inputs to reduce processing.</p></li>
+<li>
+  <p><a href="sets.html">MGPU Multisets</a> introduce a new partitioning search called <em>Balanced Path</em> which incorporates duplicate ranking into key ordering. Four serial set functions, modeled after <code>SerialMerge</code>, perform C++-style set intersection, union, difference, and symmetric difference.</p></li>
+</ol>
+<h2><a id="launch">Launching from the host</a></h2>
+<p>Mergesort is a multi-pass, out-of-place algorithm. The blocksort reduces global memory traffic by sorting blocks of NV elements locally, performing key exchange through low-latency shared memory. Subsequent global merge passes recursively doubles the length of sorted lists, from NV to 2*NV to 4*NV, etc., until the input is fully sorted.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/mergesort.cuh">include/kernels/mergesort.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 113">template&lt;typename T, typename Comp>
+MGPU_HOST void MergesortKeys(T* data_global, int count, Comp comp,
+	CudaContext&amp; context) {
+
+	const int NT = 256;
+	const int VT = 7;
+	typedef LaunchBoxVT&lt;NT, VT> Tuning;
+	int2 launch = Tuning::GetLaunchParams(context);
+	
+	const int NV = launch.x * launch.y;
+	int numBlocks = MGPU_DIV_UP(count, NV);
+	int numPasses = FindLog2(numBlocks, true);
+
+	MGPU_MEM(T) destDevice = context.Malloc&lt;T>(count);
+	T* source = data_global;
+	T* dest = destDevice->get();
+
+	KernelBlocksort&lt;Tuning, false>
+		&lt;&lt;&lt;numBlocks, launch.x, 0, context.Stream()>>>(source, (const int*)0,
+		count, (1 &amp; numPasses) ? dest : source, (int*)0, comp);
+	if(1 &amp; numPasses) std::swap(source, dest);
+
+	for(int pass = 0; pass &lt; numPasses; ++pass) {
+		int coop = 2&lt;&lt; pass;
+		MGPU_MEM(int) partitionsDevice = MergePathPartitions&lt;MgpuBoundsLower>(
+			source, count, source, 0, NV, coop, comp, context);
+		
+		KernelMerge&lt;Tuning, false, true>
+			&lt;&lt;&lt;numBlocks, launch.x, 0, context.Stream()>>>(source, 
+			(const int*)0, count, source, (const int*)0, 0, 
+			partitionsDevice->get(), coop, dest, (int*)0, comp);
+		std::swap(dest, source);
+	}
+}</pre></div>
+<p>We allocate a temporary buffer to ping-pong mergesort passes. The number of global passes is the ceil of log2 of the tile count. As the user expects results sorted in-place in <code>data_global</code>, we blocksort into <code>data_global</code> if <code>numPasses</code> is even and blocksort into the temporary if <code>numPasses</code> is odd. This way, sorted data always lands in <code>data_global</code> after the final merge pass without requiring an additional copy.</p>
+<p>The mergesort host function has the same macro structure as <code>CTABlocksortLoop</code>: it loops from <code>coop = 2</code> to <code>coop = numBlocks</code> (NT in blocksort). <code>MergePathPartitions</code> searches global memory to find the intersection of cross-diagonals and Merge Paths, as identified by the utility function <code>FindMergesortFrame</code>.</p>
+<p>Idiomatic GPU codes often have this coarse-grained/fine-grained paired structure: coarse-grained partitioning and scheduling operates on the full input in global memory; fine-grained partitioning and scheduling operates on local tiles in shared memory. This simple two-level hierarchy has algorithmic benefits: the bulk of partitioning operations are run over small, constant-sized blocks, helping amortize the cost of global partitioning. We also see architecutral benefits: performing most data movement within CTAs rather than between them reduces latency and improves the throughput of kernels.</p>
+<br />
+<div class="toclist"><ul>
+ 	<li class="tocprev">&laquo; <a href="merge.html">Merge</a></li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="segsort.html">Segmented Sort</a> &raquo;</li></ul>
+</div><br/>
+</body>
+</html>

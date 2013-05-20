@@ -1,0 +1,313 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type" />
+  <title>Performance - Modern GPU</title>
+  <link href="mgpu.css" rel="stylesheet" type="text/css" />
+  <script src="syntaxhighlighter_3.0.83/scripts/shCore.js" type="text/javascript"></script>
+  <script src="syntaxhighlighter_3.0.83/scripts/shBrushCpp.js" type="text/javascript"></script>
+  <link href="syntaxhighlighter_3.0.83/styles/shThemeDefault.css" rel="stylesheet" type="text/css" />
+  <link href="syntaxhighlighter_3.0.83/styles/shCore.css" rel="stylesheet" type="text/css" />
+  <script type="text/javascript"> SyntaxHighlighter.all() </script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25772750-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</head><body class="tutorial">
+<a href="https://github.com/NVlabs/moderngpu"><img style="position: absolute; top: 0; right: 0; border: 0;" width="149" height="149" src="forkme_right_green_007200.png" alt="Fork me on GitHub" /></a>
+<div class="copyright">
+<p><strong>&copy; 2013, NVIDIA CORPORATION.&nbsp;All  rights reserved.</strong></p>
+<p>Code and text by <a href="https://twitter.com/moderngpu">Sean Baxter</a>, NVIDIA Research.</p>
+<p>(Click <a href="faq.html#license">here</a> for license. Click <a href="faq.html#contact">here</a> for contact information.)</p>
+</div><br />
+<div class="toclist"><ul>
+ 	<li class="tocprev">&laquo; <a href="intro.html">Introduction</a></li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="library.html">The Library</a> &raquo;</li></ul>
+</div><br/>
+<h1>Performance</h1>
+<h2><a id="occupancy">Occupancy and latency</a></h2>
+<p>Latency-oriented systems (CPUs) use large caches, branch prediction, and speculative fetching to avoid stalls on data dependencies. GPUs, by contrast, are throughput-oriented systems that use massive parallelism to hide latency. <strong>Occupancy</strong> is a measure of thread parallelism in a CUDA program. <strong>Instruction-level Parallelism</strong> is a measure of parallelism within threads. The higher the occupancy and ILP, the more opportunities an SM has to put compute and load/store units to work each cycle. Threads waiting on data dependencies and barriers are taken out of consideration until their hazards are resolved.</p>
+<p>Kernels may be limited by DRAM to L2 cache bandwidth, L2 to SM bandwidth, texture bandwidth, FFMA, DFMA, integer, or shared memory performance. In some sense, being limited by bandwidth is a victory condition for optimization: a routine is fully exploiting at least one capability of the device. Performance can then only be improved by redesigning the code to use less of the limiting resource.</p>
+<p>More often, and especially for codes that involve many subsystems, a kernel is <strong>latency limited</strong>. This state of under-occupancy occurs when there is insufficient parallelism to hide instruction latency. Many highly-optimized routines become latency limited as work efficiency improves. As code becomes leaner the GPU has more free units than it has instructions to execute, a consequence of optimizing away unnecessary operations.</p>
+<p class="important"><span class="idiom">Important:</span> The performance of latency-limited kernels is difficult to reason about. Optimizations that reduce work (or improve work efficiency) might not improve&mdash;and could even hinder&mdash;throughput. Focus on reducing latency on the most-congested path.</p>
+<p>There are five resource limits that cap occupancy: </p>
+<table width="70%" border="0" cellspacing="2" class="center">
+  <tr>
+    <td>&nbsp;</td>
+    <td><strong>sm_20</strong></td>
+    <td><strong>sm_30</strong></td>
+    <td><strong>sm_35</strong></td>
+  </tr>
+  <tr>
+    <td>Max Threads (SM)</td>
+    <td>1536</td>
+    <td>2048</td>
+    <td>2048</td>
+  </tr>
+  <tr>
+    <td>Max CTAs (SM)</td>
+    <td>8</td>
+    <td>16</td>
+    <td>16</td>
+  </tr>
+  <tr>
+    <td>Shared Memory Capacity (SM)</td>
+    <td>48 KB</td>
+    <td>48 KB</td>
+    <td>48 KB</td>
+  </tr>
+  <tr>
+    <td>Register File Capacity (SM)</td>
+    <td>128 KB</td>
+    <td>256 KB</td>
+    <td>256 KB</td>
+  </tr>
+  <tr>
+    <td>Max Registers (Thread)</td>
+    <td>63</td>
+    <td>63</td>
+    <td>255</td>
+  </tr>
+</table>
+
+<ol class="idiom">
+<li><p><strong>Max Threads</strong> - You may be under-occupied even with 100% occupancy (1536 or 2048 threads running concurrently per SM). This is likely caused by poor ILP: increase the program's parallelism by <strong>register blocking</strong> to 
+process multiple elements per thread. In MGPU most kernels are register blocked with grain size VT. You may also want to reduce the CTA size, so that barriers don't stall as many threads: smaller CTAs lead to better overlapped execution than larger ones.</p></li>
+
+<li><p><strong>Max CTAs</strong> - If you launch small blocks, your occupancy will be constrained by a hardware limit on resident CTAs. On Kepler, blocks must be at least 128 threads wide to hit maximum occupancy (16 CTAs/SM). Using smaller blocks reduces occupancy; larger blocks compromise overlapped execution. In the absence of performance data, start with blocks of 128 or 256 threads.</p></li>
+
+<li><p><strong>Shared Memory Capacity</strong> - Many optimized register-blocked kernels are limited by shared memory capacity. Fermi has a 2.7:1 ratio of register file to shared memory. Kepler SMs have higher arithmetic throughput and latency (the two often increase together), but hasn't increased shared memory capacity, giving a ratio of 5.3:1. At 100% occupancy, a thread has 32 registers 
+(128 bytes) but only 24 bytes of shared memory. Register blocking for eight values per thread, with shared memory sized to accommodate all the values at once (for key exchange and other critical operations), implies no higher than 1536 threads/SM occupancy (75%). More aggressive register blocking drops this further. Operating at less than maximum occupancy does not imply under-occupancy, as  ILP may be sufficient to cover latencies.</p></li>
+
+<li><p><strong>Register File Capacity</strong> - Register file is more copious than shared memory, and in the inverted cache hierarchy that GPUs are designed with, it's larger than even L2 cache. Still, code may be limited by RF capacity. Do mental <a href="http|//en.wikipedia.org/wiki/Live_variable_analysis">live analysis</a> while writing your kernel to reduce register usage. If your kernel uses more registers than you expect, try re-ordering load and store procedures to move out results before reading more inputs.</p></li>
+
+<li><p><strong>Max Registers</strong> - sm_20 and sm_30 devices have a limit of 63 registers per thread. If the back-end code generator cannot fit the working set of the kernel into 63 registers, it provisions local memory (driver-managed global memory) to spill state. Kernels with spill assume additional latency. sm_35 devices have access to 255 registers per thread. While this relieves a register pressure problem for many procedures, it may also cause an additional drop in occupancy. sm_30 kernels that are limited by RF capacity will run at 50% occupancy (63 registers/thread). The same kernel running on sm_35 may only achieve 12.5% occupancy, because each thread now consumes four times as much of the RF.</p></li>
+
+</ol>
+<p>For all performance-critical kernels, compile with <code>-Xptxas=&quot;-v&quot;</code>. This passes a request through the NVVM compiler to the PTX assembler to output register, shared memory, and spill information for all kernels on each target architecture.</p>
+<div class="snip">
+  <pre>ptxas : info : Compiling entry function 'KernelFoo' for 'sm_20' 
+ptxas : info : Function properties for KernelFoo
+      48 bytes stack frame, 48 bytes spill stores, 36 bytes spill loads
+ptxas : info : Used 63 registers, 11264 bytes smem, 64 bytes cmem[0]
+
+ptxas : info : Compiling entry function 'KernelFoo' for 'sm_35'
+ptxas : info : Function properties for KernelFoo
+      0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas : info : Used 80 registers, 11264 bytes smem, 352 bytes cmem[0]</pre>
+</div>
+<p>The above kernel is too-aggressively register blocked. It hits the 63 register limit and spills on Fermi, achieving 25% occupancy. The function on Fermi is limited by RF capacity - launching four 128-thread CTAs consumes the entire register file.</p>
+<p> Because of sm_35's per-thread register increase, the same code doesn't spill on GK110 Kepler. Thanks to the doubled RF capacity, 
+it not limited by that, either. However, the code still runs at only 25% occupancy, because it's limited by shared memory capacity. Each CTA uses 11KB of shared memory, and since the SMs only have 48KB to share, only four 128-thread CTAs may be scheduled per SM (25% occupancy).</p>
+<div class="snip">
+  <pre>ptxas : info : Compiling entry function 'KernelFoo' for 'sm_20'
+ptxas : info : Function properties for KernelFoo
+      0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas : info : Used 48 registers, 6144 bytes smem, 64 bytes cmem[0]
+
+ptxas : info : Compiling entry function 'KernelFoo' for 'sm_35'
+ptxas : info : Function properties for KernelFoo
+      0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas : info : Used 48 registers, 6144 bytes smem, 352 bytes cmem[0]</pre>
+</div>
+<p>Reducing the grain size VT improves occupancy by tackling less work per thread, requiring less state, and thereby consuming less resource. Five CTAs per SM are scheduled on Fermi - the kernel is RF capacity limited (five kernel use 30720/32768 registers). Both sm_30 and sm_35 fare better here. Eight CTAs are scheduled per SMX, limited by shared memory capacity (eight CTAs use all 49152 bytes).</p>
+<p class="important"><span class="idiom">Important:</span> If  a kernel spills even after you decrease grain size, you may be inadvertently dynamically indexing into an array that you intended to have reside in register. Use only literals, constant expressions, and unrolled loop iterators to index into register arrays. A compiler warning about an &quot;unknown pragma&quot; that refers back to a <code>#pragma unroll</code> attribute indicates that some construct is preventing the loop from unrolling, turning static indexes into dynamic ones, and likely causing spill. Although spilling may help performance by increasing occupancy in complex kernels,  you should never allow spill that's caused by inadvertent dynamic indexing; this  always hurts performance.</p>
+<h3><a id="launchbounds">Launch bounds</a></h3>
+<p>CTA size and shared memory consumption are specified by the programmer; these are easily adjusted. RF usage, on the other hand, is a consequence of choices made by the register allocator in the back-end code generator. The <code>__launch_bounds__</code> kernel attribute gives the user more control over occupancy by providing a cap on per-thread register usage. Tag the kernel with the CTA size and the desired number of CTAs per SM. The code generator now caps register usage by re-ordering instructions to reduce live variables. It spills the overflow.</p>
+<div class="snip">
+<pre>ptxas : info : Compiling entry function 'KernelFoo' for 'sm_20'
+ptxas : info : Function properties for KernelFoo
+      40 bytes stack frame, 40 bytes spill stores, 24 bytes spill loads
+ptxas : info : Used 36 registers, 6144 bytes smem, 64 bytes cmem[0]
+
+ptxas : info : Compiling entry function 'KernelFoo' for 'sm_35'
+ptxas : info : Function properties for KernelFoo
+      0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas : info : Used 48 registers, 6144 bytes smem, 352 bytes cmem[0]</pre>
+</div>
+<p>The previous tuning of <code>KernelFoo</code> was tagged with <code>__launch_bounds__(128, 7)</code> to guarantee that 7 CTAs run on each SM. The function now spills on Fermi, but uses only 36 registers per thread (32256/32768 registers per SM). The generated code is unchanged on Kepler, which remains limited to 8 CTAs/SMX by shared memory capacity.</p>
+<h2><a id="performance">Getting more performance from MGPU</a></h2>
+
+<p>Most MGPU kernels are parameterized over NT (number of threads per
+CTA) and VT (values per thread, the grain size). The product of these
+two, NV (number of values per CTA), is the tile size. Increasing tile
+size amortizes the cost of once-per-thread and once-per-CTA operations, improving work
+efficiency. On the other hand, increasing grain size consumes more shared memory and registers, reducing
+occupancy and the ability to hide latency.</p>
+<p>The constants NT, VT, and the <code>__launch_bounds__</code> argument OCC (for occupancy, the minimum number of CTAs per SM) are <strong>tuning
+parameters</strong>. Finding optimal tuning parameters is an empirical process. Different hardware architectures, data types, input sizes and distributions, and compiler versions all effect parameter selection. User-tuning of MGPU library functions may improve throughput by 50% compared to the library's hard-coded defaults.</p>
+<div class="snip">
+<pre class="brush: cpp; toolbar: false; first-line: 278">template&lt;typename GatherIt, typename ScatterIt, typename InputIt,
+	typename OutputIt>
+MGPU_HOST void IntervalMove(ScatterIt scatter_global, const int* scan_global,
+	int intervalCount, int moveCount, InputIt input_global, 
+	OutputIt output_global, CudaContext&amp; context) {
+
+	const int NT = 128;   // Hard-coded MGPU defaults
+	const int VT = 7;
+      ...</pre></div>
+<p>MGPU library functions have hard-coded and somewhat arbitrary parameters. The tuning space for type- and behavior-parameterized kernels is simply too large to explore in a project with Modern GPU's goals and scope.</p>
+<div class="snip">
+<pre class="brush: cpp; toolbar: false;">
+// Copy and modify the host function to expose parameters for easier tuning.
+template&lt;int NT, int VT, int OCC, typename GatherIt, typename ScatterIt, 
+	typename InputIt, typename OutputIt>
+MGPU_HOST void IntervalMove2(ScatterIt scatter_global, const int* scan_global,
+	int intervalCount, int moveCount, InputIt input_global, 
+	OutputIt output_global, CudaContext&amp; context) {
+	// Parameters NT, VT, and OCC are passed in and override the host 
+	// defaults.
+      ...</pre></div>
+	<p>Identify  performance-critical routines and the contexts from which they are invoked. Copy the MGPU host functions that launch the relevant kernels and edit them to expose tuning parameters to the caller. Run the code <em>on actual data and deployment hardware</em> through the included benchmark programs, testing over a variety of  parameters, to understand the performance space. Use the optimal settings to create specialized entry points to get the best throughput from your GPU.</p>
+	<p class="important"><span class="idiom">Important:</span> The omnipresent grain size parameter VT is almost always an odd integer in MGPU code. This choice allows us to step over bank-conflict issues that would otherwise need to be resolved with padding and complicated index calculations. Kernels execute correctly on even grain sizes, but expect diminished performance on these. Omit even grain sizes when searching the tuning space.</p>
+<div class="figure"><img src="benchmark_launchbox.png" width="703" height="420" alt=" " /></div>
+<p class="cap">Mergesort tuning benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarklaunchbox.cu">tests/benchmarklaunchbox.cu</a></p>
+<p>We've benchmarked MGPU's keys-only mergesort on GTX 480 and GTX Titan, specialized for both 32- and 64-bit integer types. You can see the function's sensitivity to tuning parameters. Note the best-performing configurations for each device and data-type:</p>
+<table width="50%" border="0" cellspacing="2" class="center">
+  <tr>
+    <td>&nbsp;</td>
+    <td><u>GTX 480 (Fermi)</u></td>
+    <td><u>GTX Titan (Kepler)</u></td>
+  </tr>
+  <tr>
+    <td>32-bit int</td>
+    <td><strong>128</strong>x<strong>23</strong></td>
+    <td><strong>256</strong>x<strong>11</strong></td>
+  </tr>
+  <tr>
+    <td>64-bit int</td>
+    <td><strong>128</strong>x<strong>11</strong></td>
+    <td><strong>256</strong>x<strong>5</strong></td>
+  </tr>
+</table>
+<p>Parallelism (occupancy) decreases and work-efficiency increases as the grain size goes up. Kepler parts require much higher occupancy than Fermi to reach top performance&mdash;the SM is much wider (6 FFMA units up from 2 on Fermi), but per-SM shared memory remains the same at 48KB, badly underoccupying the device at larger grain sizes. Because Fermi runs well at lower occupancy, it benefits from scheduling 128-thread blocks, even at the cost of an additional merge pass. Smaller blocks improve  effective occupancy by stalling fewer threads at a synchronization.</p>
+<p>Due to the GPU's raw power even untuned codes run excellently, often an order-of-magnitude beyond what you can achieve on the CPU. Tuning benchmarks may be the easiest way to squeeze 20-30% out of your code. It also informs the programmer of the performance landscape, leading to more productive profiling if they decide to go the extra mile. It's always good to tune before profiling so that you don't waste time optimizing code just to get to a local maxima.</p>
+<p class="important"><span class="idiom">Important:</span> The hard-coded tuning parameters for MGPU functions were selected for decent performance on large arrays of 32- and 64-bit data types running on Kepler architecture. Users targeting Fermi devices may want to increase grain sizes significantly, as codes on that generation run better at lower occupancies. In all cases, finding optimal tuning parameters for specific data types and distributions,  input sizes, and architectures, is the easiest way to improve performance of well-written code.</p>
+<h3><a id="launchbox">LaunchBox</a></h3>
+<p>Once suitable tuning parameters have been discovered, specialize the host functions over data type (with function overloading or partial template specialization) and input size (with a runtime check and multiple launches). Specializing tuning parameters for different device architectures is more difficult. </p>
+<p>The NVCC front-end strips out <code>__device__</code> and <code>__host__</code> tags. It calls the host compiler (Visual C++ or GCC) once for the host code and invokes the NVVM back-end once <em>for each architecture</em>. If we were to specialize tuning for each device by branching over compute capability (determined at runtime with <code>cudaDeviceProp::major</code> and <code>minor</code>) and making a different chevron launch for each one, we'd end up compiling the cross product of all tunings over all architectures. Even though an sm_20 client will never actually launch kernels specialized with sm_30 or sm_35 tunings, that code would still be included with your binary because the multi-pass build process can't use dead code elimination on launches contingent on a runtime check.</p>
+<p>CUDA defines a <code>__CUDA_ARCH__</code> macro for the compute capability of the architecture that is currently being built in the multi-pass system. Although this macro is not available to the host at runtime, it can be used from inside a kernel's source to allow the kernel to change its own behavior.  The macro is typically used to let a kernel opt into features that aren't available on all devices: e.g. the <code>popc</code> instruction counts the set bits in word, replacing a loop, when <code>__CUDA_ARCH__</code> &gt;= 200. We use this macro to guide the build process and only generate device code for the architectures it will run on.</p>
+<p>MGPU introduces LaunchBox, a structure that specializes kernels for different compute capabilities without generating the cross product of each parameterization and architecture. Think of LaunchBox as concatenating the tuning parameters for all architectures into a single type and specializing the kernel over that type. The kernel reads the relevant parameters from the LaunchBox and changes its own implementation accordingly.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/tests/testlaunchbox.cu">tests/testlaunchbox.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 33">// LaunchBox-specialized kernel Foo uses MGPU_LAUNCH_BOUNDS kernel to control
+// register usage. The typename Tuning is obligatory, and must be chosen for 
+// the MGPU_LAUNCH_BOUNDS and MGPU_LAUNCH_PARAMS macros to work.
+template&lt;typename Tuning>
+MGPU_LAUNCH_BOUNDS void Foo() {
+	typedef MGPU_LAUNCH_PARAMS Params;
+	if(!blockIdx.x &amp;&amp; !threadIdx.x)
+		printf("Launch Foo&lt;&lt;&lt;%d, %d>>> with NT=%d VT=%d OCC=%d\n", 
+			gridDim.x, blockDim.x, Params::NT, Params::VT, Params::OCC);
+}
+
+// Use the built-in LaunchBoxVT type to specialize for NT, VT, and OCC.
+void LaunchFoo(int count, CudaContext&amp; context) {
+	typedef LaunchBoxVT&lt;
+		128, 7, 4,			// sm_20  NT=128, VT=7,  OCC=4
+		256, 9, 5,			// sm_30  NT=256, VT=9,  OCC=5
+		256, 15, 3			// sm_35  NT=256, VT=15, OCC=3
+	> Tuning;
+	
+	// GetLaunchParamaters returns (NT, VT) for the arch vesion of the provided
+	// CudaContext. The product of these is the tile size.
+	int2 launch = Tuning::GetLaunchParams(context);
+	int NV = launch.x * launch.y;
+	int numBlocks = MGPU_DIV_UP(count, NV);
+
+	Foo&lt;Tuning>&lt;&lt;&lt;numBlocks, launch.x>>>();
+}</pre></div>
+<p>Opt into LaunchBox by templating your kernel over <code>Tuning</code> (<code>Tuning</code> is an obligatory name). The <code>MGPU_LAUNCH_BOUNDS</code> macro, which includes the  <code>__global__</code> tag, generates the <code>__launch_bounds__</code> attribute with the NT and OCC parameters specified at the launch site. The macro uses <code>__CUDA_ARCH__</code> to discriminate between compute capabilities, binding to the static values corresponding to the currently-executing NVVM compiler pass. Typedef the <code>MGPU_LAUNCH_PARAMS</code> macro to access the tuning parameters inside the kernel.</p>
+<p>Use LaunchBox to specialize the mergesort benchmark above:</p>
+<ul class="idiom">
+	<li><p>Specialize 32-bit mergesort for Fermi and Kepler with <code>LaunchBoxVT&lt;128, 23, 0, 256, 11, 0&gt;</code>.</p></li>
+  	<li><p>Specialize 64-bit mergesort  for Fermi and Kepler with <code>LaunchBoxVT&lt;128, 11, 0, 256, 5, 0&gt;</code>.</p></li>
+</ul>
+<p>These tunings for sm_20 and sm_30 are inherited by other platforms (sm_21 inherits sm_20; sm_35+ inherits sm_30). We choose not to constrain register count by leaving the occupancy parameter zero.</p>
+<p>Most users will only need the LaunchBoxVT structure, a specialization that makes tuning more succinct. Specialize this template over (NT, VT, OCC) for sm_20, sm_30, and sm_35. Default template arguments inherit parameters from the earlier-generation architecture, so <code>LaunchBoxVT&lt;128, 7&gt;</code> is equivalent to <code>LaunchBoxVT&lt;128, 7, 0, 128, 7, 0, 128, 7, 0&gt;</code>.</p>
+<p>Use the static method <code>GetLaunchParams</code>, passing the <code>CudaContext</code> object, to return the (NT, VT) arguments for the compute capability of the currently-selected device. The product of these is the tile size. Use it to calculate the launch's grid size. Finally, specialize the kernel over <code>Tuning</code> and launch the grid with <code>launch.x</code> (NT) threads.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/tests/testlaunchbox.cu">tests/testlaunchbox.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 62">// LaunchBox-specialized kernel Bar introduces its own set of launch parameters.
+template&lt;int NT_, int VT_, int OCC_, int P1_, typename T1_>
+struct BarParams {
+	enum { NT = NT_, VT = VT_, OCC = OCC_, P1 = P1_ };
+	typedef T1_ T1;
+};
+template&lt;typename Tuning>
+MGPU_LAUNCH_BOUNDS void Bar() {
+	typedef MGPU_LAUNCH_PARAMS Params;
+	if(!blockIdx.x &amp;&amp; !threadIdx.x) {
+		printf("Launch Bar&lt;&lt;&lt;%d, %d>>> with NT=%d VT=%d OCC=%d\n",
+			gridDim.x, blockDim.x, Params::NT, Params::VT, Params::OCC);
+		printf("\t\tP1 = %d  sizeof(TT1) = %d\n", Params::P1, 
+			sizeof(typename Params::T1));
+	}	
+}
+
+void LaunchBar(int count, CudaContext&amp; context) {
+	typedef LaunchBox&lt;
+		BarParams&lt;128, 7, 4, 20, short>,	// sm_20
+		BarParams&lt;256, 9, 5, 30, float>,	// sm_30
+		BarParams&lt;256, 15, 3, 35, double>	// sm_35
+	> Tuning;
+	int2 launch = Tuning::GetLaunchParams(context);
+
+	int nv = launch.x * launch.y;
+	int numBlocks = MGPU_DIV_UP(count, nv);
+	Bar&lt;Tuning>&lt;&lt;&lt;numBlocks, launch.x>>>();
+}</pre></div>
+<p>LaunchBoxVT inherits the more generic LaunchBox type and provides some syntactic sugar. LaunchBox  takes three types as arguments and typedefs those to <code>Sm20</code>, <code>Sm30</code>, and <code>Sm35</code>. When devices based on the Maxwell architecture are released, LaunchBox will add additional typedefs. The LaunchBox technique inherits parameter tunings to avoid versioning difficulties. Although LaunchBox puts no restrictions on its specialization types, constants NT and VT must be included if the host code wishes to use <code>LaunchBox::GetLaunchParams</code> (the client can elect not to use this), and NT and OCC must be included to support <code>MGPU_LAUNCH_BOUNDS</code> (ditto).</p>
+<div class="snip">
+<pre>GeForce GTX 570 : 1464.000 Mhz   (Ordinal 0)
+15 SMs enabled. Compute Capability sm_20
+FreeMem:    778MB   TotalMem:   1279MB.
+Mem Clock: 1900.000 Mhz x 320 bits   (152.000 GB/s)
+ECC Disabled
+
+Launching Foo with 1000000 inputs:
+Launch Foo&lt;&lt;&lt;1117, 128>>> with NT=128 VT=7 OCC=4
+
+Launching Bar with 1000000 inputs:
+Launch Bar&lt;&lt;&lt;1117, 128>>> with NT=128 VT=7 OCC=4
+                P1 = 20  sizeof(TT1) = 2</pre></div>
+<p>Launching <code>Foo</code> and <code>Bar</code> prints  the above. The host function correctly coordinates the launch with the statically- specialized kernel.</p>
+<p>There is one small caveat: if LaunchBox is used to specialize kernels for architectures<em> that are not compiled</em> with -gencode on the command line, <code>LaunchBox::GetLaunchParams</code> could return a different set of tuning parameters than those that the kernel actually gets specialized over. If, for example, the program is compiled for targets sm_20 and sm_30 but is executed on an sm_35 device, the kernel that is launched would be for sm_30 (the largest targeted architectured not greater than the architecture of the device), however the host side would configure the launch with the tuning parameters for sm_35.</p>
+<p>To properly coordinate between the static device-side and dynamic host-side interfaces, we implement <code>GetLaunchParams</code> so that it uses the <em>highest targeted architecture not greater than the device's compute capability</em> when selecting dynamic launch parameters.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/launchbox.cuh">include/device/launchbox.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 57">// Returns (NT, VT) from the sm version.
+template&lt;typename Derived>
+struct LaunchBoxRuntime {
+	static int2 GetLaunchParams(CudaContext&amp; context) {
+		int sm = context.CompilerVersion();
+		if(sm &lt; 0) {
+			cudaFuncAttributes attr;
+			cudaFuncGetAttributes(&amp;attr, LBVerKernel);
+			sm = 10 * attr.ptxVersion;
+			context.Device().SetCompilerVersion(sm);
+		}
+
+ 		// TODO: Add additional architectures as devices are released.
+		if(sm >= 350) 
+			return make_int2(Derived::Sm35::NT, Derived::Sm35::VT);
+		else if(sm >= 300) 
+			return make_int2(Derived::Sm30::NT, Derived::Sm30::VT);
+		else
+			return make_int2(Derived::Sm20::NT, Derived::Sm20::VT);
+	}
+};</pre></div>
+<p>The first time <code>GetLaunchParams</code> is called, <code>CudaDevice::CompilerVersion</code> is unset, and we call <code>cudaFuncGetAttributes</code> on a place-holder method <code>LBVerKernel</code>. (Although it is never launched, taking the address of this kernel keeps it in our program.) This bit of CUDA introspection returns the target architecture of the compiled kernel (and presumably all other kernels in the program) through <code>cudaFuncAttributes::ptxVersion</code>. LaunchBox allows the CUDA runtime to coordinate the host and device sides of the call. All subsequent LaunchBox invocations are ready to go with the compiler version.</p>
+<br />
+<div class="toclist"><ul>
+ 	<li class="tocprev">&laquo; <a href="intro.html">Introduction</a></li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="library.html">The Library</a> &raquo;</li></ul>
+</div><br/>
+</body></html>

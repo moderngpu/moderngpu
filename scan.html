@@ -1,0 +1,798 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type" />
+  <title>Reduce and Scan - Modern GPU</title>
+  <link href="mgpu.css" rel="stylesheet" type="text/css" />
+  <script src="syntaxhighlighter_3.0.83/scripts/shCore.js" type="text/javascript"></script>
+  <script src="syntaxhighlighter_3.0.83/scripts/shBrushCpp.js" type="text/javascript"></script>
+  <link href="syntaxhighlighter_3.0.83/styles/shThemeDefault.css" rel="stylesheet" type="text/css" />
+  <link href="syntaxhighlighter_3.0.83/styles/shCore.css" rel="stylesheet" type="text/css" />
+  <script type="text/javascript"> SyntaxHighlighter.all() </script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25772750-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</head><body class="tutorial">
+<a href="https://github.com/NVlabs/moderngpu"><img style="position: absolute; top: 0; right: 0; border: 0;" width="149" height="149" src="forkme_right_green_007200.png" alt="Fork me on GitHub" /></a>
+<div class="copyright">
+<p><strong>&copy; 2013, NVIDIA CORPORATION.&nbsp;All  rights reserved.</strong></p>
+<p>Code and text by <a href="https://twitter.com/moderngpu">Sean Baxter</a>, NVIDIA Research.</p>
+<p>(Click <a href="faq.html#license">here</a> for license. Click <a href="faq.html#contact">here</a> for contact information.)</p>
+</div><br />
+<div class="toclist"><ul>
+ 	<li class="tocprev">&laquo; <a href="library.html">The Library</a></li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="bulkinsert.html">Bulk Remove and Bulk Insert</a> &raquo;</li></ul>
+</div><br />
+<h1>Reduce and Scan</h1>
+<p>Reduce and scan are core primitives of parallel computing. This implementation supports user-defined binary operations and defines an interface for handling different input, intermediate, and result types.</p>
+<p>Algorithmically, reduce and scan show where we've been with GPU computing&mdash;the following sections show where we're going.</p>
+
+<h2><a id="benchmark">Benchmark and usage</a></h2>
+<div class="figure"><img src="benchmark_scan.png" width="703" height="420" alt="" /></div><p class="cap">Scan benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarkscan.cu">tests/benchmarkscan.cu</a></p>
+<div class="snip"><p>Scan demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 42">void DemoScan(CudaContext&amp; context) {
+	printf("\n\nREDUCTION AND SCAN DEMONSTRATION:\n\n");
+
+	// Generate 100 random integers between 0 and 9.
+	int N = 100;
+	MGPU_MEM(int) data = context.GenRandom&lt;int>(N, 0, 9);
+	printf("Input array:\n");
+	PrintArray(*data, "%4d", 10);
+	
+	// Run a global reduction.
+	int total = Reduce(data->get(), N, context);
+	printf("Reduction total: %d\n\n", total);
+	
+	// Run an exclusive scan.
+	total = Scan&lt;MgpuScanTypeExc>(data->get(), N, context);
+	printf("Exclusive scan:\n");
+	PrintArray(*data, "%4d", 10);
+	printf("Scan total: %d\n", total);
+}</pre><hr /><pre>REDUCTION AND SCAN DEMONSTRATION:
+
+Input array:
+    0:     8    1    9    8    1    9    9    2    6    3
+   10:     0    5    2    1    5    9    9    9    9    9
+   20:     1    7    9    9    9    1    4    7    8    2
+   30:     1    0    4    1    9    6    7    8    9    5
+   40:     6    7    0    3    8    2    9    6    6    3
+   50:     7    7    7    4    3    4    6    1    1    3
+   60:     7    7    0    3    2    8    0    1    0    9
+   70:     8    8    6    1    3    7    9    4    0    6
+   80:     4    1    3    2    7    0    7    0    1    4
+   90:     4    4    4    4    6    7    7    9    7    8
+Reduction total: 492
+
+Exclusive scan:
+    0:     0    8    9   18   26   27   36   45   47   53
+   10:    56   56   61   63   64   69   78   87   96  105
+   20:   114  115  122  131  140  149  150  154  161  169
+   30:   171  172  172  176  177  186  192  199  207  216
+   40:   221  227  234  234  237  245  247  256  262  268
+   50:   271  278  285  292  296  299  303  309  310  311
+   60:   314  321  328  328  331  333  341  341  342  342
+   70:   351  359  367  373  374  377  384  393  397  397
+   80:   403  407  408  411  413  420  420  427  427  428
+   90:   432  436  440  444  448  454  461  468  477  484
+Scan total: 492</pre></div>
+<div class="figure"><img src="benchmark_maxindex.png" width="703" height="420" alt="" /></div>
+<p class="cap">Max-index benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarkscan.cu">tests/benchmarkscan.cu</a></p>
+<div class="snip"><p>Max-index demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 65">void DemoMaxIndex(CudaContext&amp; context) {
+	printf("\n\nMAX-INDEX DEMONSTRATION:\n\n");
+
+	// Generate 100 random integers between 0 and 9.
+	int N = 100;
+	MGPU_MEM(int) data = context.GenRandom&lt;nt>(N, 0, N);
+	printf("Input array:\n");
+	PrintArray(*data, "%4d", 10);
+
+	// Run a global reduction.
+	typedef ScanOpMaxIndex&lt;int> Op;
+	Op::Pair pair = Reduce(data->get(), N, Op(), context);
+	printf("Max-index reduction: %d at position %d\n", pair.value, pair.index);
+
+	// Run an exclusive scan.
+	Scan&lt;MgpuScanTypeExc>(data->get(), N, data->get(), Op(), &amp;pair, false,
+		context);
+	printf("\nMax-index exclusive scan:\n");
+	PrintArray(*data, "%4d", 10);
+	printf("Scan total: %d at position %d\n", pair.value, pair.index);
+}</pre><hr /><pre>MAX-INDEX DEMONSTRATION:
+
+Input array:
+    0:    27   71   68    0   66   71   16   65   12   46
+   10:    50   78   96   57   34   88   59   81   22    1
+   20:    75   82   25   82   51   94   70   41   89   42
+   30:    96   58   55   15   14   76   15   23   26   81
+   40:    84   99   25   33   82   30   24    1   93   21
+   50:    35   91   19   85   25   96   62   78   47   99
+   60:    35    6   83   80   59   60   55   74   92   70
+   70:    28   68   76   39   76   56   38   21   57   53
+   80:     7   40    5   35   53   59   78   35   94   97
+   90:    13   15   57   39   47   39    1   73   34   39
+Max-index reduction: 99 at position 41
+
+Max-index exclusive scan:
+    0:    -1    0    1    1    1    1    1    1    1    1
+   10:     1    1   11   12   12   12   12   12   12   12
+   20:    12   12   12   12   12   12   12   12   12   12
+   30:    12   12   12   12   12   12   12   12   12   12
+   40:    12   12   41   41   41   41   41   41   41   41
+   50:    41   41   41   41   41   41   41   41   41   41
+   60:    41   41   41   41   41   41   41   41   41   41
+   70:    41   41   41   41   41   41   41   41   41   41
+   80:    41   41   41   41   41   41   41   41   41   41
+   90:    41   41   41   41   41   41   41   41   41   41
+Scan total: 99 at position 41</pre></div>
+<h2><a id="host">Host functions</a></h2>
+<div class="snip">
+  <p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 42">////////////////////////////////////////////////////////////////////////////////
+// kernels/reduce.cuh
+
+// Reduce input and return variable in host memory. Note that this calls 
+// cudaMemcpyDeviceToHost, a synchronous operation that may interrupt queueing
+// on streams.
+template&lt;typename InputIt, typename Op>
+MGPU_HOST typename Op::value_type Reduce(InputIt data_global, int count, Op op, 
+	CudaContext&amp; context);
+
+// T = std::iterator_traits&lt;InputIt>::value_type.
+// Reduce with Op = ScanOp&lt;ScanOpTypeAdd, T>.
+template&lt;typename InputIt>
+MGPU_HOST typename std::iterator_traits&lt;InputIt>::value_type
+Reduce(InputIt data_global, int count, CudaContext&amp; context);
+
+
+////////////////////////////////////////////////////////////////////////////////
+// kernels/scan.cuh
+
+// Scan inputs in device memory.
+// MgpuScanType may be:
+//		MgpuScanTypeExc (exclusive) or
+//		MgpuScanTypeInc (inclusive).
+// If total is non-zero, the reduction of the input is returned in host memory.
+//		This incurs a synchronization so may not be appropriate for programs
+//		using stream.
+// If totalAtEnd is true, the reduction is stored at dest_global[count].
+template&lt;MgpuScanType Type, typename InputIt, typename OutputIt, typename Op>
+MGPU_HOST void Scan(InputIt data_global, int count, OutputIt dest_global, Op op,
+	typename Op::value_type* total, bool totalAtEnd, CudaContext&amp; context);
+
+// Specialization Scan:
+// Returns the reduction as a variable in host memory.
+// Uses Op = ScanOp&lt;ScanOpTypeAdd, T>
+// totalAtEnd = false
+template&lt;MgpuScanType Type, typename InputIt>
+MGPU_HOST typename std::iterator_traits&lt;InputIt>::value_type
+Scan(InputIt data_global, int count, CudaContext&amp; context);
+
+// Specialization with MgpuScanTypeExc.
+template&lt;typename InputIt>
+MGPU_HOST typename std::iterator_traits&lt;InputIt>::value_type
+Scan(InputIt data_global, int count, CudaContext&amp; context);</pre></div>
+<h2><a id="algorithm">Algorithm</a></h2>
+<p class="important"><span class="idiom">Further Reading:</span> For a detailed introduction to reduction networks read NVIDIA's Mark Harris on <a href="http|//developer.download.nvidia.com/assets/cuda/files/reduction.pdf"><em>Optimizing Parallel Reduction in CUDA</em></a>.</p>
+<p>Reduce and scan (<a href="http://en.wikipedia.org/wiki/Prefix_sum">prefix sum</a>) are core primitives in parallel computing. Reduce is the sum of elements in an input sequence:</p>
+<div class="snip">
+<pre>Input:      1   7   4   0   9   4   8   8   2   4   5   5   1   7   1   1   5   2   7   6
+Reduction: <strong>87</strong></pre></div>
+<p>Scan generalizes this operator, reducing inputs for every interval from the start to the current element. <em>Exclusive scan</em> is the sum of all inputs from the beginning to the element before the current element. <em>Inclusive scan</em> is the exclusive scan plus the current element. You can convert from inclusive to exclusive scan with a component-wise subtraction of the input array, or by shifting the scan one element to the right:</p>
+<div class="snip">
+  <pre>Input:      1   7   4   0   9   4   8   8   2   4   5   5   1   7   1   1   5   2   7   6
+Exclusive:  0   1   8  12  12  21  25  33  41  43  47  52  57  58  65  66  67  72  74  81
+Inclusive:  1   8  12  12  21  25  33  41  43  47  52  57  58  65  66  67  72  74  81  <strong>87</strong></pre>
+</div>
+<p>Note that the last element of  inclusive scan is the reduction of the inputs.</p>
+<p>Parallel evaluation of reduce and scan requires cooperative scan networks which sacrifice work efficiency to expose 
+parallelism. Consider the cooperative scan network based on the <a href="http://en.wikipedia.org/wiki/Kogge%E2%80%93Stone_adder">Kogge-Stone adder</a>. n inputs are processed in log(n) passes. On pass 0, element i - 1 (if in range) is added into element i, in parallel. On pass 1, element i - 2 is added into element i. On pass 2, element i - 4 is added into element i, and so on.</p>
+<div class="snip">
+  <pre>Input:      1   7   4   0   9   4   8   8   2   4   5   5   1   7   1   1   <span class="red">5</span>   <span class="green">2</span>   7   6
+
+Inclusive scan network by offset:
+    1:      1   8  11   4   9  13  12  16  10   6   9  10   6   8   8   <span class="red">2</span>   6   <span class="green">7</span>   9  13
+    2:      1   8  12  12  20  17  21  29  22  22  19  16  15  <span class="red">18</span>  14  10  14   <span class="green">9</span>  15  20
+    4:      1   8  12  12  21  25  33  41  42  <span class="red">39</span>  40  45  37  40  33  26  29  <span class="green">27</span>  29  30
+    8:      1   <span class="red">8</span>  12  12  21  25  33  41  43  47  52  57  58  65  66  67  71  <span class="green">66</span>  69  75
+   16:      1   8  12  12  21  25  33  41  43  47  52  57  58  65  66  67  72  <span class="green">74</span>  81  <strong>87</strong>
+
+Exclusive:  0   1   8  12  12  21  25  33  41  43  47  52  57  58  65  66  67  72  74  81</pre></div>
+<p>On each pass, the element in red (column 17 - offset) is added into the element in green (column 17) and stored at column 17 on the next line. By the last pass this chain of adders has communicated the sum of all elements between columns 0 and 16 into column 17.</p>
+<p>The sequential implementation runs in O(n) operations with O(n) latency. The parallel version has O(n log n) work efficiency, but by breaking the serial dependencies, improves latency to O(log n) on machines with n processors. Most workloads have many more inputs than the device has processors. We amortize the super-linear cooperative scan network cost by processing subsequences of the input with work-efficient serial functions. The partials are run through the parallel scan network, which costs O(p log p), where the number of processors p &laquo; n. Finally the scanned partials are added back into the inputs in linear time to complete operation.</p>
+<p>This outlines a common pattern in GPU computing:</p>
+<ol>
+  <li>  <strong>Upsweep</strong> to send partial reductions to the spine.</li>
+  <li><strong> Scan</strong> the spine of partials with a low-latency cooperative function.</li>
+  <li><strong>Downsweep</strong> to distribute the scanned partials from the spine to each of the inputs.</li>
+</ol>
+<div class="snip">
+<pre>Input array: 20 threads and 5 elements/thread:
+            <span class="red">1   7   4   0   9</span>   <span class="green">4   8   8   2   4</span>   <span class="blue">5   5   1   7   1</span>   1   5   2   7   6
+            1   4   2   3   2   2   1   6   8   5   7   6   1   8   9   2   7   9   5   4
+            3   1   2   3   3   4   1   1   3   8   7   4   2   7   7   9   3   1   9   8
+            6   5   0   2   8   6   0   2   4   8   6   5   0   9   0   0   6   1   3   8
+            9   3   4   4   6   0   6   6   1   8   4   9   6   3   7   8   8   2   9   1
+
+Partial reduction by threads (Upsweep):
+           <span class="red">21</span>  <span class="green">26</span>  <span class="blue">19</span>  21  12  22  31  27  12  17  27  30  21  20  20  18  <span class="red">26</span>  <span class="green">21</span>  29  28
+
+Parallel scan of partials (Spine):
+    1:     21  47  45  40  33  34  53  58  39  29  44  57  51  41  40  <span class="red">38</span>  44  <span class="green">47</span>  50  57
+    2:     21  47  66  87  78  74  86  92  92  87  83  86  95  <span class="red">98</span>  91  79  84  <span class="green">85</span>  94 104
+    4:     21  47  66  87  99 121 152 179 170 <span class="red">161</span> 169 178 187 185 174 165 179 <span class="green">183</span> 185 183
+    8:     21  <span class="red">47</span>  66  87  99 121 152 179 191 208 235 265 286 306 326 344 349 <span class="green">344</span> 354 361
+   16:     21  47  66  87  99 121 152 179 191 208 235 265 286 306 326 344 370 <span class="green">391</span> 420 448
+
+Exclusive scan of partials:
+            <span class="red">0</span>  <span class="green">21</span>  <span class="blue">47</span>  66  87  99 121 152 179 191 208 235 265 286 306 326 344 370 391 420
+
+Add exclusive scan of partials into exclusive sequential scan of input array (Downsweep):
+            <span class="red">0   1   8  12  12</span>  <span class="green">21  25  33  41  43</span>  <span class="blue">47  52  57  58  65</span>  66  67  72  74  81
+           87  88  92  94  97  99 101 102 108 116 121 128 134 135 143 152 154 161 170 175
+          179 182 183 185 188 191 195 196 197 200 208 215 219 221 228 235 244 247 248 257
+          265 271 276 276 278 286 292 292 294 298 306 312 317 317 326 326 326 332 333 336
+          344 353 356 360 364 370 370 376 382 383 391 395 404 410 413 420 428 436 438 447</pre></div>
+<p>The figure above uses 20 threads to cooperatively scan 100 inputs. During the upsweep phase, each thread reduces five inputs using a work-efficient serial loop. The 20 partials are then scanned in parallel using five Kogge-Stone passes. During the downsweep phase, each thread sequentially adds its five inputs into the scanned partial from the spine. By increasing the grain size (the parameter VT in MGPU kernels) we do more linear-complexity work to amortize the O(n log n) scan network cost.</p>
+<h2><a id="scanoperator">Scan operators</a></h2>
+<p>Modern GPU defines a scan operator interface to increase the flexibility of the <code>Reduce</code> and <code>Scan</code> functions. The library provides several implementations to satisfy common needs. Note that participating operations do not need to support the commutative property (A + B need not necessarily equal B + A), although they must be associative, otherwise parallelism is impossible.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 43">struct ScanOpInterface {
+    enum { Commutative }; // False to require non-commutative treatment.
+
+	typedef X input_type;
+	typedef Y value_type;
+	typedef Z result_type;
+
+	// Extract() takes inputs loaded from global memory and converts to
+    // value_type.
+	MGPU_HOST_DEVICE value_type Extract(input_type t, int index);
+
+	// Plus() operates on two value_types. Reduce and Scan do not rely on the 
+	// Plus function being commutative - value t1 always represents values that
+	// occur earlier in the input stream than t2.
+	MGPU_HOST_DEVICE value_type Plus(value_type t1, value_type t2);
+
+	// Combine() prepares a value for storage. Values are combined with the 
+	// original input_type element at the same slot. Combine() is not used with
+	// Reduce, as Reduce only returns value_types.
+	MGPU_HOST_DEVICE result_type Combine(input_type t1, value_type t2);
+
+	// Identity() returns an input_type that interacts benignly with any other
+	// value_type in Plus(). The Identity() value_type is always extracted with
+	// the index -1. Identity() elements appear at the end of the stream (in the
+	// partial last tile) or are returned as the first element for an exclusive
+	// scan.
+	MGPU_HOST_DEVICE input_type Identity();
+};</pre></div>
+<p><code>ScanOpInterface</code> is a blueprint for customizing the behavior of MGPU <code>Reduce</code> and <code>Scan</code>. Do not derive this type, simply make a new type that implements its three typedefs and four methods. Specialize <code>CTAReduce</code>, <code>Reduce</code>, <code>CTAScan</code>, and <code>Scan</code> over this new type. Although fancy iterators can provide much of the flexibility of <code>ScanOpInterface</code>, MGPU defines a pipeline that makes the process easier to reason about. </p>
+<p>When dealing with data inside a CTA (<code>CTAReduce</code> and <code>CTAScan</code>), only the <code>Plus</code> and <code>Identity</code> methods are used. All data is typed to <code>value_type</code>. <code>Combine()</code> supports operators that don't have the commutative property; if the operator defines <code>Commutative = false</code>, the first argument always represents expressions formed from inputs that come before the inputs of the second argument's expression. Guaranteeing the order of operands requires a CTA-wide reduction for every tile of data processed. This adds considerable overhead. Set <code>Commutative = true</code> unless your operator is emphatically non-commutative. The <code>ScanOpMaxIndex&lt;&gt;</code> operator demonstrated in the <a href="scan.html#benchmark">benchmark and usage section</a> is non-commutative for purposes of demonstration, not of performance.</p>
+<p>The scan interface defines three types: <code>input_type</code>, <code>value_type</code>, <code>result_type</code>. Inputs loaded from device memory are kept in register. <code>Extract()</code> is called on each element and passed its index. It returns <code>value_type</code>. The <code>Extract()</code> method allows the user to bind an index to the value for implementing max-index/min-index reductions, or to strip out flag bits that aren't subject to the scan logic.  All folding operations are performed on <code>value_type</code>. Scanned values are converted to <code>result_type</code> before being stored to device memory. The <code>Combine()</code> method is passed the scanned value along with the original <code>input_type</code> value. The user can discard the value from a max-index operation or re-apply the flags that were masked out during the <code>Extract()</code>.</p>
+<p>For type consistency, the <code>Identity()</code> method returns <code>input_type</code>. It is extracted with index -1. By providing the identity as <code>input_type</code>, we can <code>Combine()</code> the reduction <code>value_type</code> with the identity and store it to the last element plus one.</p>
+<h3><a id="scanop">ScanOp</a></h3>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 72">// Basic scan operators.
+enum ScanOpType {
+	ScanOpTypeAdd,
+	ScanOpTypeMul,
+	ScanOpTypeMin,
+	ScanOpTypeMax
+};
+
+template&lt;ScanOpType OpType, typename T>
+struct ScanOp {
+    enum { Commutative = true };
+	typedef T input_type;
+	typedef T value_type;
+	typedef T result_type;
+
+	MGPU_HOST_DEVICE value_type Extract(input_type t, int index) { return t; }
+	MGPU_HOST_DEVICE value_type Plus(value_type t1, value_type t2) { 
+		switch(OpType) {
+			case ScanOpTypeAdd: t1 += t2; break;
+			case ScanOpTypeMul: t1 *= t2; break;
+			case ScanOpTypeMin: t1 = min(t1, t2); break;
+			case ScanOpTypeMax: t1 = max(t1, t2); break;
+		}
+		return t1;
+	}
+	MGPU_HOST_DEVICE result_type Combine(input_type t1, value_type t2) {
+		return t2;
+	}
+	MGPU_HOST_DEVICE input_type Identity() { return _ident; }
+	
+	MGPU_HOST_DEVICE ScanOp(input_type ident) : _ident(ident) { }
+	MGPU_HOST_DEVICE ScanOp() {
+		switch(OpType) {
+			case ScanOpTypeAdd: _ident = 0; break;
+			case ScanOpTypeMul: _ident = 1; break;
+			case ScanOpTypeMin: _ident = numeric_limits&lt;T>::max(); break;
+			case ScanOpTypeMax: _ident = numeric_limits&lt;T>::lowest(); break;
+		}
+	}
+
+	input_type _ident;
+};
+typedef ScanOp&lt;ScanOpTypeAdd, int> ScanOpAdd;
+</pre></div>
+<p><code>ScanOp</code> is a basic operator that performs add, mul, min, or max functions. MGPU includes a subset of <code>std::numeric_limits&lt;&gt;</code> (in the mgpu namespace) with methods <code>__device__</code>-tagged to support specialization of <code>ScanOp</code> over built-in  types. The typedef <code>ScanOpAdd</code> is provided for convenience - a partial sum on integers is by far the most common scan operator  in MGPU kernels.</p><h3><a id="scanopindex">ScanOpIndex</a></h3>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 160">template&lt;typename T>
+struct ScanOpIndex {
+    enum { Commutative = false };
+	struct Pair { int index; T value; };
+
+	typedef T input_type;
+	typedef Pair value_type;
+	typedef int result_type;
+	MGPU_HOST_DEVICE value_type Extract(T t, int index) {
+		Pair p = { index, t };
+		return p;
+	}
+	MGPU_HOST_DEVICE int Combine(T t1, value_type t2) {
+		return t2.index;
+	}
+	MGPU_HOST_DEVICE input_type Identity() { 
+		return _identity;
+	}
+	MGPU_HOST_DEVICE ScanOpIndex(T identity) : _identity(identity) { }
+	T _identity;
+};
+
+template&lt;typename T>
+struct ScanOpMinIndex : ScanOpIndex&lt;T> {
+	typedef typename ScanOpIndex&lt;T>::value_type value_type;
+	MGPU_HOST_DEVICE value_type Plus(value_type t1, value_type t2) {
+		if(t2.value &lt; t1.value) t1 = t2;
+		return t1;
+	}
+	MGPU_HOST_DEVICE ScanOpMinIndex(T max_ = numeric_limits&lt;T>::max()) :
+		ScanOpIndex&lt;T>(max_) { }
+};
+template&lt;typename T>
+struct ScanOpMaxIndex : ScanOpIndex&lt;T> {
+	typedef typename ScanOpIndex&lt;T>::value_type value_type;
+	MGPU_HOST_DEVICE value_type Plus(value_type t1, value_type t2) {
+		if(t2.value > t1.value) t1 = t2;
+		return t1;
+	}
+	MGPU_HOST_DEVICE ScanOpMaxIndex(T min_ = numeric_limits&lt;T>::lowest()) :
+		ScanOpIndex&lt;T>(min_) { }
+};</pre></div>
+<p><code>ScanOpIndex</code> is the base class for min-index and max-index operators. <code>Commutative = false</code> is a request for the reduction kernel to treat the operator as non-commutative. The operator uses type-morphing to change type <code>T</code> input to integer output. On <code>Extract()</code>, the value and index are moved into a pair which is returned. The <code>Plus()</code> operator only compares the values - because the inputs of the left expression come before the inputs of the right expression, the user is guaranteed, in case of multiple min- or max-elements, to receive the index of the left-most one. <code>Combine()</code> discards the value and returns the left-most index of an extremum.</p>
+<p class="important"><span class="idiom">Important:</span> MGPU kernels aggressively union together types to conserve shared memory. Don't specialize MGPU kernels over types that have non-trivial constructors or destructors. C++ 11 relaxes this restriction, as will this library when CUDA supports the new union semantics. If your type cannot be unioned, cast to an equivalent POD type.</p>
+<h2><a id="ctareduce">CTAReduce</a></h2>
+<p><code>CTAReduce</code> recursively folds inputs. Specialize with a power-of-two number of threads and a scan operator. This is a work-efficient operation requiring n total additions and log(n) passes.</p>
+<div class="snip">
+  <pre>Inputs in thread order:  0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
+
+Fold elements 8-15       0   1   2   3   4   5   6   7
+into 0-7:                8   9  10  11  12  13  14  15
+
+Fold elements 4-7        0   1   2   3
+into 0-3:                8   9  10  11
+                         4   5   6   7
+                        12  13  14  15
+
+Fold elements 2-3        0   1
+into 0-1:                8   9
+                         4   5
+                        12  13
+                         2   3
+                        10  11
+                         6   7
+                        14  15
+
+Thread 0 folds in element 1:
+Reduction = 0 + 8 + 4 + 12 + 2 + 10 + 6 + 14 + 1 + 9 + 5 + 13 + 3 + 11 + 7 + 15</pre></div>
+<p>Folding the data in thread order correctly reduces inputs only for operations that support the commutative property. Prefix sum would work, but max-index would not necessarily return the left-most extrema. We need to permute the inputs such that the reduction is in ascending order. Scatter element 0 into position 0, element 1 into position 8, element 2 into position 4, etc.</p>
+<div class="snip">
+<pre>Permuted input order:    0   8   4  12   2  10   6  14   1   9   5  13   3  11   7  15
+
+Fold elements 8-15       0   8   4  12   2  10   6  14
+into 0-7:                1   9   5  13   3  11   7  15
+
+Fold elements 4-7        0   8   4  12
+into 0-3:                1   9   5  13
+                         2  10   6  14
+                         3  11   7  15
+
+Fold elements 2-3        0   8
+into 0-1:                1   9
+                         2  10
+                         3  11
+                         4  12
+                         5  13
+                         6  14
+                         7  15
+
+Thread 0 folds in element 1:
+Reduction = 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12 + 13 + 14 + 15</pre></div>
+<p>Fortunately this permutation is trivial to calculate. We simply <em>reverse the bits</em> in the thread ID and scatter. Devices of compute capability 2.0 (Fermi) and later support a hardware bit reverse intrinsic <code>__brev</code>.</p>
+
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 206">template&lt;int NT, typename Op = ScanOpAdd>
+struct CTAReduce {
+	typedef typename Op::value_type T;
+	enum { Size = NT };
+	enum { Capacity = NT + NT / WARP_SIZE };
+	struct Storage { T shared[Capacity]; };
+
+	MGPU_DEVICE static T Reduce(int tid, T x, Storage&amp; storage, Op op = Op()) {
+		// Reverse the bits of the source thread ID and make a conflict-free
+		// store using a 33-stride spacing.
+		int dest = brev(tid)&lt;&lt; (32 - sLogPow2&lt;NT>::value);
+		storage.shared[dest + dest / WARP_SIZE] = x;
+		__syncthreads();
+
+		// Fold the data in half with each pass.
+		int src = tid + tid / WARP_SIZE;
+		#pragma unroll
+		for(int destCount = NT / 2; destCount >= 1; destCount /= 2) {
+			if(tid &lt; destCount) {
+				// On the first pass, read this thread's data out of shared 
+				// memory.
+				if(NT / 2 == destCount) x = storage.shared[src];
+				int src2 = destCount + tid;
+				x = op.Plus(x, storage.shared[src2 + src2 / WARP_SIZE]);
+				storage.shared[src] = x;
+			}
+			__syncthreads();
+		}
+		T total = storage.shared[0];
+		__syncthreads();
+		return total;
+	}
+};</pre></div>
+<p>CTA reduction is defined as a type to unite a storage structure and a static method in the same scope. Callers should union <code>CTAReduce&lt;&gt;::Storage</code> into their shared memory structure to optimize occupancy. The bit-reversal permutation causes bank conflicts by mapping multiple lanes in a warp to the same bank which this method avoids by adding a padding index every 32 slots.</p>
+<p class="important"><span class="idiom">Important:</span> When mapping adjacent threads into the same bank, avoid conflicts by adding a padding element every 32 slots. Set <code>index = index + index / WARP_SIZE</code> and reserve <code>NT + NT / WARP_SIZE</code> shared memory slots.</p>
+<div class="snip">
+<pre>Simulation of bank-conflict resolution on 16 banks:
+      <span class="green">0</span>   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
+      x  <span class="green">16</span>  17  18  19  20  21  22  23  24  25  26  27  28  29  30
+     31   x  <span class="green">32</span>  33  34  35  36  37  38  39  40  41  42  43  44  45
+     46  47   x  <span class="green">48</span>  49  50  51  52  53  54  55  56  57  58  59  60
+     61  62  63   x  <span class="green">64</span>  65  66  67  68  69  70  71  72  73  74  75
+     76  77  78  79   x  <span class="green">80</span>  81  82  83  84  85  86  87  88  89  90
+     91  92  93  94  95   x  <span class="green">96</span>  97  98  99 100 101 102 103 104 105
+    106 107 108 109 110 111   x <span class="green">112</span> 113 114 115 116 117 118 119 120
+    121 122 123 124 125 126 127   x <span class="green">128</span> 129 130 131 132 133 134 135
+    136 137 138 139 140 141 142 143   x <span class="green">144</span> 145 146 147 148 149 150
+    151 152 153 154 155 156 157 158 159   x <span class="green">160</span> 161 162 163 164 165
+    166 167 168 169 170 171 172 173 174 175   x <span class="green">176</span> 177 178 179 180
+    181 182 183 184 185 186 187 188 189 190 191   x <span class="green">192</span> 193 194 195
+    196 197 198 199 200 201 202 203 204 205 206 207   x <span class="green">208</span> 209 210
+    211 212 213 214 215 216 217 218 219 220 221 222 223   x <span class="green">224</span> 225
+    226 227 228 229 230 231 232 233 234 235 236 237 238 239   x <span class="green">240</span>
+    241 242 243 244 245 246 247 248 249 250 251 252 253 254 255   x</pre></div>
+<h2><a id="ctascan">CTAScan and shfl scan</a></h2>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
+<pre class="brush: cpp; toolbar: false; first-line: 281">template&lt;int NT, typename Op = ScanOpAdd>
+struct CTAScan {
+	typedef typename Op::value_type T;
+	enum { Size = NT, Capacity = 2 * NT + 1 };
+	struct Storage { T shared[Capacity]; };
+
+	MGPU_DEVICE static T Scan(int tid, T x, Storage&amp; storage, T* total,
+		MgpuScanType type = MgpuScanTypeExc, Op op = Op()) {
+
+		storage.shared[tid] = x;
+		int first = 0;
+		__syncthreads();
+
+		#pragma unroll
+		for(int offset = 1; offset &lt; NT; offset += offset) {
+			if(tid >= offset)
+				x = op.Plus(storage.shared[first + tid - offset], x);
+			first = NT - first;
+			storage.shared[first + tid] = x;
+			__syncthreads();
+		}
+		*total = storage.shared[first + NT - 1];
+		if(MgpuScanTypeExc == type) 
+			x = tid ? 
+				storage.shared[first + tid - 1] : 
+				op.Extract(op.Identity(), -1);
+		__syncthreads();
+
+		return x;
+	}
+	MGPU_DEVICE static T Scan(int tid, T x, Storage&amp; storage) {
+		T total;
+		return Scan(tid, x, storage, &amp;total, MgpuScanTypeExc, Op());
+	}
+};</pre></div>
+<p><code>CTAScan</code> is a basic implemenation that uses double buffering to reduce synchronization. To further reduce latency we utilize the <code>shfl</code> instruction available on Kepler. This feature supports inter-lane communication inside a warp with a only a single trip over the shared memory cross-bar. Although CUDA C++ includes a <code>__shfl</code> intrinsic, we choose to access the instruction using inline PTX to save the returned predicate flag. The current CUDA backend copies predicate flags into registers when they are returned as <code>bool</code> types, resulting in wasted instructions if we were to build a shuffle intrinsic that returned both value and predicate. Best performance is achieved by executing both the shfl and the add in inline PTX.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/intrinsics.cuh">include/device/intrinsics.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 100">MGPU_DEVICE int shfl_add(int x, int offset, int width = WARP_SIZE) {
+	int result = 0;
+#if __CUDA_ARCH__ >= 300
+	int mask = (WARP_SIZE - width)&lt;&lt; 8;
+	asm(
+		"{.reg .s32 r0;"
+		".reg .pred p;"
+		"shfl.up.b32 r0|p, %1, %2, %3;"
+		"@p add.s32 r0, r0, %4;"
+		"mov.s32 %0, r0; }"
+		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(x));
+#endif
+	return result;
+}</pre></div>
+<p>The <code>mov</code> instruction is elided by the compiler, creating a warp scan in a tight sequence of five <code>shfl</code> and five predicated <code>add</code> instructions. The <code>shfl_add</code> function scans multiple segments within a warp, where <code>width</code> is a power-of-two segment size.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
+  <pre class="brush: cpp; toolbar: false; first-line: 321">#if __CUDA_ARCH__ >= 300
+
+template&lt;int NT>
+struct CTAScan&lt;NT, ScanOpAdd> {
+	// Define WARP_SIZE segments that are NT / WARP_SIZE large.
+    // Each warp makes log(SegSize) shfl_add calls.
+    // The spine makes log(WARP_SIZE) shfl_add calls.
+	enum { Size = NT, NumSegments = WARP_SIZE, SegSize = NT / NumSegments };
+	enum { Capacity = NumSegments + 1 };
+	struct Storage { int shared[Capacity + 1]; };
+
+	MGPU_DEVICE static int Scan(int tid, int x, Storage&amp; storage, int* total,
+		MgpuScanType type = MgpuScanTypeExc, ScanOpAdd op = ScanOpAdd()) {
+
+		int lane = (SegSize - 1) &amp; tid;
+		int segment = tid / SegSize;
+
+		// Scan each segment using shfl_add.
+		int scan = x;
+		#pragma unroll
+		for(int offset = 1; offset &lt; SegSize; offset *= 2)
+			scan = shfl_add(scan, offset, SegSize);
+
+		// Store the reduction (last element) of each segment into storage.
+		if(SegSize - 1 == lane) storage.shared[segment] = scan;
+		__syncthreads();
+
+		// Warp 0 does a full shfl warp scan on the partials. The total is
+		// stored to shared[NumSegments]. (NumSegments = WARP_SIZE)
+		if(tid &lt; NumSegments) {
+			int y = storage.shared[tid];
+			int scan = y;
+			#pragma unroll
+			for(int offset = 1; offset &lt; NumSegments; offset *= 2)
+				scan = shfl_add(scan, offset, NumSegments);
+			storage.shared[tid] = scan - y;
+			if(NumSegments - 1 == tid) storage.shared[NumSegments] = scan;
+		}
+		__syncthreads();
+
+		// Add the scanned partials back in and convert to exclusive scan.
+		scan += storage.shared[segment];
+		if(MgpuScanTypeExc == type) scan -= x;
+		*total = storage.shared[NumSegments];
+		__syncthreads();
+
+		return scan;
+	}
+	MGPU_DEVICE static int Scan(int tid, int x, Storage&amp; storage) {
+		int total;
+		return Scan(tid, x, storage, &amp;total, MgpuScanTypeExc, ScanOpAdd());
+	}
+};
+
+#endif // __CUDA_ARCH__ &gt;= 300</pre></div>
+<p>The CTA shuffle scan implementation takes the form of warp-synchronous programming but without the need for volatile memory qualifiers. We choose to divide the input into <em>32</em> equal segments. For 256 threads, we have a segment size of eight, and this is scanned in three calls to <code>shfl_add</code>. The last thread in each segment stores the partial sum to shared memory. After a barrier the partials are warp-scanned with five invocations of <code>shfl_add</code>.</p>
+<p> The choice to scan small segments in the upsweep (8 threads/segment) and scan large segments in the spane (32 threads/segment) has significant consequence for work efficiency: in the 256-thread example, each of the eight warps makes three calls to <code>shfl_add</code> in the upsweep, and the spine warp makes five calls, for 29 shuffles in all. By contrast, setting the segment size to 32 performs a five-pass warp scan in the upsweep and a three-pass scan over the eight partials in the spine, calling <code>shfl_add</code> 43 times. Changing the fan-out of scan networks can have implications for both the latency and efficiency. </p>
+<h2><a id="reducekernel">Reduce kernel</a></h2>
+<div class="snip">
+  <p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/reduce.cuh">include/kernels/reduce.cuh</a></p>
+  <pre class="brush: cpp; toolbar: false; first-line: 41">// Run a high-throughput reduction over multiple CTAs. Used as the upsweep phase
+// for global reduce and global scan.
+template&lt;typename Tuning, typename InputIt, typename Op>
+MGPU_LAUNCH_BOUNDS void KernelReduce(InputIt data_global, int count, 
+	int2 task, typename Op::value_type* reduction_global, Op op) {
+
+	typedef MGPU_LAUNCH_PARAMS Params;
+	const int NT = Params::NT;
+	const int VT = Params::VT;
+	const int NV = NT * VT;
+	typedef typename Op::input_type input_type;
+	typedef typename Op::value_type value_type;
+	typedef CTAReduce&lt;NT, Op> R;
+
+	union Shared {
+		typename R::Storage reduce;
+		input_type inputs[NV];
+	};
+	__shared__ Shared shared;
+
+	int tid = threadIdx.x;
+	int block = blockIdx.x;
+	int first = VT * tid;
+
+	int2 range = ComputeTaskRange(block, task, NV, count);
+
+	// total is the sum of encountered elements. It's undefined on the first 
+	// loop iteration.
+	value_type total = op.Extract(op.Identity(), -1);
+	bool totalDefined = false;
+
+	while(range.x &lt; range.y) {
+		int count2 = min(NV, count - range.x);
+
+		// Read terms into register.
+		input_type inputs[VT];
+		DeviceGlobalToReg&lt;NT, VT>(count2, data_global + range.x, tid, inputs);
+
+		if(Op::Commutative) {
+			// This path exploits the commutative property of the operator.
+			#pragma unroll
+			for(int i = 0; i &lt; VT; ++i) {
+				int index = NT * i + tid;
+				if(index &lt; count2) {
+					value_type x = op.Extract(inputs[i], range.x + index);
+					total = (i || totalDefined) ? op.Plus(total, x) : x;
+				}
+			}
+		} else {
+			// Store the inputs to shared memory and read them back out in
+			// thread order.
+			DeviceRegToShared&lt;NT, VT>(NV, inputs, tid, shared.inputs);
+
+			value_type x = op.Extract(op.Identity(), -1);			
+			#pragma unroll
+			for(int i = 0; i &lt; VT; ++i) {
+				int index = first + i;
+				if(index &lt; count2) {
+					value_type y = op.Extract(shared.inputs[index], 
+						range.x + index);
+					x = i ? op.Plus(x, y) : y;
+				}
+			}
+			__syncthreads();
+
+			// Run a CTA-wide reduction
+			x = R::Reduce(tid, x, shared.reduce, op);
+			total = totalDefined ? op.Plus(total, x) : x;
+		}
+		range.x += NV;
+		totalDefined = true;
+	} 
+    
+	if(Op::Commutative)
+		// Run a CTA-wide reduction to sum the partials for each thread.
+		total = R::Reduce(tid, total, shared.reduce, op);
+        
+	if(!tid) reduction_global[block] = total;
+}</pre></div>
+<p>We cover the <code>Reduce</code> kernel in detail, as most MGPU kernels are similarly constructed. The first template argument is <code>Tuning</code>, indicating the kernel uses the LaunchBox tuning mechanism. The MGPU_LAUNCH_BOUNDS macro expands to a <code>__launch_bounds__</code> attribute and <code>__global__</code> tag. Input data is accepted with a template argument InputIt to support iterators in addition to pointers. MGPU provides <code>counting_iterator</code> and <code>step_iterator</code>, and users can pass their own or any of the custom iterators included with Thrust.</p>
+<p>The tuning parameters NT and VT are pulled from the <code>Tuning</code> argument by way of the <code>MGPU_LAUNCH_PARAMS</code> macro. As described in the <a href="library.html#loadstore">library overview</a>, the grain size VT should be odd to avoid bank conflicts when reading out values from shared memory in thread order.</p>
+<p><code>CTAReduce</code> is specialized over the scan operator and its storage is made part of the union. The <a href="library.html#taskrange">task range</a> is computed and the CTA loops&mdash;sizing the grid to the device rather than the data results in a smaller spine with  lower-latency scan.</p>
+<p>Data is loaded from the input iterator into shared memory using <code>DeviceGlobalToShared</code>. All device methods in <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/loadstore.cuh">loadstore.cuh</a> that move to or from shared memory include an implicit synchronization&mdash;this can be disabled by passing <code>false</code> to the default last argument. After the data is loaded, threads read VT terms starting at VT * tid and call <code>Extract()</code> to change the data type from <code>input_type</code> to <code>value_type</code>. The <code>Plus</code> method on the scan operator combines values into <code>x</code>. The larger the grain size, the smaller the relative cost of the cooperative CTA reduction which follows. The reduction  for the  iteration, <code>x</code>, is added into the cumulative reduction for the CTA, <code>total</code>, and the loop continues until the task is complete. The CTA reduction is stored to global memory as a <code>value_type</code>. This may be copied to the host, combined with the other partials, and returned. Or it may be fed into another kernel to compute a global scan.</p>
+<h2><a id="scankernel">Scan kernel</a></h2>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/scan.cuh">include/kernels/scan.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 48">template&lt;int NT, int VT, MgpuScanType Type, typename InputIt, typename OutputIt, 
+	typename Op>
+__global__ void KernelParallelScan(InputIt cta_global, int count, Op op, 
+	typename Op::value_type* total_global, typename Op::result_type* end_global,
+	OutputIt dest_global) {
+
+	typedef typename Op::input_type input_type;
+	typedef typename Op::value_type value_type;
+	typedef typename Op::result_type result_type;
+	const int NV = NT * VT;
+
+	typedef CTAScan&lt;NT, Op> S;
+	union Shared {
+		typename S::Storage scan;
+		input_type inputs[NV];
+		result_type results[NV];
+	};
+	__shared__ Shared shared;
+
+	int tid = threadIdx.x;
+	
+	// total is the sum of encountered elements. It's undefined on the first 
+	// loop iteration.
+	value_type total = op.Extract(op.Identity(), -1);
+	bool totalDefined = false;
+	int start = 0;
+	while(start &lt; count) {
+		// Load data into shared memory.
+		int count2 = min(NV, count - start);
+		DeviceGlobalToShared&lt;NT, VT>(count2, cta_global + start, tid, 
+			shared.inputs);
+
+		// Transpose data into register in thread order. Reduce terms serially.
+		input_type inputs[VT];
+		value_type values[VT];
+		value_type x = op.Extract(op.Identity(), -1);
+		#pragma unroll
+		for(int i = 0; i &lt; VT; ++i) {
+			int index = VT * tid + i;
+			if(index &lt; count2) {
+				inputs[i] = shared.inputs[index];
+				values[i] = op.Extract(inputs[i], start + index);
+				x = i ? op.Plus(x, values[i]) : values[i];
+			}
+		}
+		__syncthreads();
+				
+		// Scan the reduced terms.
+		value_type passTotal;
+		x = S::Scan(tid, x, shared.scan, &amp;passTotal, MgpuScanTypeExc, op);
+		if(totalDefined) {
+			x = op.Plus(total, x);
+			total = op.Plus(total, passTotal);
+		} else
+			total = passTotal;
+
+		#pragma unroll
+		for(int i = 0; i &lt; VT; ++i) {
+			int index = VT * tid + i;
+			if(index &lt; count2) {
+				// If this is not the first element in the scan, add x values[i]
+				// into x. Otherwise initialize x to values[i].
+				value_type x2 = (i || tid || totalDefined) ?
+					op.Plus(x, values[i]) : 
+					values[i];
+
+				// For inclusive scan, set the new value then store.
+				// For exclusive scan, store the old value then set the new one.
+				if(MgpuScanTypeInc == Type) x = x2;
+				shared.results[index] = op.Combine(inputs[i], x);
+				if(MgpuScanTypeExc == Type) x = x2;
+			}
+		}
+		__syncthreads();
+
+		DeviceSharedToGlobal&lt;NT, VT>(count2, shared.results, tid, 
+			dest_global + start);
+		start += NV;
+		totalDefined = true;
+	}
+	
+	if(total_global &amp;&amp;!tid)
+		*total_global = total;
+
+	if(end_global &amp;&amp; !tid)
+		*end_global = op.Combine(op.Identity(), total);
+}</pre></div>
+<p><code>KernelParallelScan</code> is launched on a single block and completely scans its input. It is structured as a persistent CTA, looping until all inputs have been processed. This spine function takes actions that resemble a global scan, but in miniature:</p>
+<ol class="idiom">
+  <li><p><code>DeviceGlobalToShared</code> cooperatively loads elements as <code>input_type</code> and stores into shared memory.</p></li>
+  <li>
+    <p>Threads loop through the values in a  serial reduction, calling <code>Extract()</code> to convert inputs to <code>value_type</code> and generating partials with application of <code>Plus()</code>.</p></li>
+  <li>
+  <p>The CTA cooperatively scans the partials with <code>CTAScan</code>. Note that the storage for this method is unioned into the <code>Shared</code> structure.</p></li>
+  <li>
+  <p>Threads  loop through the values in a serial downsweep, calling <code>Combine()</code> to add values with the previous scan result, producing  an array of <code>result_type</code> which are stored in shared memory. Note that inclusive scans sum before storing, and exclusive scans store before summing.</p></li>
+  <li><p><code>DeviceSharedToGlobal</code> cooperatively stores <code>result_type</code> data into global memory.</p></li>
+</ol>
+<h3><a id="scanopvalue">ScanOpValue</a></h3>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
+  <pre class="brush: cpp; toolbar: false; first-line: 116">// Override the Extract and Combine behavior of the base operator. This prevents
+// the Scan kernel from extracting or combining values twice.
+template&lt;typename Base>
+struct ScanOpValue : public Base {
+	typedef typename Base::value_type input_type;
+	typedef typename Base::value_type value_type;
+	typedef typename Base::value_type result_type;
+	MGPU_HOST_DEVICE value_type Extract(value_type t, int index) { return t; }
+	MGPU_HOST_DEVICE value_type Combine(value_type t1, value_type t2) {
+		return t2;     
+	}
+	MGPU_HOST_DEVICE value_type Identity() {
+		return Base::Extract(Base::Identity(), -1);
+	}
+	MGPU_HOST_DEVICE ScanOpValue(Base base) : Base(base) { }
+};</pre></div>
+<p>Because <code>KernelParallelScan</code> does double-duty both spine-scanning partials for large inputs and completely scanning elements for small inputs, we could potentially run into problems with the type system. The kernel calls <code>Extract()</code> and <code>Combine()</code> to convert between types, but when used to scan the spine of partials, inputs are already in <code>value_type</code> (but we expect them in <code>input_type</code>). Before launching <code>KernelParallelScan</code> to scan the spine of partials, the host encapsulates the user-provided scan operator in <code>ScanOpValue</code> to suppress type morphing. <code>Extract()</code> and <code>Combine()</code> are overridden to pass <code>value_type</code> arguments straight throughe. This shim class inherits its <code>Commutative</code> property from the base class.</p>
+<p><code>KernelScanDownsweep</code>, which runs the downsweep for large input arrays, operates in much the same way as <code>KernelParallelScan</code>. </p><br />
+<div class="toclist"><ul>
+ 	<li class="tocprev">&laquo; <a href="library.html">The Library</a></li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="bulkinsert.html">Bulk Remove and Bulk Insert</a> &raquo;</li></ul>
+</div><br />
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type" />
+  <title>The library - Modern GPU</title>
+  <link href="mgpu.css" rel="stylesheet" type="text/css" />
+  <script src="syntaxhighlighter_3.0.83/scripts/shCore.js" type="text/javascript"></script>
+  <script src="syntaxhighlighter_3.0.83/scripts/shBrushCpp.js" type="text/javascript"></script>
+  <link href="syntaxhighlighter_3.0.83/styles/shThemeDefault.css" rel="stylesheet" type="text/css" />
+  <link href="syntaxhighlighter_3.0.83/styles/shCore.css" rel="stylesheet" type="text/css" />
+  <script type="text/javascript"> SyntaxHighlighter.all() </script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25772750-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</head><body class="tutorial"><a href="https://github.com/NVlabs/moderngpu"><img style="position: absolute; top: 0; right: 0; border: 0;" width="149" height="149" src="forkme_right_green_007200.png" alt="Fork me on GitHub" /></a>
+<div class="copyright">
+<p><strong>&copy; 2013, NVIDIA CORPORATION.&nbsp;All  rights reserved.</strong></p>
+<p>Code and text by <a href="https://twitter.com/moderngpu">Sean Baxter</a>, NVIDIA Research.</p>
+<p>(Click <a href="faq.html#license">here</a> for license. Click <a href="faq.html#contact">here</a> for contact information.)</p>
+</div><br />
+
+<div class="toclist"><ul>
+ 	<li class="tocprev"> &laquo; <a href="performance.html">Performance</a></li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="scan.html">Reduce and Scan</a> &raquo;</li></ul>
+</div><br/>
+<h1>The Library</h1>
+<h2><a id="framework">Framework</a></h2>
+<p>To ease development MGPU includes a sample framework, defined in <a href="https://github.com/NVlabs/moderngpu/blob/master/include/util/mgpucontext.h">util/mgpucontext.h</a>. At the start of your program create a <code>CudaContext</code> object. This encapsulates an event, a timer, a stream, and an allocator. Allocations made through this context are recycled after being freed, reducing calls to cudaMalloc.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/util/mgpucontext.h">include/util/mgpucontext.h</a></p><pre class="brush: cpp; toolbar: false; first-line: 275">ContextPtr CreateCudaDevice(int ordinal);
+ContextPtr CreateCudaDevice(int argc, char** argv, bool printInfo = false);
+
+ContextPtr CreateCudaDeviceStream(int ordinal);
+ContextPtr CreateCudaDeviceStream(int argc, char** argv, 
+	bool printInfo = false);</pre></div>
+<p>Call <code>CreateCudaDevice</code> to create a context on the default stream or <code>CreateCudaDeviceStream</code> to create a context on the new stream. The (argc, argv) overloads parse the command-line arguments for a device ordinal. You can pass true for <code>printInfo</code> to print device attributes:</p>
+<div class="snip">
+  <pre class="brush: cpp; toolbar: false">int main(int argc, char** argv) {
+	ContextPtr context = CreateCudaDevice(argc, argv, true);
+	return 0;
+}</pre>
+  <hr /><pre>GeForce GTX 480 : 1401.000 Mhz   (Ordinal 1)
+15 SMs enabled. Compute Capability sm_20
+FreeMem:   1086MB   TotalMem:   1535MB.
+Mem Clock: 1848.000 Mhz x 384 bits   (177.408 GB/s)
+ECC Disabled</pre></div>
+<p>MGPU context and device objects are managed with the reference-counting pointer types <code>ContextPtr</code> and <code>DevicePtr</code>. MGPU-allocated memory is reference counted with <code>intrusive_ptr&lt; CudaDeviceMem&lt;type&gt; &gt;</code> which is bound to the  <code>MGPU_MEM(type)</code> macro for ease of use.</p>
+<div class="snip">
+  <pre class="brush: cpp; toolbar: false">#include "moderngpu.cuh"
+
+using namespace mgpu;
+
+int main(int argc, char** argv) {
+	ContextPtr context = CreateCudaDevice(argc, argv);
+
+	MGPU_MEM(uint) data = context-&gt;Malloc&lt;uint&gt;(1000);
+
+	MGPU_MEM(int) a = context->FillAscending&lt;int>(50, 0, 5);
+	MGPU_MEM(float) b = context->GenRandom&lt;float>(50, 0.0f, 10.0f);
+	MGPU_MEM(double) c = context->SortRandom&lt;double>(50, 0.0, 20.0);
+
+	printf("A:\n");
+	PrintArray(*a, "%6d", 10);
+
+	printf("\nB:\n");
+	PrintArray(*b, "%6.2lf", 10);
+
+	printf("\nC:\n");
+	PrintArray(*c, "%6.2lf", 10);
+
+	return 0;
+}</pre>
+  <hr /><pre>A:<br />    0:       0      5     10     15     20     25     30     35     40     45<br />   10:      50     55     60     65     70     75     80     85     90     95<br />   20:     100    105    110    115    120    125    130    135    140    145<br />   30:     150    155    160    165    170    175    180    185    190    195<br />   40:     200    205    210    215    220    225    230    235    240    245
+
+B:
+    0:    8.15   1.35   9.06   8.35   1.27   9.69   9.13   2.21   6.32   3.08
+   10:    0.98   5.47   2.78   1.88   5.47   9.93   9.58   9.96   9.65   9.68
+   20:    1.58   7.26   9.71   9.81   9.57   1.10   4.85   7.98   8.00   2.97
+   30:    1.42   0.05   4.22   1.12   9.16   6.40   7.92   8.78   9.59   5.04
+   40:    6.56   7.98   0.36   3.61   8.49   2.12   9.34   6.81   6.79   3.99
+
+C:
+    0:    0.64   0.69   0.73   0.92   1.02   1.94   2.50   2.52   2.98   3.42
+   10:    3.48   3.74   4.20   5.54   6.04   6.33   6.34   7.63   7.84   8.17
+   20:    8.44   8.77   8.91   9.16   9.50   9.75   9.80   9.81  12.93  13.11
+   30:   13.27  13.90  14.12  14.19  14.81  14.86  15.09  15.15  15.28  15.31
+   40:   15.88  15.90  15.95  16.15  16.44  16.47  17.45  18.42  19.00  19.88</pre></div>
+<p><code>CudaContext::Malloc</code> allocates memory from its caching allocator. The class supports a variety of methods to fill device memory with data to accelerate testing and debugging. <code>FillAscending</code>, <code>GenRandom</code>, and <code>SortRandom</code> are demonstrated above. <code>PrintArray</code> prints <code>CudaDeviceMem</code> arrays to the console using printf-style format specifiers.</p>
+<p>When <code>MGPU_MEM</code>-wrapped objects fall out of scope, the underlying device memory is inserted into a weighted <a href="http://en.wikipedia.org/wiki/Cache_algorithms#Least_Recently_Used">least-recently-used cache</a>. Subsequent queries check the pool and reuse allocations of a similar size before calling <code>cudaMalloc</code>. Once a program gets hot, the client can make small requests from <code>CudaContext</code> with high confidence that the call will return immediately.</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/bulkremove.cuh">include/kernels/bulkremove.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 143">&nbsp;&nbsp;&nbsp;&nbsp;KernelBulkRemove&lt;Tuning>&lt;&lt;&lt;numBlocks, launch.x, 0, context.Stream()>>>(
+		source_global, sourceCount, indices_global, indicesCount, 
+		partitionsDevice->get(), dest_global);</pre></div>
+<p>The context object attempts to support CUDA streams in as non-obtrusive a manner as possible. All MGPU host functions take a <code>CudaContext</code> object by reference and pass the stream handle to the launch chevrons. This enqueues the kernel 
+launch into the stream that attached to the context.</p>
+<p> Some MGPU functions&mdash;namely reduce, join, and some variants of scan and vectorized sorted search&mdash;use <code>cudaMemcpyDeviceToHost</code> to move kernel outputs into host memory. This is a synchronizing function; it will cause the thread to wait on the transfer, preventing it from queueing launches on other streams. If this 
+creates scheduling inefficiences, the programmer can split apart the host function, use <code>cudaMemcpyAsync</code> 
+to asynchronously move data into CPU-pinned memory, and overlap scheduling of operations on other threads. This is an invasive and application-specific way to program, so it is not directly support by the MGPU library.</p>
+<h2><a id="loadstore">Load/store functions</a></h2>
+<p>MGPU functions are aggressively register-blocked. Register blocking amortizes per-CTA and per-thread costs by increasing the number of items processed per thread. To improve clarity and reduce errors, common routines for moving portions of data between memory spaces (global memory, shared memory, and register) have been factored into functions in the <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/loadstore.cuh">include/device/loadstore.cuh</a> header.</p>
+<p>The common template argument VT is the kernel's grain size; it specifies the number of values processed per thread. The argument NT is the number of threads in the CTA.</p>
+<p>Most of these functions operate in <strong>strided order</strong>, in which elements are assigned to threads according to NT * i + tid, where i is the index of the element in the register and tid is the thread ID. Data should be loaded and stored in strided order, as this organizes warp transfers into cache lines, which maximizes data throughput.</p>
+<p>Many MGPU algorithms work with data in <strong>thread order</strong>, in which elements are assigned to threads according to VT * tid + i. Each thread has access to VT consecutive elements which makes performing sequential operations like scan and merge very easy. However data should not be loaded or stored to global memory in thread order, as warp transfers would touch VT different cache lines, wasting 
+memory bandwidth.</p>
+<p>By choosing an odd number for VT we avoid bank conflicts that would otherwise be incurred when re-ordering data between strided and thread orders. Within a warp, all banks (VT * tid + i) % 32 are accessed exactly once for each step i when VT is odd. If VT is a power-of-two, you can expect VT-way conflicts at each step.</p>
+<p>Load/store function prototypes are found in mgpudevice.cuh. Most functions have names matching the pattern <code>Device</code>[Source]<code>To</code>[Dest]:</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/mgpudevice.cuh">include/mgpudevice.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 76">// For 0 &lt;= i &lt; VT: 
+//		index = NT * i + tid;
+//		if(index &lt; count) reg[i] = data[index];
+// Synchronize after load.
+template&lt;int NT, int VT, typename InputIt, typename T>
+MGPU_DEVICE void DeviceSharedToReg(int count, InputIt data, int tid, 
+	T* reg, bool sync = true);</pre></div>
+<p>Functions of this form are parameterized over NT and VT arguments&mdash;these are typically communicated to the kernel using the <a href="performance.html#launchbox">LaunchBox</a> mechanism. The first argument is the count of items to move across the entire CTA. If NT * VT == count, an optimized implementation may be used which eliminates per-item predication to reduce latency and promote parallelism. The second argument is the source data, and its 
+memory space should match the [Source] part of the function name. The third argument is the thread ID. The fourth argument is the destination data and its 
+memory space should match the [Dest] part of the function name. The final argument is used to hit a <code>__syncthreads</code> after the operation. Data movement functions with 
+<em>Shared</em> in the name synchronize by default; other functions do not.</p>
+<p>Data can be loaded from shared memory into registers in thread order with <code>DeviceSharedToThread</code>. 
+Data can be stored to shared from registers in thread order with <code>DeviceThreadToShared</code>. A common practice is to:</p>
+<ol class="idiom">	<li>
+  <p> Cooperatively load data into register in <em>strided order</em> and store to shared memory with <code>DeviceGlobalToShared</code>.</p></li>
+	<li>
+	  <p>Read out values in <em>thread order</em> into register with <code>DeviceSharedToThread</code>.</p></li>
+  	<li>
+  	  <p>Operate on data that is now sequentially ordered by thread. <a href="scan.html">Scan</a> works in this manner.</p></li>  
+ 	<li>
+ 	  <p> Store results from register in <em>thread order</em> into shared memory with <code>DeviceThreadToShared</code>.</p></li>   
+ 	<li>
+ 	  <p> Cooperatively load data from shared memory into register in <em>strided order</em> and store to global memory with <code>DeviceSharedToGlobal</code>.</p></li>   
+</ol>    
+<p>Regimented application of these utility functions to move data between global memory, shared memory, and register helps highlight the novel aspects 
+of the kernel (the stuff in step 3).</p>
+<h2><a id="taskrange">Task range</a></h2>
+<p>Work can be divided into CTAs with two strategies:</p>
+<ol class="idiom"><li>
+  <p>Process one tile per CTA and make the grid a function of your data size. The hardware schedules blocks and fine-grained load balancing keeps the SMs busy.</p></li><li>
+    <p>Evenly divide your data into a fixed number of CTAs (ideally a function of device width) and dynamically loop through tiles. Oversubscribe CTAs to SMs to remedy warp-biasing 
+	artifacts of the hardware. This technique requires more tweaking than the one-tile-per-CTA division, but may also enable algorithmic improvements. Atomic counters can be integrated to facilitate work-stealing, resulting in the &quot;persistent CTAs&quot; idiom of scheduling.</p></li></ol>
+<p>I prefer the first strategy for work division unless there is a compelling algorithmic opportunity to assume tile-scheduling responsibilities. The reduce kernel, covered on the next page, provides such an opportunity. Because the version of <code>KernelReduce</code> which exploits the commutative property only runs a <code>CTAReduce</code> at the end of each CTA rather than the end of each tile, it makes sense to amortize this cost by running many tiles through each CTA.</p>
+<p>Multiple tiles can be evenly balanced over a fixed number of CTAs using an easy trick which requires no division on the device (division is very slow on the GPU).</p>
+<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/reduce.cuh">include/kernels/reduce.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 147">		// We have a large reduction so balance over many CTAs. Launch up to 25
+		// per CTA for oversubscription.
+		const int NT = 128;
+		const int VT = 9;
+		typedef LaunchBoxVT&lt;NT, VT> Tuning;
+		int2 launch = Tuning::GetLaunchParams(context);
+		const int NV = launch.x * launch.y;
+
+		int numTiles = MGPU_DIV_UP(count, NV);
+		int numBlocks = std::min(context.NumSMs() * 25, numTiles);
+		int2 task = DivideTaskRange(numTiles, numBlocks);
+
+		// Reduce on the GPU.
+		MGPU_MEM(T) reductionDevice = context.Malloc&lt;T>(numBlocks);
+		KernelReduce&lt;Tuning>&lt;&lt;&lt;numBlocks, launch.x, 0, context.Stream()>>>(
+			data_global, count, task, reductionDevice->get(), op);</pre></div>
+<p>Data is divided into tiles of size NV (number of Values per Thread). The number of CTAs is set to a small multiple of the number of SMs or the number of tiles, whichever is smaller. We use the C runtime function <code>div()</code> to compute both the quotient 
+and remainder of the tile count over the CTA count. Each CTA reconstructs its range of tiles from this 
+pair of terms. The number of tiles assigned to each CTA differ by no more than one, with the earlier CTAs being assigned the additional tiles.</p>
+<p>After setting tuning parameters, the host calls <code>LaunchBox::GetLaunchParams</code> to retrieve (NT, VT). The product of these is the tile size, and it's used to compute the number of tiles in the launch. A call to <code>DivideTaskRange</code> evenly distributes tiles over CTAs. The returned task structure is passed to the kernel.</p>
+<div class="snip"><p> <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/deviceutil.cuh">include/device/deviceutil.cuh</a></p>
+  <pre class="brush: cpp; toolbar: false; first-line: 214">MGPU_HOST int2 DivideTaskRange(int numItems, int numWorkers) {
+	div_t d = div(numItems, numWorkers);
+	return make_int2(d.quot, d.rem);
+}
+
+MGPU_HOST_DEVICE int2 ComputeTaskRange(int block, int2 task) {
+	int2 range;
+	range.x = task.x * block;
+	range.x += min(block, task.y);
+	range.y = range.x + task.x + (block &lt; task.y);
+	return range;
+}
+
+MGPU_HOST_DEVICE int2 ComputeTaskRange(int block, int2 task, int blockSize,
+	int count) {
+	int2 range = ComputeTaskRange(block, task);
+	range.x *= blockSize;
+	range.y = min(count, range.y * blockSize);
+	return range;
+}</pre>
+  <hr />
+<pre>NumTiles = 1234.    NumCTAs = 20.    d.quot = 61.    d.rem = 14.
+CTA   begin   end  count
+   0: (   0,   62:   62)<br />   1: (  62,  124:   62)<br />   2: ( 124,  186:   62)<br />   3: ( 186,  248:   62)<br />   4: ( 248,  310:   62)<br />   5: ( 310,  372:   62)<br />   6: ( 372,  434:   62)<br />   7: ( 434,  496:   62)<br />   8: ( 496,  558:   62)<br />   9: ( 558,  620:   62)<br />  10: ( 620,  682:   62)<br />  11: ( 682,  744:   62)<br />  12: ( 744,  806:   62)<br />  13: ( 806,  868:   62)<br />  14: ( 868,  929:   61)<br />  15: ( 929,  990:   61)<br />  16: ( 990, 1051:   61)<br />  17: (1051, 1112:   61)<br />  18: (1112, 1173:   61)<br />  19: (1173, 1234:   61)</pre>
+</div>
+<p>A problem with 1234 tiles and 20 CTAs calls <code>div()</code> to compute the quot/rem pair(61, 14), which is passed to the kernel as <code>task</code>. Call <code>DivideTaskRange</code> to handle the division and casting; the <code>int2</code> it returns may be passed directly to the kernel.</p>
+<p><code>ComputeTaskRange</code> returns the interval of tiles for the block. The four-argument overload accepts the block size and item count to compute a range in values rather than tiles. This is called from inside a kernel to establish the kernel's operating range.</p>
+<div class="snip"><p> <a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/reduce.cuh">include/kernels/reduce.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 41">// Run a high-throughput reduction over multiple CTAs. Used as the upsweep phase
+// for global reduce and global scan.
+template&lt;typename Tuning, typename InputIt, typename Op>
+MGPU_LAUNCH_BOUNDS void KernelReduce(InputIt data_global, int count, 
+	int2 task, typename Op::value_type* reduction_global, Op op) {
+
+	typedef MGPU_LAUNCH_PARAMS Params;
+	const int NT = Params::NT;
+	const int VT = Params::VT;
+	const int NV = NT * VT;
+
+	KERNEL BOILERPLATE HERE
+	...
+
+	int tid = threadIdx.x;
+	int block = blockIdx.x;
+	int first = VT * tid;
+
+	int2 range = ComputeTaskRange(block, task, NV, count);
+
+	// total is the sum of encountered elements. It's undefined on the first 
+	// loop iteration.
+	value_type total = op.Extract(op.Identity(), -1);
+	bool totalDefined = false;
+	
+    // Loop through all tiles defined by ComputeTaskRange.
+	while(range.x &lt; range.y) {
+    	int count2 = min(NV, count - range.x);
+
+		// Read tile data into register.
+		input_type inputs[VT];
+		DeviceGlobalToReg&lt;NT, VT>(count2, data_global + range.x, tid, inputs);
+        
+        KERNEL BODY HERE
+        ...
+        
+        // Update range pointer to advance to next tile.
+        range.x += NV;
+		totalDefined = true;
+	}  </pre></div>
+<p>On the device side, MGPU_LAUNCH_PARAMS identifies the nested tuning-parameters type for the compute capability. The tile size, NV, is the product of the number of threads per CTA, NT, and the number of values per thread, VT. <code>ComputeTaskRange</code> takes the task structure and returns the range of tiles for the CTA to process.</p>    
+<br /><div class="toclist"><ul>
+ 	<li class="tocprev"> &laquo; <a href="performance.html">Performance</a></li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="scan.html">Reduce and Scan</a> &raquo;</li></ul>
+</div><br/>
+</body></html>

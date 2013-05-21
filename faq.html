@@ -41,7 +41,7 @@
 <p>Users may find more flexibility if they <em>fork</em> this repository. At 
   <a href="https://github.com/NVlabs/moderngpu">https://github.com/NVlabs/moderngpu</a>, click on the Fork button in the upper-right. This creates a copy of the repository in your own github account.</p>
 <div class="snip"><pre>git clone git@github.com:yourname/moderngpu</pre></div>
-<p>From the command line you can clone your own fork of the project onto your local machine. You can make changes to the project and these will be updated in your own repository. Users forking MGPU are treated to Github's excellent suite of development tools.</p>
+<p>From the command line you can clone your own fork of the project onto your local machine. You can make changes to the project and these will be updated in your own repository. Users forking MGPU are treated to Github's excellent suite of development tools. Use the <a href="https://github.com/blog/39-say-hello-to-the-network-graph-visualizer">Network Graph Visualizer</a> to stay current with Modern GPU updates.</p>
 <h2><a id="compiling">Compiling</a></h2>
 <p>The Modern GPU library is entirely defined in headers under the include directory, except three .cpp 
 files that must be compiled and linked manually: <a href="https://github.com/NVlabs/moderngpu/blob/master/src/format.cpp">src/format.cpp</a>, <a href="https://github.com/NVlabs/moderngpu/blob/master/src/random.cpp">src/random.cpp</a>, and <a href="https://github.com/NVlabs/moderngpu/blob/master/src/mgpucontext.cpp">src/mgpucontext.cpp</a>. You cannot compile for architectures below sm_20 (Fermi), as the sm_1x compiler doesn't support all the features used by MGPU.</p>

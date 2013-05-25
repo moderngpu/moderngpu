@@ -105,7 +105,7 @@ public:
 	virtual bool Free(void* p) = 0;
 	virtual ~CudaAlloc() { }
 
-	const CudaDeviceamp;& Device() const { return *_device; }
+	const CudaDevice&amp; Device() const { return *_device; }
 	CudaDevice&amp; Device() { return *_device; }
 protected:
 	CudaAlloc(CudaDevice* device) : _device(device) { }
@@ -118,6 +118,16 @@ protected:
 	AllocPtr standardAlloc(new CudaAllocSimple(&amp;context->Device()));
 	context->SetAllocator(standardAlloc);</pre></div>
 <p>Instantiate your allocator and associate it with the device context with <code>CudaContext::SetAllocator</code>. The provided caching allocator is not optimal for all applications; use the simple allocator to get back to a baseline.</p>
+<div class="snip"><pre class="brush: cpp; toolbar: false; ">int main(int argc, char** argv) {
+	ContextPtr context = CreateCudaDevice(argc, argv, true);
+
+	// Cast CudaAlloc* to CudaAllocBuckets*
+	CudaAllocBuckets* buckets = dynamic_cast&lt;CudaAllocBuckets*>
+		(context->GetAllocator());
+
+	// Set the capacity of the LRU cache to 500MB.
+	buckets->SetCapacity(500000000);</pre></div>
+<p>You can set the capacity of the LRU cache dynamically. <code>CudaContext::GetAllocator</code> returns a <code>CudaContext*</code> pointer to the currently-selected allocator. Because we know it's a caching allocator, we use RTTI's <code>dynamic_cast</code> to retrieve a <code>CudaAllocBuckets*</code> pointer. We call <code>SetCapacity</code> with a request of 500MB to set the cache size. If the size of an allocation request plus the size of items allocated in the cache exceeds 500MB, the caching allocator frees the least-recently-used requests to make space for the new memory.</p>
 <div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/bulkremove.cuh">include/kernels/bulkremove.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 143">&nbsp;&nbsp;&nbsp;&nbsp;KernelBulkRemove&lt;Tuning>&lt;&lt;&lt;numBlocks, launch.x, 0, context.Stream()>>>(
 		source_global, sourceCount, indices_global, indicesCount, 
 		partitionsDevice->get(), dest_global);</pre></div>

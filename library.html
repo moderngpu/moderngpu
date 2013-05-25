@@ -96,6 +96,28 @@ C:
    40:   15.88  15.90  15.95  16.15  16.44  16.47  17.45  18.42  19.00  19.88</pre></div>
 <p><code>CudaContext::Malloc</code> allocates memory from its caching allocator. The class supports a variety of methods to fill device memory with data to accelerate testing and debugging. <code>FillAscending</code>, <code>GenRandom</code>, and <code>SortRandom</code> are demonstrated above. <code>PrintArray</code> prints <code>CudaDeviceMem</code> arrays to the console using printf-style format specifiers.</p>
 <p>When <code>MGPU_MEM</code>-wrapped objects fall out of scope, the underlying device memory is inserted into a weighted <a href="http://en.wikipedia.org/wiki/Cache_algorithms#Least_Recently_Used">least-recently-used cache</a>. Subsequent queries check the pool and reuse allocations of a similar size before calling <code>cudaMalloc</code>. Once a program gets hot, the client can make small requests from <code>CudaContext</code> with high confidence that the call will return immediately.</p>
+<p>Users can opt-out of the default caching allocator by deriving <code>CudaAlloc</code> and providing their own implementation, or simply by using <code>CudaAllocSimple</code>, which calls <code>cudaFree</code> immediately on device memory falling out of scope.</p>
+<div class="snip">
+  <p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/util/mgpucontext.h">include/util/mgpucontext.h</a></p>
+  <pre class="brush: cpp; toolbar: false; first-line: 116">class CudaAlloc : public CudaBase {
+public:
+	virtual cudaError_t Malloc(size_t size, void** p) = 0;
+	virtual bool Free(void* p) = 0;
+	virtual ~CudaAlloc() { }
+
+	const CudaDeviceamp;& Device() const { return *_device; }
+	CudaDevice&amp; Device() { return *_device; }
+protected:
+	CudaAlloc(CudaDevice* device) : _device(device) { }
+	DevicePtr _device;
+};</pre></div>
+<p><code>CudaAlloc</code> is an interface that defines two abstract methods for users to implement: <code>Malloc</code> allocates <code>size</code> bytes and returns the pointer in <code>p</code>. <code>Free</code> releases memory allocated by <code>Malloc</code>.</p>
+
+<div class="snip"><pre class="brush: cpp; toolbar: false; ">int main(int argc, char** argv) {
+	ContextPtr context = CreateCudaDevice(argc, argv, true);
+	AllocPtr standardAlloc(new CudaAllocSimple(&amp;context->Device()));
+	context->SetAllocator(standardAlloc);</pre></div>
+<p>Instantiate your allocator and associate it with the device context with <code>CudaContext::SetAllocator</code>. The provided caching allocator is not optimal for all applications; use the simple allocator to get back to a baseline.</p>
 <div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/bulkremove.cuh">include/kernels/bulkremove.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 143">&nbsp;&nbsp;&nbsp;&nbsp;KernelBulkRemove&lt;Tuning>&lt;&lt;&lt;numBlocks, launch.x, 0, context.Stream()>>>(
 		source_global, sourceCount, indices_global, indicesCount, 
 		partitionsDevice->get(), dest_global);</pre></div>

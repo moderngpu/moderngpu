@@ -429,7 +429,7 @@ struct CTAReduce {
 	MGPU_DEVICE static T Reduce(int tid, T x, Storage&amp; storage, Op op = Op()) {
 		// Reverse the bits of the source thread ID and make a conflict-free
 		// store using a 33-stride spacing.
-		int dest = brev(tid)&lt;&lt; (32 - sLogPow2&lt;NT>::value);
+		int dest = brev(tid)&gt;&gt; (32 - sLogPow2&lt;NT>::value);
 		storage.shared[dest + dest / WARP_SIZE] = x;
 		__syncthreads();
 

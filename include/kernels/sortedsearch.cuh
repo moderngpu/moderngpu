@@ -267,13 +267,15 @@ MGPU_LAUNCH_BOUNDS void KernelSortedEqualityCount(InputIt1 a_global, int aCount,
 	InputIt2 b_global, int bCount, const int* mp_global, InputIt3 lb_global,
 	OutputIt counts_global, Comp comp, Op op) {
 
+		
+	typedef typename std::iterator_traits<InputIt1>::value_type T;
 	typedef MGPU_LAUNCH_PARAMS Params;
 	const int NT = Params::NT;
 	const int VT = Params::VT;
 	const int NV = NT * VT;
 
 	union Shared {
-		int keys[NT * (VT + 1)];
+		T keys[NT * (VT + 1)];
 		int indices[NV];
 	};
 	__shared__ Shared shared;

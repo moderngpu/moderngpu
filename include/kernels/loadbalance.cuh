@@ -43,8 +43,8 @@ namespace mgpu {
 ////////////////////////////////////////////////////////////////////////////////
 // KernelLoadBalance
 
-template<typename Tuning>
-MGPU_LAUNCH_BOUNDS void KernelLoadBalance(int aCount, const int* b_global,
+template<typename Tuning, typename InputIt>
+MGPU_LAUNCH_BOUNDS void KernelLoadBalance(int aCount, InputIt b_global,
 	int bCount, const int* mp_global, int* indices_global) {
 
 	typedef MGPU_LAUNCH_PARAMS Params;
@@ -65,7 +65,8 @@ MGPU_LAUNCH_BOUNDS void KernelLoadBalance(int aCount, const int* b_global,
 ////////////////////////////////////////////////////////////////////////////////
 // LoadBalanceSearch
 
-MGPU_HOST void LoadBalanceSearch(int aCount, const int* b_global, int bCount,
+template<typename InputIt>
+MGPU_HOST void LoadBalanceSearch(int aCount, InputIt b_global, int bCount,
 	int* indices_global, CudaContext& context) {
 
 	const int NT = 128;
@@ -81,6 +82,7 @@ MGPU_HOST void LoadBalanceSearch(int aCount, const int* b_global, int bCount,
 	int numBlocks = MGPU_DIV_UP(aCount + bCount, NV);
 	KernelLoadBalance<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
 		aCount, b_global, bCount, partitionsDevice->get(), indices_global);
+	MGPU_SYNC_CHECK("KernelLoadBalance");
 }
 
 } // namespace mgpu

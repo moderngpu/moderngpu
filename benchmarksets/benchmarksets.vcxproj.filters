@@ -15,17 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\format.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\mgpucontext.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\random.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
+    <CudaCompile Include="benchmarksets.cu" />
+    <CudaCompile Include="..\src\mgpucontext.cu" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="..\tests\benchmarksets.cu" />
+    <ClCompile Include="..\src\mgpuutil.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

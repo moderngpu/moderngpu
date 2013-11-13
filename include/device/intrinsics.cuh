@@ -32,7 +32,7 @@
  *
  ******************************************************************************/
 
-#include "../device/deviceutil.cuh"
+#include "../device/devicetypes.cuh"
 
 #pragma once
 
@@ -43,6 +43,13 @@ MGPU_HOST_DEVICE uint2 ulonglong_as_uint2(uint64 x) {
 }
 MGPU_HOST_DEVICE uint64 uint2_as_ulonglong(uint2 x) {
 	return *reinterpret_cast<uint64*>(&x);
+}
+
+MGPU_HOST_DEVICE int2 longlong_as_int2(int64 x) {
+	return *reinterpret_cast<int2*>(&x);
+}
+MGPU_HOST_DEVICE int64 int2_as_longlong(int2 x) {
+	return *reinterpret_cast<int64*>(&x);
 }
 
 MGPU_HOST_DEVICE int2 double_as_int2(double x) {
@@ -94,6 +101,32 @@ MGPU_DEVICE uint prmt_ptx(uint a, uint b, uint index) {
 
 #endif // __CUDA_ARCH__ >= 200
 
+
+////////////////////////////////////////////////////////////////////////////////
+// shfl_up
+
+__device__ __forceinline__ float shfl_up(float var, 
+	unsigned int delta, int width = 32) {
+
+#if __CUDA_ARCH__ >= 300
+	var = __shfl_up(var, delta, width);
+#endif	
+	return var;
+}
+
+__device__ __forceinline__ double shfl_up(double var, 
+	unsigned int delta, int width = 32) {
+
+#if __CUDA_ARCH__ >= 300
+	int2 p = mgpu::double_as_int2(var);
+	p.x = __shfl_up(p.x, delta, width);
+	p.y = __shfl_up(p.y, delta, width);
+	var = mgpu::int2_as_double(p);
+#endif
+	
+	return var;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // shfl_add
 
@@ -106,6 +139,21 @@ MGPU_DEVICE int shfl_add(int x, int offset, int width = WARP_SIZE) {
 		".reg .pred p;"
 		"shfl.up.b32 r0|p, %1, %2, %3;"
 		"@p add.s32 r0, r0, %4;"
+		"mov.s32 %0, r0; }"
+		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(x));
+#endif
+	return result;
+}
+
+MGPU_DEVICE int shfl_max(int x, int offset, int width = WARP_SIZE) {
+	int result = 0;
+#if __CUDA_ARCH__ >= 300
+	int mask = (WARP_SIZE - width)<< 8;
+	asm(
+		"{.reg .s32 r0;"
+		".reg .pred p;"
+		"shfl.up.b32 r0|p, %1, %2, %3;"
+		"@p max.s32 r0, r0, %4;"
 		"mov.s32 %0, r0; }"
 		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(x));
 #endif
@@ -255,5 +303,105 @@ MGPU_HOST_DEVICE uint vset4_eq(uint a, uint b) {
 	return result;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+
+MGPU_HOST_DEVICE uint umulhi(uint x, uint y) {
+#if __CUDA_ARCH__ >= 100
+	return __umulhi(x, y);
+#else
+	uint64 product = (uint64)x * y;
+	return (uint)(product>> 32);
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// ldg() function defined for all devices and all types. Only compiles to __ldg
+// intrinsic for __CUDA_ARCH__ >= 320 && __CUDA_ARCH__ < 400 for types supported
+// by __ldg in sm_32_intrinsics.h
+
+template<typename T> 
+struct IsLdgType {
+	enum { value = false };
+};
+#define DEFINE_LDG_TYPE(T) \
+	template<> struct IsLdgType<T> { enum { value = true }; };
+
+template<typename T, bool UseLDG = IsLdgType<T>::value>
+struct LdgShim {
+	MGPU_DEVICE static T Ldg(const T* p) {
+		return *p;
+	}
+};
+
+#if __CUDA_ARCH__ >= 320 && __CUDA_ARCH__ < 400
+	
+	// List of __ldg-compatible types from sm_32_intrinsics.h.
+	DEFINE_LDG_TYPE(char)
+	DEFINE_LDG_TYPE(short)
+	DEFINE_LDG_TYPE(int)
+	DEFINE_LDG_TYPE(long long)
+	DEFINE_LDG_TYPE(char2)
+	DEFINE_LDG_TYPE(char4)
+	DEFINE_LDG_TYPE(short2)
+	DEFINE_LDG_TYPE(short4)
+	DEFINE_LDG_TYPE(int2)
+	DEFINE_LDG_TYPE(int4)
+	DEFINE_LDG_TYPE(longlong2)
+
+	DEFINE_LDG_TYPE(unsigned char)
+	DEFINE_LDG_TYPE(unsigned short)
+	DEFINE_LDG_TYPE(unsigned int)
+	DEFINE_LDG_TYPE(unsigned long long)
+	DEFINE_LDG_TYPE(uchar2)
+	DEFINE_LDG_TYPE(uchar4)
+	DEFINE_LDG_TYPE(ushort2)
+	DEFINE_LDG_TYPE(ushort4)
+	DEFINE_LDG_TYPE(uint2)
+	DEFINE_LDG_TYPE(uint4)
+	DEFINE_LDG_TYPE(ulonglong2)
+
+	DEFINE_LDG_TYPE(float)
+	DEFINE_LDG_TYPE(double)
+	DEFINE_LDG_TYPE(float2)
+	DEFINE_LDG_TYPE(float4)
+	DEFINE_LDG_TYPE(double2)
+
+	template<typename T> struct LdgShim<T, true> {
+		MGPU_DEVICE static T Ldg(const T* p) {
+			return __ldg(p);
+		}
+	};
+#endif
+
+template<typename T>
+MGPU_DEVICE T ldg(const T* p) {
+	return LdgShim<T>::Ldg(p);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Fast division for 31-bit integers. 
+// Uses the method in Hacker's Delight (2nd edition) page 228.
+// Evaluates for denom > 1 and x < 2^31.
+struct FastDivide {
+	uint denom;
+	uint coef;
+	uint shift;
+
+	MGPU_HOST_DEVICE uint Divide(uint x) {
+		return umulhi(x, coef)>> shift;
+	}
+	MGPU_HOST_DEVICE uint Modulus(uint x) {
+		return x - Divide(x) * denom;
+	}
+
+	explicit FastDivide(uint denom_) {
+		denom = denom_;
+		uint p = 31 + FindLog2(denom, true);
+		coef = (uint)(((1ull<< p) + denom - 1) / denom);
+		shift = p - 32;
+	}
+};
 
 } // namespace mgpu

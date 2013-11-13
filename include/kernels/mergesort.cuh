@@ -93,7 +93,7 @@ MGPU_LAUNCH_BOUNDS void KernelBlocksort(KeyIt1 keysSource_global,
 			if(first + i >= count2) threadKeys[i] = maxKey;
 	}
 	
-	CTAMergesort<NT, VT, HasValues>(threadKeys, threadValues, shared.keys,
+	CTAMergesort<NT, VT, true, HasValues>(threadKeys, threadValues, shared.keys,
 		shared.values, count2, tid, comp);
 
 	// Store the sorted keys to global.
@@ -114,9 +114,11 @@ template<typename T, typename Comp>
 MGPU_HOST void MergesortKeys(T* data_global, int count, Comp comp,
 	CudaContext& context) {
 
-	const int NT = 256;
-	const int VT = 7;
-	typedef LaunchBoxVT<NT, VT> Tuning;
+	typedef LaunchBoxVT<
+		256, 11, 0,
+		256, (sizeof(T) > 4) ? 7 : 11, 0,
+		256, (sizeof(T) > 4) ? 7 : 11, 0
+	> Tuning;
 	int2 launch = Tuning::GetLaunchParams(context);
 	
 	const int NV = launch.x * launch.y;
@@ -130,6 +132,8 @@ MGPU_HOST void MergesortKeys(T* data_global, int count, Comp comp,
 	KernelBlocksort<Tuning, false>
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(source, (const int*)0,
 		count, (1 & numPasses) ? dest : source, (int*)0, comp);
+	MGPU_SYNC_CHECK("KernelBlocksort");
+	
 	if(1 & numPasses) std::swap(source, dest);
 
 	for(int pass = 0; pass < numPasses; ++pass) {
@@ -137,10 +141,12 @@ MGPU_HOST void MergesortKeys(T* data_global, int count, Comp comp,
 		MGPU_MEM(int) partitionsDevice = MergePathPartitions<MgpuBoundsLower>(
 			source, count, source, 0, NV, coop, comp, context);
 		
-		KernelMerge<Tuning, false, true>
+		KernelMerge<Tuning, false, false>
 			<<<numBlocks, launch.x, 0, context.Stream()>>>(source, 
 			(const int*)0, count, source, (const int*)0, 0, 
 			partitionsDevice->get(), coop, dest, (int*)0, comp);
+		MGPU_SYNC_CHECK("KernelMerge");
+
 		std::swap(dest, source);
 	}
 }
@@ -156,9 +162,11 @@ template<typename KeyType, typename ValType, typename Comp>
 MGPU_HOST void MergesortPairs(KeyType* keys_global, ValType* values_global,
 	int count, Comp comp, CudaContext& context) {
 
-	const int NT = 256;
-	const int VT = 11;
-	typedef LaunchBoxVT<NT, VT> Tuning;
+	typedef LaunchBoxVT<
+		256, 11, 0,
+		256, (sizeof(KeyType) > 4) ? 7 : 11, 0,
+		256, (sizeof(KeyType) > 4) ? 7 : 11, 0
+	> Tuning;
 	int2 launch = Tuning::GetLaunchParams(context);
 
 	const int NV = launch.x * launch.y;
@@ -175,6 +183,8 @@ MGPU_HOST void MergesortPairs(KeyType* keys_global, ValType* values_global,
 	KernelBlocksort<Tuning, true><<<numBlocks, launch.x, 0, context.Stream()>>>(
 		keysSource, valsSource, count, (1 & numPasses) ? keysDest : keysSource, 
 		(1 & numPasses) ? valsDest : valsSource, comp);
+	MGPU_SYNC_CHECK("KernelBlocksort");
+
 	if(1 & numPasses) {
 		std::swap(keysSource, keysDest);
 		std::swap(valsSource, valsDest);
@@ -185,10 +195,12 @@ MGPU_HOST void MergesortPairs(KeyType* keys_global, ValType* values_global,
 		MGPU_MEM(int) partitionsDevice = MergePathPartitions<MgpuBoundsLower>(
 			keysSource, count, keysSource, 0, NV, coop, comp, context);
 
-		KernelMerge<Tuning, true, true>
+		KernelMerge<Tuning, true, false>
 			<<<numBlocks, launch.x, 0, context.Stream()>>>(keysSource, 
 			valsSource, count, keysSource, valsSource, 0, 
 			partitionsDevice->get(), coop, keysDest, valsDest, comp);
+		MGPU_SYNC_CHECK("KernelMerge");
+
 		std::swap(keysDest, keysSource);
 		std::swap(valsDest, valsSource);
 	}
@@ -224,6 +236,8 @@ MGPU_HOST void MergesortIndices(KeyType* keys_global, int* values_global,
 		keysSource, mgpu::counting_iterator<int>(0), count, 
 		(1 & numPasses) ? keysDest : keysSource, 
 		(1 & numPasses) ? valsDest : valsSource, comp);
+	MGPU_SYNC_CHECK("KernelBlocksort");
+
 	if(1 & numPasses) {
 		std::swap(keysSource, keysDest);
 		std::swap(valsSource, valsDest);
@@ -234,10 +248,12 @@ MGPU_HOST void MergesortIndices(KeyType* keys_global, int* values_global,
 		MGPU_MEM(int) partitionsDevice = MergePathPartitions<MgpuBoundsLower>(
 			keysSource, count, keysSource, 0, NV, coop, comp, context);
 
-		KernelMerge<Tuning, true, true>
+		KernelMerge<Tuning, true, false>
 			<<<numBlocks, launch.x, 0, context.Stream()>>>(keysSource, 
 			valsSource, count, keysSource, valsSource, 0, 
 			partitionsDevice->get(), coop, keysDest, valsDest, comp);
+		MGPU_SYNC_CHECK("KernelMerge");
+
 		std::swap(keysDest, keysSource);
 		std::swap(valsDest, valsSource);
 	}

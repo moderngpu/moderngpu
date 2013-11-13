@@ -1,14 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\src\mgpucontext.cpp" />
-    <ClCompile Include="..\src\format.cpp" />
-    <ClCompile Include="..\src\random.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <CudaCompile Include="..\tests\demo.cu" />
-  </ItemGroup>
-  <ItemGroup>
     <Filter Include="device">
       <UniqueIdentifier>{0c824e66-4efa-4590-9644-e0370995cc43}</UniqueIdentifier>
     </Filter>
@@ -98,9 +90,33 @@
     <None Include="..\include\kernels\sortedsearch.cuh">
       <Filter>kernels</Filter>
     </None>
-    <None Include="..\include\mgpudevice.cuh" />
-    <None Include="..\include\mgpuhost.cuh" />
-    <None Include="..\include\moderngpu.cuh" />
+    <None Include="..\include\device\ctasegscan.cuh">
+      <Filter>device</Filter>
+    </None>
+    <None Include="..\include\device\devicetypes.cuh">
+      <Filter>device</Filter>
+    </None>
+    <None Include="..\include\kernels\cubradixsort.cuh">
+      <Filter>kernels</Filter>
+    </None>
+    <None Include="..\include\device\ctasegreduce.cuh">
+      <Filter>device</Filter>
+    </None>
+    <None Include="..\include\kernels\segreduce.cuh">
+      <Filter>kernels</Filter>
+    </None>
+    <None Include="..\include\kernels\segreducecsr.cuh">
+      <Filter>kernels</Filter>
+    </None>
+    <None Include="..\include\kernels\reducebykey.cuh">
+      <Filter>kernels</Filter>
+    </None>
+    <None Include="..\include\kernels\spmvcsr.cuh">
+      <Filter>kernels</Filter>
+    </None>
+    <None Include="..\include\kernels\csrtools.cuh">
+      <Filter>kernels</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\util\format.h">
@@ -115,5 +131,15 @@
     <ClInclude Include="..\include\util\util.h">
       <Filter>util</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\util\mgpualloc.h">
+      <Filter>util</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="demo.cu" />
+    <CudaCompile Include="..\src\mgpucontext.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\mgpuutil.cpp" />
   </ItemGroup>
 </Project>

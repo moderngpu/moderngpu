@@ -38,6 +38,15 @@
 #include <iterator>
 #include <cfloat>
 #include <typeinfo>
+#include <vector>
+#include <list>
+#include <map>
+#include <algorithm>
+#include <cassert>
+#include <memory>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 #ifndef MGPU_MIN
 #define MGPU_MIN(x, y) (((x) <= (y)) ? (x) : (y))
@@ -46,7 +55,8 @@
 #define MGPU_ABS(x) (((x) >= 0) ? (x) : (-x))
 
 #define MGPU_DIV_UP(x, y) (((x) + (y) - 1) / (y))
-#define MGPU_DIV_ROUND(x, y) (((x) + y / 2) / (y))
+#define MGPU_DIV_ROUND(x, y) (((x) + (y) / 2) / (y))
+#define MGPU_ROUND_UP(x, y) ((y) * MGPU_DIV_UP(x, y))
 #define MGPU_SHIFT_DIV_UP(x, y) (((x) + ((1<< (y)) - 1))>> y)
 #define MGPU_ROUND_UP_POW2(x, y) (((x) + (y) - 1) & ~((y) - 1))
 #define MGPU_ROUND_DOWN_POW2(x, y) ((x) & ~((y) - 1))
@@ -56,10 +66,6 @@
 
 namespace mgpu {
 
-#if !defined(__CUDA_ARCH__) || (__CUDA_ARCH__ < 100)
-using std::max;
-using std::min;
-#endif
 
 typedef unsigned char byte;
 

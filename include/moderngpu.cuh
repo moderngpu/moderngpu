@@ -47,3 +47,6 @@
 #include "kernels/intervalmove.cuh"
 #include "kernels/join.cuh"
 #include "kernels/sets.cuh"
+#include "kernels/segreducecsr.cuh"
+#include "kernels/reducebykey.cuh"
+#include "kernels/spmvcsr.cuh"

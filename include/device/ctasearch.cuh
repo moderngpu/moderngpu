@@ -176,7 +176,7 @@ MGPU_HOST_DEVICE int2 BalancedPath(InputIt1 a, int aCount, InputIt2 b,
 			int xCount = aRun + bRun;
 
 			// Attempt to advance b and regress a.
-			int bAdvance = max(xCount>> 1, xCount - aRun);
+			int bAdvance = max(xCount>> 1, bRun);
 			int bEnd = min(bCount, bStart + bAdvance + 1);
 			int bRunEnd = BinarySearch<MgpuBoundsUpper>(b + bIndex, 
 				bEnd - bIndex, x, comp) + bIndex;

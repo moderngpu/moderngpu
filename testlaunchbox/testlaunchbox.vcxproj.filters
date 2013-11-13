@@ -15,13 +15,11 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="..\tests\testlaunchbox.cu" />
+    <CudaCompile Include="testlaunchbox.cu" />
+    <CudaCompile Include="..\src\mgpucontext.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\mgpucontext.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\format.cpp">
+    <ClCompile Include="..\src\mgpuutil.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

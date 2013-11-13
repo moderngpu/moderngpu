@@ -55,7 +55,8 @@ MGPU_LAUNCH_BOUNDS void KernelBulkRemove(InputIt source_global, int sourceCount,
 	const int NT = Params::NT;
 	const int VT = Params::VT;
 	const int NV = NT * VT;
-	typedef CTAScan<NT, ScanOpAdd> S;
+
+	typedef CTAScan<NT> S;
 	union Shared {
 		int indices[NV];
 		typename S::Storage scan;
@@ -108,7 +109,7 @@ MGPU_LAUNCH_BOUNDS void KernelBulkRemove(InputIt source_global, int sourceCount,
 	__syncthreads();
 
 	// Load the gather indices into register.
-	DeviceSharedToReg<NT, VT>(NV, shared.indices, tid, indices);
+	DeviceSharedToReg<NT, VT>(shared.indices, tid, indices);
 
 	// Gather the data into register. The number of values to copy is 
 	// sourceCount - indexCount.
@@ -143,6 +144,7 @@ MGPU_HOST void BulkRemove(InputIt source_global, int sourceCount,
 	KernelBulkRemove<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
 		source_global, sourceCount, indices_global, indicesCount, 
 		partitionsDevice->get(), dest_global);
+	MGPU_SYNC_CHECK("KernelBulkRemove");
 }
 
 } // namespace mgpu

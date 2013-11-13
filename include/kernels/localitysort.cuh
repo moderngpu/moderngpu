@@ -64,10 +64,12 @@ MGPU_HOST void LocalitySortKeys(T* data_global, int count, CudaContext& context,
 	KernelBlocksort<Tuning, false>
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(source, (const int*)0,
 		count, (1 & numPasses) ? dest : source, (int*)0, comp);
+	MGPU_SYNC_CHECK("KernelBlocksort");
+
 	if(1 & numPasses) std::swap(source, dest);
 
-	SegSortKeysPasses<Tuning, false>(support, source, count, numBlocks, 
-		numPasses, dest, comp, context, verbose);
+	SegSortPasses<Tuning, false, false>(support, source, (int*)0, count, 
+		numBlocks, numPasses, dest, (int*)0, comp, context, verbose);
 } 
 template<typename T>
 MGPU_HOST void LocalitySortKeys(T* data_global, int count, CudaContext& context,
@@ -103,12 +105,14 @@ MGPU_HOST void LocalitySortPairs(KeyType* keys_global, ValType* values_global,
 	KernelBlocksort<Tuning, true><<<numBlocks, launch.x, 0, context.Stream()>>>(
 		keysSource, valsSource, count, (1 & numPasses) ? keysDest : keysSource,
 		(1 & numPasses) ? valsDest : valsSource, comp);
+	MGPU_SYNC_CHECK("KernelBlocksort");
+
 	if(1 & numPasses) {
 		std::swap(keysSource, keysDest);
 		std::swap(valsSource, valsDest);
 	}
 
-	SegSortPairsPasses<Tuning, false>(support, keysSource, valsSource, count,
+	SegSortPasses<Tuning, false, true>(support, keysSource, valsSource, count,
 		numBlocks, numPasses, keysDest, valsDest, comp, context, verbose);
 } 
 template<typename KeyType, typename ValType>

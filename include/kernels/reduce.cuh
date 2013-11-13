@@ -38,145 +38,107 @@
 
 namespace mgpu {
 
-// Run a high-throughput reduction over multiple CTAs. Used as the upsweep phase
-// for global reduce and global scan.
-template<typename Tuning, typename InputIt, typename Op>
+////////////////////////////////////////////////////////////////////////////////
+// KernelReduce
+
+template<typename Tuning, typename InputIt, typename T, typename Op>
 MGPU_LAUNCH_BOUNDS void KernelReduce(InputIt data_global, int count, 
-	int2 task, typename Op::value_type* reduction_global, Op op) {
+	T identity, Op op, T* reduction_global) {
 
 	typedef MGPU_LAUNCH_PARAMS Params;
 	const int NT = Params::NT;
 	const int VT = Params::VT;
 	const int NV = NT * VT;
-	typedef typename Op::input_type input_type;
-	typedef typename Op::value_type value_type;
 	typedef CTAReduce<NT, Op> R;
 
 	union Shared {
-		typename R::Storage reduce;
-		input_type inputs[NV];
+		typename R::Storage reduceStorage;
 	};
 	__shared__ Shared shared;
 
 	int tid = threadIdx.x;
 	int block = blockIdx.x;
-	int first = VT * tid;
+	int gid = NV * block;
+	int count2 = min(NV, count - gid);
 
-	int2 range = ComputeTaskRange(block, task, NV, count);
+	// Load a full tile into register in strided order. Set out-of-range values
+	// with identity.
+	T data[VT];
+	DeviceGlobalToRegDefault<NT, VT>(count2, data_global + gid, tid, data,
+		identity);
 
-	// total is the sum of encountered elements. It's undefined on the first 
-	// loop iteration.
-	value_type total = op.Extract(op.Identity(), -1);
-	bool totalDefined = false;
-	
-	// Loop through all tiles returned by ComputeTaskRange.
-	while(range.x < range.y) {
-		int count2 = min(NV, count - range.x);
+	// Sum elements within each thread.
+	T x;
+	#pragma unroll
+	for(int i = 0; i < VT; ++i)
+		x = i ? op(x, data[i]) : data[i];
 
-		// Read tile data into register.
-		input_type inputs[VT];
-		DeviceGlobalToReg<NT, VT>(count2, data_global + range.x, tid, inputs);
+	// Sum thread-totals over the CTA.
+	x = R::Reduce(tid, x, shared.reduceStorage, op);
 
-		if(Op::Commutative) {
-			// This path exploits the commutative property of the operator.
-			#pragma unroll
-			for(int i = 0; i < VT; ++i) {
-				int index = NT * i + tid;
-				if(index < count2) {
-					value_type x = op.Extract(inputs[i], range.x + index);
-					total = (i || totalDefined) ? op.Plus(total, x) : x;
-				}
-			}
-		} else {
-			// Store the inputs to shared memory and read them back out in
-			// thread order.
-			DeviceRegToShared<NT, VT>(NV, inputs, tid, shared.inputs);
-
-			value_type x = op.Extract(op.Identity(), -1);			
-			#pragma unroll
-			for(int i = 0; i < VT; ++i) {
-				int index = first + i;
-				if(index < count2) {
-					value_type y = op.Extract(shared.inputs[index], 
-						range.x + index);
-					x = i ? op.Plus(x, y) : y;
-				}
-			}
-			__syncthreads();
-
-			// Run a CTA-wide reduction
-			x = R::Reduce(tid, x, shared.reduce, op);
-			total = totalDefined ? op.Plus(total, x) : x;
-		}
-
-		range.x += NV;
-		totalDefined = true;
-	}  
-
-	if(Op::Commutative)
-		// Run a CTA-wide reduction to sum the partials for each thread.
-		total = R::Reduce(tid, total, shared.reduce, op);
-
-	if(!tid) reduction_global[block] = total;
+	// Store the tile's reduction to global memory.
+	if(!tid)
+		reduction_global[block] = x;
 }
 
-template<typename InputIt, typename Op>
-MGPU_HOST typename Op::value_type Reduce(InputIt data_global, int count, Op op, 
-	CudaContext& context) { 
+////////////////////////////////////////////////////////////////////////////////
+// Reduce
 
-	typedef typename Op::value_type T;
-	const int CutOff = 20000;
+template<typename InputIt, typename T, typename Op>
+MGPU_HOST void Reduce(InputIt data_global, int count, T identity, Op op,
+	T* reduce_global, T* reduce_host, CudaContext& context) {
 
-	T total;
-	if(count < CutOff) {
-		// Run a single CTA reduction. This requires only a single kernel launch
-		// and no atomic work.
-		const int NT = 512;
-		const int VT = 5;
-		typedef LaunchBoxVT<NT, VT> Tuning;
-		int2 launch = Tuning::GetLaunchParams(context);
-		const int NV = launch.x * launch.y;
-		int numTiles = MGPU_DIV_UP(count, NV);
-		
-		MGPU_MEM(T) reductionDevice = context.Malloc<T>(1);
-		KernelReduce<Tuning><<<1, launch.x, 0, context.Stream()>>>(data_global,
-			count, make_int2(numTiles, 1), reductionDevice->get(), op);
-
-		reductionDevice->ToHost(0, sizeof(T), &total);
-	} else {
-		// We have a large reduction so balance over many CTAs. Launch up to 25
-		// per CTA for oversubscription.
-		const int NT = 128;
-		const int VT = 9;
-		typedef LaunchBoxVT<NT, VT> Tuning;
-		int2 launch = Tuning::GetLaunchParams(context);
-		const int NV = launch.x * launch.y;
-
-		int numTiles = MGPU_DIV_UP(count, NV);
-		int numBlocks = std::min(context.NumSMs() * 25, numTiles);
-		int2 task = DivideTaskRange(numTiles, numBlocks);
-
-		// Reduce on the GPU.
-		MGPU_MEM(T) reductionDevice = context.Malloc<T>(numBlocks);
-		KernelReduce<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
-			data_global, count, task, reductionDevice->get(), op);
-
-		// Copy each CTA reduction to CPU and finish the job.
-		std::vector<T> reductionHost;
-		reductionDevice->ToHost(reductionHost);
-
-		total = op.Extract(op.Identity(), -1);
-		for(int i = 0; i < numBlocks; ++i)
-			total = i ? op.Plus(total, reductionHost[i]) : reductionHost[0];
+	MGPU_MEM(T) totalDevice;
+	if(!reduce_global) {
+		totalDevice = context.Malloc<T>(1);
+		reduce_global = totalDevice->get();
 	}
-	return total;
+
+	if(count <= 256) {
+		typedef LaunchBoxVT<256, 1> Tuning;
+		KernelReduce<Tuning><<<1, 256, 0, context.Stream()>>>(
+			data_global, count, identity, op, reduce_global);
+		MGPU_SYNC_CHECK("KernelReduce");
+
+	} else if(count <= 768) {
+		typedef LaunchBoxVT<256, 3> Tuning;
+		KernelReduce<Tuning><<<1, 256, 0, context.Stream()>>>(
+			data_global, count, identity, op, reduce_global);
+		MGPU_SYNC_CHECK("KernelReduce");
+
+	} else if(count <= 512 * ((sizeof(T) > 4) ? 4 : 8)) {
+		typedef LaunchBoxVT<512, (sizeof(T) > 4) ? 4 : 8> Tuning;
+		KernelReduce<Tuning><<<1, 512, 0, context.Stream()>>>(
+			data_global, count, identity, op, reduce_global);
+		MGPU_SYNC_CHECK("KernelReduce");
+
+	} else {
+		// Launch a grid and reduce tiles to temporary storage.
+		typedef LaunchBoxVT<256, (sizeof(T) > 4) ? 8 : 16> Tuning;
+		int2 launch = Tuning::GetLaunchParams(context);
+		int NV = launch.x * launch.y;
+		int numBlocks = MGPU_DIV_UP(count, NV);
+
+		MGPU_MEM(T) reduceDevice = context.Malloc<T>(numBlocks);
+		KernelReduce<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
+			data_global, count, identity, op, reduceDevice->get());
+		MGPU_SYNC_CHECK("KernelReduce");
+
+		Reduce(reduceDevice->get(), numBlocks, identity, op, reduce_global,
+			(T*)0, context);
+	}
+
+	if(reduce_host)
+		copyDtoH(reduce_host, reduce_global, 1);
 }
 
 template<typename InputIt>
 MGPU_HOST typename std::iterator_traits<InputIt>::value_type
 Reduce(InputIt data_global, int count, CudaContext& context) { 
 	typedef typename std::iterator_traits<InputIt>::value_type T;
-	return Reduce(data_global, count, ScanOp<ScanOpTypeAdd, T>(), context);
+	T result;
+	Reduce(data_global, count, (T)0, mgpu::plus<T>(), (T*)0, &result, context);
+	return result;
 }
 
 } // namespace mgpu

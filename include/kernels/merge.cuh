@@ -43,7 +43,7 @@ namespace mgpu {
 ////////////////////////////////////////////////////////////////////////////////
 // KernelMerge
 
-template<typename Tuning, bool HasValues, bool MergeSort, typename KeysIt1, 
+template<typename Tuning, bool HasValues, bool LoadExtended, typename KeysIt1,
 	typename KeysIt2, typename KeysIt3, typename ValsIt1, typename ValsIt2,
 	typename ValsIt3, typename Comp>
 MGPU_LAUNCH_BOUNDS void KernelMerge(KeysIt1 aKeys_global, ValsIt1 aVals_global,
@@ -70,9 +70,9 @@ MGPU_LAUNCH_BOUNDS void KernelMerge(KeysIt1 aKeys_global, ValsIt1 aVals_global,
 	int4 range = ComputeMergeRange(aCount, bCount, block, coop, NT * VT, 
 		mp_global);
 
-	DeviceMerge<NT, VT, HasValues>(aKeys_global, aVals_global, bKeys_global,
-		bVals_global, tid, block, range, shared.keys, shared.indices, 
-		keys_global, vals_global, comp);
+	DeviceMerge<NT, VT, HasValues, LoadExtended>(aKeys_global, aVals_global, 
+		aCount, bKeys_global, bVals_global, bCount, tid, block, range, 
+		shared.keys, shared.indices, keys_global, vals_global, comp);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -81,10 +81,13 @@ MGPU_LAUNCH_BOUNDS void KernelMerge(KeysIt1 aKeys_global, ValsIt1 aVals_global,
 template<typename KeysIt1, typename KeysIt2, typename KeysIt3, typename Comp>
 MGPU_HOST void MergeKeys(KeysIt1 aKeys_global, int aCount, KeysIt2 bKeys_global,
 	int bCount, KeysIt3 keys_global, Comp comp, CudaContext& context) {
-
-	const int NT = 128;
-	const int VT = 11;
-	typedef LaunchBoxVT<NT, VT> Tuning;
+	
+	typedef typename std::iterator_traits<KeysIt1>::value_type T;
+	typedef LaunchBoxVT<
+		128, 23, 0,
+		128, 11, 0,
+		128, (sizeof(T) > 4) ? 7 : 11, 0
+	> Tuning;
 	int2 launch = Tuning::GetLaunchParams(context);
 
 	const int NV = launch.x * launch.y;
@@ -92,10 +95,11 @@ MGPU_HOST void MergeKeys(KeysIt1 aKeys_global, int aCount, KeysIt2 bKeys_global,
 		aKeys_global, aCount, bKeys_global, bCount, NV, 0, comp, context);
 
 	int numBlocks = MGPU_DIV_UP(aCount + bCount, NV);
-	KernelMerge<Tuning, false, false>
+	KernelMerge<Tuning, false, true>
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(aKeys_global, 
 		(const int*)0, aCount, bKeys_global, (const int*)0, bCount, 
 		partitionsDevice->get(), 0, keys_global, (int*)0, comp);
+	MGPU_SYNC_CHECK("KernelMerge");
 }
 template<typename KeysIt1, typename KeysIt2, typename KeysIt3>
 MGPU_HOST void MergeKeys(KeysIt1 aKeys_global, int aCount, KeysIt2 bKeys_global,
@@ -115,9 +119,12 @@ MGPU_HOST void MergePairs(KeysIt1 aKeys_global, ValsIt1 aVals_global,
 	int aCount, KeysIt2 bKeys_global, ValsIt2 bVals_global, int bCount,
 	KeysIt3 keys_global, ValsIt3 vals_global, Comp comp, CudaContext& context) {
 
-	const int NT = 128;
-	const int VT = 7;
-	typedef LaunchBoxVT<NT, VT> Tuning;
+	typedef typename std::iterator_traits<KeysIt1>::value_type T;
+	typedef LaunchBoxVT<
+		128, 11, 0,
+		128, 11, 0,
+		128, (sizeof(T) > 4) ? 7 : 11, 0
+	> Tuning;
 	int2 launch = Tuning::GetLaunchParams(context);
 
 	const int NV = launch.x * launch.y;
@@ -129,6 +136,7 @@ MGPU_HOST void MergePairs(KeysIt1 aKeys_global, ValsIt1 aVals_global,
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(aKeys_global,
 		aVals_global, aCount, bKeys_global, bVals_global, bCount, 
 		partitionsDevice->get(), 0, keys_global, vals_global, comp);
+	MGPU_SYNC_CHECK("KernelMerge");
 }
 template<typename KeysIt1, typename KeysIt2, typename KeysIt3, typename ValsIt1,
 	typename ValsIt2, typename ValsIt3>

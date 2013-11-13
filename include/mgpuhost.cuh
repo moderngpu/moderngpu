@@ -42,15 +42,15 @@ namespace mgpu {
 ////////////////////////////////////////////////////////////////////////////////
 // kernels/reduce.cuh
 
-// Reduce input and return variable in host memory. Note that this calls 
-// cudaMemcpyDeviceToHost, a synchronous operation that may interrupt queueing
-// on streams.
-template<typename InputIt, typename Op>
-MGPU_HOST typename Op::value_type Reduce(InputIt data_global, int count, Op op, 
-	CudaContext& context);
+// Reduce input and return variable in device memory or host memory, or both.
+// Provide a non-null pointer to retrieve data.
+template<typename InputIt, typename T, typename Op>
+MGPU_HOST void Reduce(InputIt data_global, int count, T identity, Op op,
+	T* reduce_global, T* reduce_host, CudaContext& context);
 
 // T = std::iterator_traits<InputIt>::value_type.
-// Reduce with Op = ScanOp<ScanOpTypeAdd, T>.
+// Reduce with identity = 0 and op = mgpu::plus<T>.
+// Returns the value in host memory.
 template<typename InputIt>
 MGPU_HOST typename std::iterator_traits<InputIt>::value_type
 Reduce(InputIt data_global, int count, CudaContext& context);
@@ -63,27 +63,22 @@ Reduce(InputIt data_global, int count, CudaContext& context);
 // MgpuScanType may be:
 //		MgpuScanTypeExc (exclusive) or
 //		MgpuScanTypeInc (inclusive).
-// If total is non-zero, the reduction of the input is returned in host memory.
-//		This incurs a synchronization so may not be appropriate for programs
-//		using stream.
-// If totalAtEnd is true, the reduction is stored at dest_global[count].
-template<MgpuScanType Type, typename InputIt, typename OutputIt, typename Op>
-MGPU_HOST void Scan(InputIt data_global, int count, OutputIt dest_global, Op op,
-	typename Op::value_type* total, bool totalAtEnd, CudaContext& context);
+// Return the total in device memory, host memory, or both.
+template<MgpuScanType Type, typename DataIt, typename T, typename Op,
+	typename DestIt>
+MGPU_HOST void Scan(DataIt data_global, int count, T identity, Op op,
+	T* reduce_global, T* reduce_host, DestIt dest_global, 
+	CudaContext& context);
 
-// Specialization Scan:
-// Returns the reduction as a variable in host memory.
-// Uses Op = ScanOp<ScanOpTypeAdd, T>
-// totalAtEnd = false
-template<MgpuScanType Type, typename InputIt>
-MGPU_HOST typename std::iterator_traits<InputIt>::value_type
-Scan(InputIt data_global, int count, CudaContext& context);
+// Exclusive scan with identity = 0 and op = mgpu::plus<T>.
+// Returns the total in host memory.
+template<typename InputIt, typename TotalType>
+MGPU_HOST void ScanExc(InputIt data_global, int count, TotalType* total,
+	CudaContext& context);
 
-// Specialization with MgpuScanTypeExc.
+// Like above, but don't return the total.
 template<typename InputIt>
-MGPU_HOST typename std::iterator_traits<InputIt>::value_type
-Scan(InputIt data_global, int count, CudaContext& context);
-
+MGPU_HOST void ScanExc(InputIt data_global, int count, CudaContext& context);
 
 ////////////////////////////////////////////////////////////////////////////////
 // kernels/bulkremove.cuh
@@ -396,9 +391,10 @@ MGPU_HOST void SortedEqualityCount(InputIt1 a_global, int aCount,
 // This is equivalent to expanding the index of each object by the object's
 // work-item count.
 
-MGPU_HOST void LoadBalanceSearch(int aCount, const int* b_global, int bCount,
-	int* indices_global, CudaContext& context);
 
+template<typename InputIt>
+MGPU_HOST void LoadBalanceSearch(int aCount, InputIt b_global, int bCount,
+	int* indices_global, CudaContext& context);
 
 ////////////////////////////////////////////////////////////////////////////////
 // kernels/intervalmove.cuh
@@ -570,6 +566,249 @@ template<MgpuSetOp Op, bool Duplicates, typename KeysIt1, typename KeysIt2,
 MGPU_HOST int SetOpPairs(KeysIt1 aKeys_global, ValsIt1 aVals_global, int aCount,
 	KeysIt2 bKeys_global, ValsIt2 bVals_global, int bCount,
 	MGPU_MEM(KeyType)* ppKeys_global, MGPU_MEM(ValType)* ppVals_global, 
+	CudaContext& context);
+
+////////////////////////////////////////////////////////////////////////////////
+// kernels/segreducecsr.cuh
+
+// SegReducePreprocessData is defined in segreduce.cuh. It includes:
+// -	limits for CSR->tiles
+// -	packed thread codes for each thread in the reduction
+// -	(optional) CSR2 array of filtered segment offsets
+struct SegReducePreprocessData;
+
+// SegReduceCsr runs a segmented reduction given an input and a sorted list of
+// segment start offsets. This implementation requires operators support 
+// commutative (a + b = b + a) and associative (a + (b + c) = (a + b) + c)
+// evaluation.
+
+// In the segmented reduction, reduce-by-key, and Spmv documentation, "segment"
+// and "row" are used interchangably. A 
+// 
+
+// InputIt data_global		- Data value input.
+// int count				- Size of input array data_global.
+// CsrIt csr_global			- List of integers for start of each segment. 
+//							  The first entry must be 0 (indicating that the 
+//							  first segment starts at offset 0).
+//							  Equivalent to exc-scan of segment sizes.
+//							  If supportEmpty is false: must be ascending.
+//							  If supportEmpty is true: must be non-descending.
+// int numSegments			- Size of segment list csr_global. Must be >= 1.
+// bool supportEmpty		- Basic seg-reduce code does not support empty 
+//							  segments.
+//							  Set supportEmpty = true to add pre- and post-
+//							  processing to support empty segments.
+// OutputIt dest_global		- Output array for segmented reduction. Allocate
+//							  numSegments elements. Should be same data type as 
+//							  InputIt and identity.
+// T identity				- Identity for reduction operation. Eg, use 0 for 
+//							  addition or 1 for multiplication.
+// Op op					- Reduction operator. Model on std::plus<>. MGPU
+//							  provides operators mgpu::plus<>, minus<>, 
+//							  multiplies<>, modulus<>, bit_or<> bit_and<>,
+//							  bit_xor<>, maximum<>, and minimum<>.
+// CudaContext& context		- MGPU context support object. All kernels are 
+//							  launched on the associated stream.
+template<typename InputIt, typename CsrIt, typename OutputIt, typename T,
+	typename Op>
+MGPU_HOST void SegReduceCsr(InputIt data_global, int count, CsrIt csr_global, 
+	int numSegments, bool supportEmpty, OutputIt dest_global, T identity, Op op, 
+	CudaContext& context);
+
+// IndirectReduceCsr is like SegReduceCsr but with one level of source 
+// indirection. The start of each segment/row i in data_global starts at 
+// sources_global[i].
+// SourcesIt sources_global	- List of integers for source data of each segment.
+//							  Must be numSegments in size.
+template<typename InputIt, typename CsrIt, typename SourcesIt, 
+	typename OutputIt, typename T, typename Op>
+MGPU_HOST void IndirectReduceCsr(InputIt data_global, int count,
+	CsrIt csr_global, SourcesIt sources_global, int numSegments,
+	bool supportEmpty, OutputIt dest_global, T identity, Op op, 
+	CudaContext& context);
+
+// SegReduceCsrPreprocess accelerates multiple seg-reduce calls on different 
+// data with the same segment geometry. Partitioning and CSR->CSR2 transform is
+// off-loaded to a preprocessing pass. The actual reduction is evaluated by
+// SegReduceApply. 
+template<typename T, typename CsrIt>
+MGPU_HOST void SegReduceCsrPreprocess(int count, CsrIt csr_global, 
+	int numSegments, bool supportEmpty, 
+	std::auto_ptr<SegReducePreprocessData>* ppData, CudaContext& context);
+
+template<typename InputIt, typename DestIt, typename T, typename Op>
+MGPU_HOST void SegReduceApply(const SegReducePreprocessData& preprocess, 
+	InputIt data_global, T identity, Op op, DestIt dest_global,
+	CudaContext& context);
+
+////////////////////////////////////////////////////////////////////////////////
+// kernels/reducebykey.csr
+
+typedef SegReducePreprocessData ReduceByKeyPreprocessData;
+
+// ReduceByKey runs a segmented reduction given a data input and a matching set
+// of keys. This implementation requires operators support commutative 
+// (a + b = b + a) and associative (a + (b + c) = (a + b) + c) evaluation.
+// It roughly matches the behavior of thrust::reduce_by_key.
+
+// KeysIt keys_global		- Key identifier for the segment.
+// InputIt data_global		- Data value input.
+// int count				- Size of input arrays keys_global and
+//							  data_global.
+// ValType identity			- Identity for reduction operation. Eg, use 0 for 
+//							  addition or 1 for multiplication.
+// Op op					- Reduction operator. Model on std::plus<>. MGPU
+//							  provides operators mgpu::plus<>, minus<>, 
+//							  multiplies<>, modulus<>, bit_or<> bit_and<>,
+//							  bit_xor<>, maximum<>, and minimum<>.
+// Comp comp				- Operator for comparing adjacent adjacent keys.
+//							  Must return true if two adjacent keys are in the 
+//							  same segment. Use mgpu::equal_to<KeyType>() by
+//							  default.
+// KeyType* keysDest_global	- If this pointer is not null, return the first
+//							  key from each segment. Must be sized to at least
+//							  the number of segments.
+// DestIt dest_global		- Holds the reduced data. Must be sized to at least
+//							  the number of segments.
+// int* count_host			- The number of segments, returned in host memory.
+//							  May be null.
+// int* count_global		- The number of segments, returned in device memory.
+//							  This avoids a D->H synchronization. May be null.
+// CudaContext& context		- MGPU context support object.
+template<typename KeysIt, typename InputIt, typename DestIt,
+	typename KeyType, typename ValType, typename Op, typename Comp>
+MGPU_HOST void ReduceByKey(KeysIt keys_global, InputIt data_global, int count,
+	ValType identity, Op op, Comp comp, KeyType* keysDest_global, 
+	DestIt dest_global, int* count_host, int* count_global, 
+	CudaContext& context);
+
+// ReduceByKeyPreprocess accelerates multiple reduce-by-key calls on different
+// data with the same segment geometry. The actual reduction is evaluated by
+// ReduceByKeyApply.
+// Note that the caller must explicitly specify the ValType argument. Kernel 
+// tunings are based on the value type, not the key type.
+template<typename ValType, typename KeyType, typename KeysIt, typename Comp>
+MGPU_HOST void ReduceByKeyPreprocess(int count, KeysIt keys_global, 
+	KeyType* keysDest_global, Comp comp, int* count_host, int* count_global,
+	std::auto_ptr<ReduceByKeyPreprocessData>* ppData, CudaContext& context);
+
+template<typename InputIt, typename DestIt, typename T, typename Op>
+MGPU_HOST void ReduceByKeyApply(const ReduceByKeyPreprocessData& preprocess, 
+	InputIt data_global, T identity, Op op, DestIt dest_global,
+	CudaContext& context);
+
+////////////////////////////////////////////////////////////////////////////////
+// kernels/spmvcsr.cuh
+
+typedef SegReducePreprocessData SpmvPreprocessData;
+
+// SpmvCsr[Unary|Binary] evaluates the product of a sparse matrix (CSR format)
+// with a dense vector. 
+// SpmvCsrIndirect[Unary|Binary] uses indirection to lookup the start of each
+// matrix_global and cols_global on a per-row basis.
+
+// Unary methods reduce on the right-hand side vector values.
+// Binary methods reduce the product of the left-hand side matrix value with the
+// right-hand side vector values.
+
+// MatrixIt matrix_global	- Left-hand side data for binary Spmv. There are nz
+//							  non-zero matrix elements. These are loaded and
+//							  combined with the vector values with mulOp.
+// ColsIt cols_global		- Row identifiers for the right-hand side of the
+//							  matrix/value products. If element i is the k'th
+//							  non-zero in row j, the product is formed as
+//							      matrix_global[i] * vec_global[cols_global[i]] 
+//							  for direct indexing, or,
+//							      m = source_global[j] + k
+//							      matrix_global[m] * vec_global[cols_global[m]].
+// int nz					- Number of non-zeros in LHS matrix. Size of 
+//							  matrix_global and cols_global.
+// CsrIt csr_global			- List of integers for start of each row. 
+//							  The first entry must be 0 (indicating that the 
+//							  first row starts at offset 0).
+//							  Equivalent to exc-scan of row sizes.
+//							  If supportEmpty is false: must be ascending.
+//							  If supportEmpty is true: must be non-descending.
+// SourcesIt sources_global	- An indirection array to source each row's data.
+//							  The size of each row i is
+//								   size_i = csr_global[i + 1] - csr_global[i].
+//							  The starting offset for both the data and column
+//							  identifiers is
+//								   offset_i = sources_global[i].
+//							  The direct Spmv methods (i.e. those not taking
+//							  a sources_global parameter) can be thought of as
+//							  indirect methods with sources_global = csr_global.
+// int numRows				- Size of segment list csr_global. Must be >= 1.
+// VecIt vec_global			- Input array. Size is the width of the matrix.
+//							  For unary Spmv, these values are reduced.
+//							  For binary Spmv, the products of the matrix and 
+//							  vector values are reduced.
+// bool supportEmpty		- Basic seg-reduce code does not support empty rows.
+//							  Set supportEmpty = true to add pre- and post-
+//							  processing to support empty rows.
+// DestIt dest_global		- Output array. Must be numRows in size.
+// T identity				- Identity for reduction operation. Eg, use 0 for 
+//							  addition or 1 for multiplication.
+// MulOp mulOp				- Reduction operator for combining matrix value with
+//							  vector value. Only defined for binary Spmv.
+//							  Use mgpu::multiplies<T>() for default behavior.
+// AddOp addOp				- Reduction operator for reducing vector values 
+//						      (unary Spmv) or matrix-vector products (binary
+//							  Spmv). Use mgpu::plus<T>() for default behavior.
+// CudaContext& context		- MGPU context support object. All kernels are 
+//							  launched on the associated stream.
+template<typename ColsIt, typename CsrIt, typename VecIt, typename DestIt,
+	typename T, typename AddOp>
+MGPU_HOST void SpmvCsrUnary(ColsIt cols_global, int nz, CsrIt csr_global, 
+	int numRows, VecIt vec_global, bool supportEmpty, DestIt dest_global,
+	T identity, AddOp addOp, CudaContext& context);
+
+template<typename MatrixIt, typename ColsIt, typename CsrIt, typename VecIt,
+	typename DestIt, typename T, typename MulOp, typename AddOp>
+MGPU_HOST void SpmvCsrBinary(MatrixIt matrix_global, ColsIt cols_global, 
+	int nz, CsrIt csr_global, int numRows, VecIt vec_global, 
+	bool supportEmpty, DestIt dest_global, T identity, MulOp mulOp, AddOp addOp, 
+	CudaContext& context);
+
+template<typename ColsIt, typename CsrIt, typename SourcesIt, typename VecIt,
+	typename DestIt, typename T, typename AddOp>
+MGPU_HOST void SpmvCsrIndirectUnary(ColsIt cols_global, int nz, 
+	CsrIt csr_global, SourcesIt sources_global, int numRows, VecIt vec_global, 
+	bool supportEmpty, DestIt dest_global, T identity, AddOp addOp, 
+	CudaContext& context);
+
+template<typename MatrixIt, typename ColsIt, typename CsrIt, typename SourcesIt, 
+	typename VecIt, typename DestIt, typename T, typename MulOp, typename AddOp>
+MGPU_HOST void SpmvCsrIndirectBinary(MatrixIt matrix_global, ColsIt cols_global,
+	int nz, CsrIt csr_global, SourcesIt sources_global, int numRows,
+	VecIt vec_global, bool supportEmpty, DestIt dest_global, T identity,
+	MulOp mulOp, AddOp addOp, CudaContext& context);
+
+// SpmvPreprocess[Unary|Binary] accelerates multiple Spmv calls on different 
+// matrix/vector pairs with the same matrix geometry. The actual reduction is
+// evaluated Spmv[Unary|Binary]Apply.
+template<typename T, typename CsrIt>
+MGPU_HOST void SpmvPreprocessUnary(int nz, CsrIt csr_global, int numRows,
+	bool supportEmpty, std::auto_ptr<SpmvPreprocessData>* ppData, 
+	CudaContext& context);
+
+template<typename T, typename CsrIt>
+MGPU_HOST void SpmvPreprocessBinary(int nz, CsrIt csr_global, int numRows,
+	bool supportEmpty, std::auto_ptr<SpmvPreprocessData>* ppData,
+	CudaContext& context);
+
+template<typename ColsIt, typename VecIt, typename DestIt, typename T,
+	typename MulOp, typename AddOp>
+MGPU_HOST void SpmvUnaryApply(const SpmvPreprocessData& preprocess,
+	ColsIt cols_global, VecIt vec_global, DestIt dest_global, T identity, 
+	AddOp addOp, CudaContext& context);
+
+template<typename MatrixIt, typename ColsIt, typename VecIt, typename DestIt, 
+	typename T, typename MulOp, typename AddOp>
+MGPU_HOST void SpmvBinaryApply(const SpmvPreprocessData& preprocess,
+	MatrixIt matrix_global, ColsIt cols_global, VecIt vec_global, 
+	DestIt dest_global, T identity, MulOp mulOp, AddOp addOp,
 	CudaContext& context);
 
 } // namespace mgpu

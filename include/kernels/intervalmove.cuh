@@ -67,7 +67,7 @@ MGPU_LAUNCH_BOUNDS void KernelIntervalExpand(int destCount,
 	// Compute the input and output intervals this CTA processes.
 	int4 range = CTALoadBalance<NT, VT>(destCount, indices_global, sourceCount,
 		block, tid, mp_global, shared.indices, true);
-
+	
 	// The interval indices are in the left part of shared memory (moveCount).
 	// The scan of interval counts are in the right part (intervalCount).
 	destCount = range.y - range.x;
@@ -75,7 +75,7 @@ MGPU_LAUNCH_BOUNDS void KernelIntervalExpand(int destCount,
 
 	// Copy the source indices into register.
 	int sources[VT];
-	DeviceSharedToReg<NT, VT>(NT * VT, shared.indices, tid, sources);
+	DeviceSharedToReg<NT, VT>(shared.indices, tid, sources);
 
 	// Load the source fill values into shared memory. Each value is fetched
 	// only once to reduce latency and L2 traffic.
@@ -118,6 +118,7 @@ MGPU_HOST void IntervalExpand(int moveCount, IndicesIt indices_global,
 	KernelIntervalExpand<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
 		moveCount, indices_global, values_global, intervalCount,
 		partitionsDevice->get(), output_global);
+	MGPU_SYNC_CHECK("KernelIntervalExpand");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -137,7 +138,7 @@ MGPU_LAUNCH_BOUNDS void KernelIntervalMove(int moveCount,
 	__shared__ int indices_shared[NT * (VT + 1)];
 	int tid = threadIdx.x;
 	int block = blockIdx.x;
-
+	
 	// Load balance the move IDs (counting_iterator) over the scan of the
 	// interval sizes.
 	int4 range = CTALoadBalance<NT, VT>(moveCount, indices_global, 
@@ -164,7 +165,7 @@ MGPU_LAUNCH_BOUNDS void KernelIntervalMove(int moveCount,
 		}
 	}
 	__syncthreads();
-
+	
 	// Load and distribute the gather and scatter indices.
 	int gather[VT], scatter[VT];
 	if(Gather) {
@@ -236,6 +237,7 @@ MGPU_HOST void IntervalGather(int moveCount, GatherIt gather_global,
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(moveCount, gather_global,
 		(const int*)0, indices_global, intervalCount, input_global,
 		partitionsDevice->get(), output_global);
+	MGPU_SYNC_CHECK("KernelIntervalMove");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -263,6 +265,7 @@ MGPU_HOST void IntervalScatter(int moveCount, ScatterIt scatter_global,
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(moveCount, (const int*)0,
 		scatter_global, indices_global, intervalCount, input_global, 
 		partitionsDevice->get(), output_global);
+	MGPU_SYNC_CHECK("KernelIntervalMove");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -290,6 +293,7 @@ MGPU_HOST void IntervalMove(int moveCount, GatherIt gather_global,
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(moveCount, gather_global, 
 		scatter_global, indices_global, intervalCount, input_global,
 		partitionsDevice->get(), output_global);
+	MGPU_SYNC_CHECK("KernelIntervalMove");
 }
 
 } // namespace mgpu

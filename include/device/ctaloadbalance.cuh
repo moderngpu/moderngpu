@@ -77,8 +77,8 @@ MGPU_DEVICE void DeviceSerialLoadBalanceSearch(const int* b_shared, int aBegin,
 // depending on the aFirst argument. 
 
 // CTALoadBalance requires NT * VT + 2 slots of shared memory.
-template<int NT, int VT>
-MGPU_DEVICE int4 CTALoadBalance(int destCount, const int* b_global, 
+template<int NT, int VT, typename InputIt>
+MGPU_DEVICE int4 CTALoadBalance(int destCount, InputIt b_global, 
 	int sourceCount, int block, int tid, const int* mp_global, 
 	int* indices_shared, bool loadPrecedingB) {
 		    
@@ -89,41 +89,46 @@ MGPU_DEVICE int4 CTALoadBalance(int destCount, const int* b_global,
 	int a1 = range.y;
 	int b0 = range.z;
 	int b1 = range.w;
+	if(!b0) loadPrecedingB = false;
 
-	if(loadPrecedingB) { 
-		if(!b0) loadPrecedingB = false;
-		else --b0;
-	}
-
-	bool extended = a1 < destCount && b1 < sourceCount;
+	// Load one trailing term from B. If we're already at the end, fill the 
+	// end of the buffer with destCount.
 	int aCount = a1 - a0;
 	int bCount = b1 - b0;
+	int extended = b1 < sourceCount;
+	int loadCount = bCount + extended;
+	int fillCount = NT * VT + 1 - loadCount - aCount;
 
 	int* a_shared = indices_shared;
-	int* b_shared = indices_shared + aCount;
+	int* b_shared = indices_shared + aCount + (int)loadPrecedingB;
 
-	// Load the b values (scan of work item counts).
-	DeviceMemToMemLoop<NT>(bCount + (int)extended, b_global + b0, tid, 
-		b_shared);
+	// Load the B values.
+//	DeviceMemToMemLoop<NT>(bCount + extended + (int)loadPrecedingB, 
+//		b_global + b0 - (int)loadPrecedingB, tid, 
+//		b_shared - (int)loadPrecedingB);
 
-	// Run a merge path to find the start of the serial merge for each thread.
-	int diag = min(VT * tid, aCount + bCount - (int)loadPrecedingB);
-	int mp = MergePath<MgpuBoundsUpper>(mgpu::counting_iterator<int>(a0),
-		aCount, b_shared + (int)loadPrecedingB, bCount - (int)loadPrecedingB,
-		diag, mgpu::less<int>());
+	for(int i = tid - (int)loadPrecedingB; i < bCount + extended; i += NT)
+		b_shared[i] = b_global[b0 + i];
 
-	int a0tid = a0 + mp;
-	int b0tid = diag - mp + (int)loadPrecedingB;
-	
-	// Subtract 1 from b0 because we want to return upper_bound - 1.
-	if(extended)
-		DeviceSerialLoadBalanceSearch<VT, false>(b_shared, a0tid, a1, b0 - 1,
-			b0tid, bCount, a_shared - a0);
-	else
-		DeviceSerialLoadBalanceSearch<VT, true>(b_shared, a0tid, a1, b0 - 1, 
-			b0tid, bCount, a_shared - a0);
+	// Fill the end of the array with destCount.
+	for(int i = tid + extended; i < fillCount; i += NT)
+		b_shared[bCount + i] = destCount;
 	__syncthreads();
 
+	// Run a merge path to find the start of the serial merge for each thread.
+	int diag = VT * tid;
+	int mp = MergePath<MgpuBoundsUpper>(mgpu::counting_iterator<int>(a0),
+		aCount, b_shared, bCount, diag, mgpu::less<int>());
+
+	int a0tid = a0 + mp;
+	int b0tid = diag - mp;
+	
+	// Subtract 1 from b0 because we want to return upper_bound - 1.
+	DeviceSerialLoadBalanceSearch<VT, false>(b_shared, a0tid, a1, b0 - 1,
+		b0tid, bCount, a_shared - a0);
+	__syncthreads();
+	
+	b0 -= (int)loadPrecedingB;
 	return make_int4(a0, a1, b0, b1);
 }
 

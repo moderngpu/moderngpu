@@ -66,6 +66,8 @@ MGPU_MEM(int) BinarySearchPartitions(int count, It1 data_global, int numItems,
 	KernelBinarySearch<NT, Bounds>
 		<<<numPartitionBlocks, NT, 0, context.Stream()>>>(count, data_global, 
 		numItems, nv, partitionsDevice->get(), numBlocks + 1, comp);
+	MGPU_SYNC_CHECK("KernelBinarySearch");
+
 	return partitionsDevice;
 }
 
@@ -110,9 +112,10 @@ MGPU_MEM(int) MergePathPartitions(It1 a_global, int aCount, It2 b_global,
 		<<<numPartitionBlocks, NT, 0, context.Stream()>>>(a_global, aCount,
 		b_global, bCount, nv, coop, partitionsDevice->get(), numPartitions + 1, 
 		comp);
+	MGPU_SYNC_CHECK("KernelMergePartition");
+
 	return partitionsDevice;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // FindSetPartitions
@@ -149,6 +152,8 @@ MGPU_MEM(int) FindSetPartitions(It1 a_global, int aCount, It2 b_global,
 	KernelSetPartition<NT, Duplicates>
 		<<<numPartitionBlocks, NT, 0, context.Stream()>>>(a_global, aCount,
 		b_global, bCount, nv, partitionsDevice->get(), numPartitions + 1, comp);
+	MGPU_SYNC_CHECK("KernelSetPartition");
+
 	return partitionsDevice;
 }
 

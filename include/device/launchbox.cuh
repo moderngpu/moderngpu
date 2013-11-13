@@ -37,9 +37,7 @@
 #include "../util/mgpucontext.h"
 
 namespace mgpu {
-
-__global__ void LBVerKernel() { }
-
+	
 #if __CUDA_ARCH__ >= 350
 	#define MGPU_SM_TAG Sm35
 #elif __CUDA_ARCH__ >= 300
@@ -58,14 +56,10 @@ __global__ void LBVerKernel() { }
 template<typename Derived>
 struct LaunchBoxRuntime {
 	static int2 GetLaunchParams(CudaContext& context) {
-		int sm = context.CompilerVersion();
-		if(sm < 0) {
-			cudaFuncAttributes attr;
-			cudaFuncGetAttributes(&attr, LBVerKernel);
-			sm = 10 * attr.ptxVersion;
-			context.Device().SetCompilerVersion(sm);
-		}
+		return GetLaunchParams(context.PTXVersion());
+	}
 
+	static int2 GetLaunchParams(int sm) {
 		if(sm >= 350) 
 			return make_int2(Derived::Sm35::NT, Derived::Sm35::VT);
 		else if(sm >= 300) 

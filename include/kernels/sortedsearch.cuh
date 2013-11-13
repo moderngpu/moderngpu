@@ -179,11 +179,11 @@ MGPU_HOST void SortedSearch(InputIt1 a_global, int aCount, InputIt2 b_global,
 		MgpuSearchTypeIndexMatch == TypeB;
 
 	typedef typename std::iterator_traits<InputIt1>::value_type T;
-	const int NT = 128;
-	const int VT = 7;		// Even VT okay because kernel uses no strided-to-
-							// thread order transposes that would incur 
-							// conflicts.
-	typedef LaunchBoxVT<NT, VT> Tuning;
+	typedef LaunchBoxVT<
+		128, 11, 0,
+		128, 7, 0,
+		128, 7, 0
+	> Tuning;
 	int2 launch = Tuning::GetLaunchParams(context);
 	const int NV = launch.x * launch.y;
 
@@ -208,6 +208,7 @@ MGPU_HOST void SortedSearch(InputIt1 a_global, int aCount, InputIt2 b_global,
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(a_global, aCount, 
 		b_global, bCount, partitionsDevice->get(), aIndices_global,
 		bIndices_global, aMatchDevice, bMatchDevice, comp);
+	MGPU_SYNC_CHECK("KernelSortedSearch");
 	
 	// Copy counters back to host memory.
 	if((MatchA && aMatchCount) || (MatchB && bMatchCount)) {
@@ -267,7 +268,6 @@ MGPU_LAUNCH_BOUNDS void KernelSortedEqualityCount(InputIt1 a_global, int aCount,
 	InputIt2 b_global, int bCount, const int* mp_global, InputIt3 lb_global,
 	OutputIt counts_global, Comp comp, Op op) {
 
-		
 	typedef typename std::iterator_traits<InputIt1>::value_type T;
 	typedef MGPU_LAUNCH_PARAMS Params;
 	const int NT = Params::NT;
@@ -326,6 +326,7 @@ MGPU_HOST void SortedEqualityCount(InputIt1 a_global, int aCount,
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(a_global, aCount, 
 		b_global, bCount, partitionsDevice->get(), lb_global, counts_global,
 		comp, op);
+	MGPU_SYNC_CHECK("KernelSortedEqualityCount");
 }
 template<typename InputIt1, typename InputIt2, typename InputIt3,
 	typename OutputIt, typename Op>

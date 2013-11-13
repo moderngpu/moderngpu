@@ -1,58 +1,63 @@
-/******************************************************************************
- * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the NVIDIA CORPORATION nor the
- *       names of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL NVIDIA CORPORATION BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- ******************************************************************************/
-
-/******************************************************************************
- *
- * Code and text by Sean Baxter, NVIDIA Research
- * See http://nvlabs.github.io/moderngpu for repository and documentation.
- *
- ******************************************************************************/
-
 #pragma once
 
-#include <cuda_runtime.h>
-#include <list>
-#include <map>
-#include <string>
-#include <vector>
-#include <algorithm>
-#include <cstdlib>
-#include <cstdio>
-#include <memory>
-
-#include "format.h"
-#include "util.h"
+#include "util/util.h"
+#include "util/format.h"
+#include "mgpualloc.h"
+#include <cuda.h>
 
 namespace mgpu {
-	
+
+
+#ifdef _DEBUG
+#define MGPU_SYNC_CHECK(s) {												\
+	cudaError_t error = cudaDeviceSynchronize();							\
+	if(cudaSuccess != error) {												\
+		printf("CUDA ERROR %d %s\n%s:%d.\n%s\n",							\
+			error, cudaGetErrorString(error), __FILE__, __LINE__, s);		\
+		exit(0);															\
+	}																		\
+}
+#else
+#define MGPU_SYNC_CHECK(s)
+#endif
+
+template<typename T>
+void copyDtoH(T* dest, const T* source, int count) {
+	cudaMemcpy(dest, source, sizeof(T) * count, cudaMemcpyDeviceToHost);
+}
+template<typename T>
+void copyDtoD(T* dest, const T* source, int count, cudaStream_t stream = 0) {
+	cudaMemcpyAsync(dest, source, sizeof(T) * count, cudaMemcpyDeviceToDevice,
+		stream);
+}
+template<typename T>
+void copyDtoH(std::vector<T>& dest, const T* source, int count) {
+	dest.resize(count);
+	if(count) 
+		copyDtoH(&dest[0], source, count);
+}
+
+template<typename T>
+void copyHtoD(T* dest, const T* source, int count) {
+	cudaMemcpy(dest, source, sizeof(T) * count, cudaMemcpyHostToDevice);
+}
+template<typename T>
+void copyHtoD(T* dest, const std::vector<T>& source) {
+	if(source.size())
+		copyHtoD(dest, &source[0], source.size());
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+class CudaContext;
+typedef intrusive_ptr<CudaContext> ContextPtr;
+typedef intrusive_ptr<CudaAlloc> AllocPtr;
+
 class CudaException : public std::exception {
 public:
 	cudaError_t error;
-	
+
 	CudaException() throw() { }
 	CudaException(cudaError_t e) throw() : error(e) { }
 	CudaException(const CudaException& e) throw() : error(e.error) { }
@@ -62,19 +67,6 @@ public:
 	}
 };
 
-class CudaEvent;
-class CudaTimer;
-class CudaAlloc;
-class CudaAllocSimple;
-class CudaAllocBuckets;
-class CudaDevice;
-class CudaContext;
-
-typedef intrusive_ptr<CudaAlloc> AllocPtr;
-typedef intrusive_ptr<CudaDevice> DevicePtr;
-typedef intrusive_ptr<CudaContext> ContextPtr;
-#define MGPU_MEM(type) mgpu::intrusive_ptr< mgpu::CudaDeviceMem< type > >  
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // CudaEvent and CudaTimer. 
@@ -83,8 +75,10 @@ typedef intrusive_ptr<CudaContext> ContextPtr;
 class CudaEvent : public noncopyable {
 public:
 	CudaEvent() { 
-		cudaError_t error = cudaEventCreate(&_event);
-		if(cudaSuccess != error) throw CudaException(error);
+		cudaEventCreate(&_event);
+	}
+	explicit CudaEvent(int flags) {
+		cudaEventCreateWithFlags(&_event, flags);
 	}
 	~CudaEvent() {
 		cudaEventDestroy(_event);
@@ -107,86 +101,43 @@ public:
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Customizable allocator.
 
-// CudaAlloc is the interface class all allocator accesses. Users may derive
-// this, implement custom allocators, and set it to the device with 
-// CudaDevice::SetAllocator.
+struct DeviceGroup;
 
-class CudaAlloc : public CudaBase {
+class CudaDevice : public noncopyable {
+	friend struct DeviceGroup;
 public:
-	virtual cudaError_t Malloc(size_t size, void** p) = 0;
-	virtual bool Free(void* p) = 0;
-	virtual ~CudaAlloc() { }
+	static int DeviceCount();
+	static CudaDevice& ByOrdinal(int ordinal);
+	static CudaDevice& Selected();
 
-	const CudaDevice& Device() const { return *_device; }
-	CudaDevice& Device() { return *_device; }
-protected:
-	CudaAlloc(CudaDevice* device) : _device(device) { }
-	DevicePtr _device;
-};
+	// Device properties.
+	const cudaDeviceProp& Prop() const { return _prop; }
+	int Ordinal() const { return _ordinal; }
+	int NumSMs() const { return _prop.multiProcessorCount; }
+	int ArchVersion() const { return 100 * _prop.major + 10 * _prop.minor; }
 
-// A concrete class allocator that simply calls cudaMalloc and cudaFree.
-class CudaAllocSimple : public CudaAlloc {
-public:
-	virtual cudaError_t Malloc(size_t size, void** p);
-	virtual bool Free(void* p);
-	virtual ~CudaAllocSimple() { }
+	// LaunchBox properties.
+	int PTXVersion() const { return _ptxVersion; }
 
-	CudaAllocSimple(CudaDevice* device) : CudaAlloc(device) { }
-};
+	std::string DeviceString() const;
 
-// A concrete class allocator that uses exponentially-spaced buckets and an LRU
-// to reuse allocations. This is the default allocator. It is shared between
-// all contexts on the device.
-class CudaAllocBuckets : public CudaAlloc {
-public:
-	CudaAllocBuckets(CudaDevice* device);
-	virtual ~CudaAllocBuckets();
-
-	virtual cudaError_t Malloc(size_t size, void** p);
-	virtual bool Free(void* p);
-
-	size_t Allocated() const { return _allocated; }
-	size_t Committed() const { return _committed; }
-	size_t Capacity() const { return _capacity; }
-
-	void Clear();
-
-	void SetCapacity(size_t capacity) {
-		_capacity = capacity;
-		Compact(0);
-	}
+	// Set this device as the active device on the thread.
+	void SetActive();
 
 private:
-	static const int NumBuckets = 122;
-	static const size_t BucketSizes[NumBuckets];
-
-	struct MemNode;
-	typedef std::list<MemNode> MemList;
-	typedef std::map<void*, MemList::iterator> AddressMap;
-	typedef std::multimap<int, MemList::iterator> PriorityMap;
-
-	struct MemNode {
-		AddressMap::iterator address;
-		PriorityMap::iterator priority;
-		int bucket;
-	};
-
-	void Compact(size_t extra);
-	void FreeNode(MemList::iterator memIt);
-	int LocateBucket(size_t size) const;
-
-	AddressMap _addressMap;
-	PriorityMap _priorityMap;
-	MemList _memLists[NumBuckets + 1];
-
-	size_t _capacity, _allocated, _committed;
-	int _counter;
+	CudaDevice() { }		// hide the destructor.
+	int _ordinal;
+	int _ptxVersion;
+	cudaDeviceProp _prop;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 // CudaDeviceMem
+// Exception-safe CUDA device memory container. Use the MGPU_MEM(T) macro for
+// the type of the reference-counting container.
+// CudaDeviceMem AddRefs the allocator that returned the memory, releasing the
+// pointer when the object is destroyed.
 
 template<typename T>
 class CudaDeviceMem : public CudaBase {
@@ -208,12 +159,14 @@ public:
 	cudaError_t ToDevice(size_t srcOffest, size_t bytes, void* data) const;
 	cudaError_t ToHost(T* data, size_t count) const;
 	cudaError_t ToHost(std::vector<T>& data) const;
+	cudaError_t ToHost(std::vector<T>& data, size_t count) const;
 	cudaError_t ToHost(size_t srcOffset, size_t bytes, void* data) const;
 
 	// Copy from the argument array to this.
 	cudaError_t FromDevice(const T* data, size_t count);
 	cudaError_t FromDevice(size_t dstOffset, size_t bytes, const void* data);
 	cudaError_t FromHost(const std::vector<T>& data);
+	cudaError_t FromHost(const std::vector<T>& data, size_t count);
 	cudaError_t FromHost(const T* data, size_t count);
 	cudaError_t FromHost(size_t destOffset, size_t bytes, const void* data);
 
@@ -226,18 +179,28 @@ private:
 	size_t _size;
 };
 
+typedef intrusive_ptr<CudaAlloc> AllocPtr;
+#define MGPU_MEM(type) mgpu::intrusive_ptr< mgpu::CudaDeviceMem< type > >  
+
 ////////////////////////////////////////////////////////////////////////////////
-// CudaMemSupport includes methods for allocating and de-allocating memory.
-// This is inherited by CudaContext.
+// CudaMemSupport
+// Convenience functions for allocating device memory and copying to it from
+// the host. These functions are factored into their own class for clarity.
+// The class is derived by CudaContext.
 
 class CudaMemSupport : public CudaBase {
 	friend class CudaDevice;
 	friend class CudaContext;
 public:
-	const CudaDevice& Device() const { return _alloc->Device(); }
 	CudaDevice& Device() { return _alloc->Device(); }
 
-	void SetAllocator(CudaAlloc* alloc) { _alloc.reset(alloc); }
+	// Swap out the associated allocator.
+	void SetAllocator(CudaAlloc* alloc) { 
+		assert(alloc->Device().Ordinal() == _alloc->Device().Ordinal());
+		_alloc.reset(alloc);
+	}
+
+	// Access the associated allocator.
 	CudaAlloc* GetAllocator() { return _alloc.get(); }	
 
 	// Support for creating arrays.
@@ -266,71 +229,41 @@ public:
 	MGPU_MEM(T) GenFunc(size_t count, Func f);
 
 protected:
+	CudaMemSupport() { }
 	AllocPtr _alloc;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// CudaDevice and CudaContext
+
+class CudaContext;
+typedef mgpu::intrusive_ptr<CudaContext> ContextPtr;
 
 ContextPtr CreateCudaDevice(int ordinal);
 ContextPtr CreateCudaDevice(int argc, char** argv, bool printInfo = false);
 
 ContextPtr CreateCudaDeviceStream(int ordinal);
-ContextPtr CreateCudaDeviceStream(int argc, char** argv, 
-	bool printInfo = false);
+ContextPtr CreateCudaDeviceStream(int argc, char** argv, bool printInfo = false);
 
-class CudaDevice : public CudaBase {
+struct ContextGroup;
+
+class CudaContext : public CudaMemSupport {
+	friend struct ContextGroup;
+
 	friend ContextPtr CreateCudaDevice(int ordinal);
 	friend ContextPtr CreateCudaDeviceStream(int ordinal);
-
-	AllocPtr CreateDefaultAlloc();
-	static ContextPtr Create(int ordinal, bool stream);
-
-	CudaDevice() : _ordinal(-1), _compilerVersion(-1) { }
-	~CudaDevice() { }
 public:
-	const cudaDeviceProp& Prop() const { return _prop; }
-	int Ordinal() const { return _ordinal; }
-	int NumSMs() const { return _prop.multiProcessorCount; }
-	
-	int ArchVersion() const { return 100 * _prop.major + 10 * _prop.minor; }
-	int CompilerVersion() const { return _compilerVersion; }
-	void SetCompilerVersion(int ver) { _compilerVersion = ver; }
+	static CudaContext& StandardContext(int ordinal = -1);
 
-	std::string DeviceString() const;
+	// 4KB of page-locked memory per context.
+	int* PageLocked() { return _pageLocked; }
+	cudaStream_t AuxStream() const { return _auxStream; }
 
-	// Set this device as the active device on the thread.
-	void SetActive() { cudaSetDevice(_ordinal); }
-
-	// Create a new context on this device. If stream is true a new stream is
-	// created, otherwise the context is created on the default stream. The
-	// created context attaches to the provided allocator. If alloc is null, 
-	// the device creates a new allocator (CudaAllocBuckets) for the context.
-	ContextPtr CreateStream(bool stream, CudaAlloc* alloc);
-
-	// Like CreateStream, but the new context uses the provided stream.
-	ContextPtr AttachStream(cudaStream_t stream, CudaAlloc* alloc);
-
-private:
-	int _ordinal;
-	int _compilerVersion;
-	cudaDeviceProp _prop;
-};
-
-// CudaContext holds a reference to CudaDevice through the allocator it inherits
-// from CudaMemSupport.
-class CudaContext : public CudaMemSupport {
-	friend class CudaDevice;
-	CudaContext() : _stream(0) { }
-	~CudaContext();
-public:
-	int NumSMs() const { return Device().NumSMs(); }
-	int ArchVersion() const { return Device().ArchVersion(); }
-	int CompilerVersion() const { return Device().CompilerVersion(); }
-	std::string DeviceString() const { return Device().DeviceString(); }
+	int NumSMs() { return Device().NumSMs(); }
+	int ArchVersion() { return Device().ArchVersion(); }
+	int PTXVersion() { return Device().PTXVersion(); }
+	std::string DeviceString() { return Device().DeviceString(); }
 
 	cudaStream_t Stream() const { return _stream; }
-	void SetStream(cudaStream_t stream) { _stream = stream; }
 
 	// Set this device as the active device on the thread.
 	void SetActive() { Device().SetActive(); }
@@ -345,12 +278,26 @@ public:
 	double Throughput(int count, int numIterations) {
 		return _timer.Throughput(count, numIterations);
 	}
+
+	virtual long AddRef() {
+		return _noRefCount ? 1 : CudaMemSupport::AddRef();
+	}
+	virtual void Release() {
+		if(!_noRefCount) CudaMemSupport::Release();
+	}
 private:
+	CudaContext(CudaDevice& device, bool newStream, bool standard);
+	~CudaContext();
+
+	AllocPtr CreateDefaultAlloc(CudaDevice& device);
+
 	cudaStream_t _stream;
+	cudaStream_t _auxStream;
 	CudaEvent _event;
 	CudaTimer _timer;
+	bool _noRefCount;
+	int* _pageLocked;
 };
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // CudaDeviceMem method implementations
@@ -376,11 +323,15 @@ cudaError_t CudaDeviceMem<T>::ToHost(T* data, size_t count) const {
 	return ToHost(0, sizeof(T) * count, data);
 }
 template<typename T>
-cudaError_t CudaDeviceMem<T>::ToHost(std::vector<T>& data) const {
-	data.resize(_size);
+cudaError_t CudaDeviceMem<T>::ToHost(std::vector<T>& data, size_t count) const {
+	data.resize(count);
 	cudaError_t error = cudaSuccess;
-	if(_size) error = ToHost(&data[0], _size);
+	if(_size) error = ToHost(&data[0], count);
 	return error;
+}
+template<typename T>
+cudaError_t CudaDeviceMem<T>::ToHost(std::vector<T>& data) const {
+	return ToHost(data, _size);
 }
 template<typename T>
 cudaError_t CudaDeviceMem<T>::ToHost(size_t srcOffset, size_t bytes, 
@@ -408,10 +359,15 @@ cudaError_t CudaDeviceMem<T>::FromDevice(size_t dstOffset, size_t bytes,
 	return cudaSuccess;
 }
 template<typename T>
-cudaError_t CudaDeviceMem<T>::FromHost(const std::vector<T>& data) {
+cudaError_t CudaDeviceMem<T>::FromHost(const std::vector<T>& data,
+	size_t count) {
 	cudaError_t error = cudaSuccess;
-	if(data.size()) error = FromHost(&data[0], data.size());
+	if(data.size()) error = FromHost(&data[0], count);
 	return error;
+}
+template<typename T>
+cudaError_t CudaDeviceMem<T>::FromHost(const std::vector<T>& data) {
+	return FromHost(data, data.size());
 }
 template<typename T>
 cudaError_t CudaDeviceMem<T>::FromHost(const T* data, size_t count) {
@@ -438,7 +394,16 @@ MGPU_MEM(T) CudaMemSupport::Malloc(size_t count) {
 	MGPU_MEM(T) mem(new CudaDeviceMem<T>(_alloc.get()));
 	mem->_size = count;
 	cudaError_t error = _alloc->Malloc(sizeof(T) * count, (void**)&mem->_p);
-	if(cudaSuccess != error) throw CudaException(cudaErrorMemoryAllocation);
+	if(cudaSuccess != error) {
+		printf("cudaMalloc error %d\n", error);		
+		exit(0);
+		throw CudaException(cudaErrorMemoryAllocation);
+	}
+#ifdef DEBUG
+	// Initialize the memory to -1 in debug mode.
+//	cudaMemset(mem->get(), -1, count);
+#endif
+
 	return mem;
 }
 
@@ -502,21 +467,37 @@ MGPU_MEM(T) CudaMemSupport::GenFunc(size_t count, Func f) {
 // Format methods that operate directly on device mem.
 
 template<typename T, typename Op>
-std::string FormatArrayOp(const CudaDeviceMem<T>& mem, Op op, int numCols) {
+std::string FormatArrayOp(const CudaDeviceMem<T>& mem, int count, Op op,
+	int numCols) {
 	std::vector<T> host;
-	mem.ToHost(host);
+	mem.ToHost(host, count);
 	return FormatArrayOp(host, op, numCols);
+}
+
+template<typename T, typename Op>
+std::string FormatArrayOp(const CudaDeviceMem<T>& mem, Op op, int numCols) {
+	return FormatArrayOp(mem, mem.Size(), op, numCols);
+}
+
+template<typename T>
+void PrintArray(const CudaDeviceMem<T>& mem, int count, const char* format, 
+	int numCols) {
+	std::string s = FormatArrayOp(mem, count, FormatOpPrintf(format), numCols);
+	printf("%s", s.c_str());
 }
 
 template<typename T>
 void PrintArray(const CudaDeviceMem<T>& mem, const char* format, int numCols) {
-	std::string s = FormatArrayOp(mem, FormatOpPrintf(format), numCols);
-	printf("%s", s.c_str());
+	PrintArray(mem, mem.Size(), format, numCols);
 }
 template<typename T, typename Op>
 void PrintArrayOp(const CudaDeviceMem<T>& mem, Op op, int numCols) {
 	std::string s = FormatArrayOp(mem, op, numCols);
 	printf("%s", s.c_str());
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 
 } // namespace mgpu

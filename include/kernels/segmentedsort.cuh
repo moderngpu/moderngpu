@@ -128,19 +128,17 @@ MGPU_LAUNCH_BOUNDS void KernelSegBlocksortFlags(InputIt1 keys_global,
 	__syncthreads();
 
 	// Each thread extracts its own head flags from the array in shared memory.
-	flags = ExtractThreadHeadFlags(shared.flags, VT * tid, VT);
+	flags = DeviceExtractThreadHeadFlags(shared.flags, VT * tid, VT);
 
 	DeviceSegBlocksort<NT, VT, Stable, HasValues>(keys_global, values_global,
 		count2, shared.keys, shared.values, shared.ranges, flags, tid, block,
 		keysDest_global, valsDest_global, ranges_global, comp);
 }
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 // KernelSegSortMerge
 
-template<typename Tuning, bool Segments, bool HasValues, typename KeyType,
+template<typename Tuning, bool Segments, bool HasValues, typename KeyType, 
 	typename ValueType, typename Comp>
 MGPU_LAUNCH_BOUNDS void KernelSegSortMerge(const KeyType* keys_global, 
 	const ValueType* values_global, SegSortSupport support, int count, 
@@ -179,16 +177,21 @@ MGPU_LAUNCH_BOUNDS void KernelSegSortMerge(const KeyType* keys_global,
 		int count2 = min(NV, count - gid);
 		range.w = count2 - (range.y - range.x) + range.z;
 
-		if(Segments)
-			// Segmented merge
+		if(Segments) {			
+			int compressedRange = support.ranges_global[block];
+			int segStart = 0x0000ffff & compressedRange;
+			int segEnd = compressedRange>> 16;
+
 			DeviceSegSortMerge<NT, VT, HasValues>(keys_global, values_global,
-				support, tid, block, range, pass, shared.keys, shared.indices, 
-				keysDest_global, valsDest_global, comp);
-		else
+				make_int2(segStart, segEnd), tid, block, range, pass, 
+				shared.keys, shared.indices, keysDest_global, valsDest_global, 
+				comp);
+		} else
 			// Unsegmented merge (from device/ctamerge.cuh)
-			DeviceMerge<NT, VT, HasValues>(keys_global, values_global, 
-				keys_global, values_global, tid, block, range, shared.keys,
-				shared.indices, keysDest_global, valsDest_global, comp);
+			DeviceMerge<NT, VT, HasValues, false>(keys_global, values_global, 
+				0, keys_global, values_global, 0, tid, block, range,
+				shared.keys, shared.indices, keysDest_global, valsDest_global, 
+				comp);
 	}
 	
 	// Check for copy work.
@@ -220,7 +223,7 @@ MGPU_DEVICE void DeviceSegSortCreateJob(SegSortSupport support,
 	int count, bool active, int3 frame, int tid, int pass, int nv, int block,
 	int p0, int p1, int* shared) {
 
-	typedef CTAScan<NT, ScanOpAdd> S; 
+	typedef CTAScan<NT> S; 
 	typename S::Storage* scan = (typename S::Storage*)shared;
 		
 	// Compute the gid'th work time.
@@ -276,7 +279,7 @@ __global__ void KernelSegSortPartitionBase(const KeyType* keys_global,
 
 	union Shared {
 		int partitions[NT];
-		typename CTAScan<NT, ScanOpAdd>::Storage scan;
+		typename CTAScan<NT>::Storage scan;
 	};
 	__shared__ Shared shared;
 
@@ -349,7 +352,7 @@ __global__ void KernelSegSortPartitionDerived(const KeyType* keys_global,
 
 	union Shared {
 		int partitions[NT];
-		typename CTAScan<NT, ScanOpAdd>::Storage scan;
+		typename CTAScan<NT>::Storage scan;
 	};
 	__shared__ Shared shared;
 
@@ -491,56 +494,14 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// SegSortKeysPasses
+// SegSortPasses
 // Multi-pass segmented mergesort process. Factored out to allow simpler 
 // specialization over head flags delivery in blocksort.
 
-template<typename Tuning, bool Segments, typename T, typename Comp>
-MGPU_HOST void SegSortKeysPasses(SegSortSupport& support, T* source_global,
-	int count, int numBlocks, int numPasses, T* dest_global, Comp comp, 
-	CudaContext& context, bool verbose) {	
-
-	int2 launch = Tuning::GetLaunchParams(context);
-	int NV = launch.x * launch.y;
-
-	const int NT2 = 64;
-	int numPartitions = numBlocks + 1;
-	int numPartBlocks = MGPU_DIV_UP(numPartitions, NT2 - 1);
-	int numCTAs = min(numBlocks, 16 * 6);
-	int numBlocks2 = MGPU_DIV_UP(numBlocks, 2);
-
-	SegSortPassInfo info(numBlocks);
-	for(int pass = 0; pass < numPasses; ++pass) {
-		if(0 == pass)
-			KernelSegSortPartitionBase<NT2, Segments>
-				<<<numPartBlocks, NT2, 0, context.Stream()>>>(source_global,
-				support, count, NV, numPartitions, comp);
-		else {
-			KernelSegSortPartitionDerived<NT2, Segments>
-				<<<numPartBlocks, NT2, 0, context.Stream()>>>(source_global,
-				support, count, numBlocks2, pass, NV, numPartitions, comp);
-			support.ranges2_global += numBlocks2;
-			numBlocks2 = MGPU_DIV_UP(numBlocks2, 2);
-		}
-		if(verbose) info.Pass(support, pass);
-
-		KernelSegSortMerge<Tuning, Segments, false>
-			<<<numCTAs, launch.x, 0, context.Stream()>>>(source_global,
-			(const int*)0, support, count, pass, dest_global, (int*)0, comp);
-
-		std::swap(dest_global, source_global);
-		std::swap(support.queueCounters_global, support.nextCounters_global);
-	}
-	if(verbose) info.Final(numPasses);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// SegSortPairsPasses
-
-template<typename Tuning, bool Segments, typename KeyType, typename ValType,
-	typename Comp>
-MGPU_HOST void SegSortPairsPasses(SegSortSupport& support, 
-	KeyType* keysSource_global, ValType* valsSource_global,
+template<typename Tuning, bool Segments, bool HasValues, typename KeyType, 
+	typename ValType, typename Comp>
+MGPU_HOST void SegSortPasses(SegSortSupport& support, 
+KeyType* keysSource_global, ValType* valsSource_global,
 	int count, int numBlocks, int numPasses, KeyType* keysDest_global, 
 	ValType* valsDest_global, Comp comp, CudaContext& context, bool verbose) {	
 
@@ -555,23 +516,28 @@ MGPU_HOST void SegSortPairsPasses(SegSortSupport& support,
 	
 	SegSortPassInfo info(numBlocks);
 	for(int pass = 0; pass < numPasses; ++pass) {
-		if(0 == pass)
+		if(0 == pass) {
 			KernelSegSortPartitionBase<NT2, Segments>
 				<<<numPartBlocks, NT2, 0, context.Stream()>>>(keysSource_global,
 				support, count, NV, numPartitions, comp);
-		else {
+			MGPU_SYNC_CHECK("KernelSegSortPartitionBase");
+		} else {
 			KernelSegSortPartitionDerived<NT2, Segments>
 				<<<numPartBlocks, NT2, 0, context.Stream()>>>(keysSource_global, 
 				support, count, numBlocks2, pass, NV, numPartitions, comp);
+			MGPU_SYNC_CHECK("KernelSegSortPartitionDerived");
+
 			support.ranges2_global += numBlocks2;
 			numBlocks2 = MGPU_DIV_UP(numBlocks2, 2);
 		}
 		if(verbose) info.Pass(support, pass);
-		 
-		KernelSegSortMerge<Tuning, Segments, true>
+		
+		KernelSegSortMerge<Tuning, Segments, HasValues>
 			<<<numCTAs, launch.x, 0, context.Stream()>>>(keysSource_global,
 			valsSource_global, support, count, pass, keysDest_global, 
 			valsDest_global, comp);
+		MGPU_SYNC_CHECK("KernelSegSortMerge");
+
 		std::swap(keysDest_global, keysSource_global);
 		std::swap(valsDest_global, valsSource_global);
 		std::swap(support.queueCounters_global, support.nextCounters_global);
@@ -608,11 +574,14 @@ MGPU_HOST void SegSortKeysFromFlags(T* data_global, int count,
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(source, (const int*)0,
 		count, flags_global, (1 & numPasses) ? dest : source, (int*)0,
 		support.ranges_global, comp);
+	MGPU_SYNC_CHECK("KernelSegBlocksortFlags");
+
 	if(1 & numPasses) std::swap(source, dest);
 
-	SegSortKeysPasses<Tuning>(support, source, count, numBlocks, numPasses, 
-		dest, comp, context, verbose);
+	SegSortPasses<Tuning, true, false>(support, source, (int*)0, count, 
+		numBlocks, numPasses, dest, (int*)0, comp, context, verbose);
 }
+
 template<typename T>
 MGPU_HOST void SegSortKeysFromFlags(T* data_global, int count,
 	const uint* flags_global, CudaContext& context, bool verbose) {
@@ -652,12 +621,14 @@ MGPU_HOST void SegSortPairsFromFlags(KeyType* keys_global,
 		flags_global, count, (1 & numPasses) ? keysDest : keysSource,
 		(1 & numPasses) ? valsDest : valsSource, support.ranges_global, 
 		comp);
+	MGPU_SYNC_CHECK("KernelSegBlocksortFlags");
+
 	if(1 & numPasses) {
 		std::swap(keysSource, keysDest);
 		std::swap(valsSource, valsDest);
 	}
 
-	SegSortPairsPasses<Tuning>(support, keysSource, valsSource, count, 
+	SegSortPasses<Tuning, true, true>(support, keysSource, valsSource, count, 
 		numBlocks, numPasses, keysDest, valsDest, comp, context, verbose);
 }
 template<bool Stable, typename KeyType, typename ValType, typename Comp>
@@ -678,9 +649,11 @@ MGPU_HOST void SegSortKeysFromIndices(T* data_global, int count,
 	Comp comp, bool verbose) {
 
 	const bool Stable = true;
-	const int NT = 128;
-	const int VT = 11;
-	typedef LaunchBoxVT<NT, VT> Tuning;
+	typedef LaunchBoxVT<
+		128, 11, 0,
+		128, 11, 0,
+		128, (sizeof(T) > 4) ? 7 : 11, 0
+	> Tuning;
 	int2 launch = Tuning::GetLaunchParams(context);
 	const int NV = launch.x * launch.y;
 	
@@ -701,11 +674,14 @@ MGPU_HOST void SegSortKeysFromIndices(T* data_global, int count,
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(source, (const int*)0,
 		count, indices_global, partitionsDevice->get(), 
 		(1 & numPasses) ? dest : source, (int*)0, support.ranges_global, comp);
+	MGPU_SYNC_CHECK("KernelSegBlocksortIndices");
+
 	if(1 & numPasses) std::swap(source, dest);
 
-	SegSortKeysPasses<Tuning, true>(support, source, count, numBlocks, 
-		numPasses, dest, comp, context, verbose);
+	SegSortPasses<Tuning, true, false>(support, source, (int*)0, count, 
+		numBlocks, numPasses, dest, (int*)0, comp, context, verbose);
 }
+
 template<typename T>
 MGPU_HOST void SegSortKeysFromIndices(T* data_global, int count,
 	const int* indices_global, int indicesCount, CudaContext& context,
@@ -721,9 +697,11 @@ MGPU_HOST void SegSortPairsFromIndices(KeyType* keys_global,
 	int indicesCount, CudaContext& context, Comp comp, bool verbose) {
 
 	const bool Stable = true;
-	const int NT = 128;
-	const int VT = 7;
-	typedef LaunchBoxVT<NT, VT> Tuning;
+	typedef LaunchBoxVT<
+		128, 11, 0,
+		128, 7, 0,
+		128, 7, 0
+	> Tuning;
 	int2 launch = Tuning::GetLaunchParams(context); 
 	const int NV = launch.x * launch.y;
 	
@@ -749,12 +727,14 @@ MGPU_HOST void SegSortPairsFromIndices(KeyType* keys_global,
 		count, indices_global, partitionsDevice->get(), 
 		(1 & numPasses) ? keysDest : keysSource, 
 		(1 & numPasses) ? valsDest : valsSource, support.ranges_global, comp);
+	MGPU_SYNC_CHECK("KernelSegBlocksortIndices");
+
 	if(1 & numPasses) {
 		std::swap(keysSource, keysDest);
 		std::swap(valsSource, valsDest);
 	}
 
-	SegSortPairsPasses<Tuning, true>(support, keysSource, valsSource, count, 
+	SegSortPasses<Tuning, true, true>(support, keysSource, valsSource, count,
 		numBlocks, numPasses, keysDest, valsDest, comp, context, verbose);
 }
 template<typename KeyType, typename ValType>

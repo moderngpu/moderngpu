@@ -54,6 +54,7 @@ class noncopyable {
 protected:
 	noncopyable() {}
 	~noncopyable() {}
+private:
 	noncopyable(const noncopyable&) { }
 	const noncopyable& operator=(const noncopyable&) { return *this; }
 };
@@ -62,11 +63,11 @@ class CudaBase : public noncopyable {
 public:
 	CudaBase() : _ref(0) { }
 	virtual ~CudaBase() { }
-	long AddRef() {
+	virtual long AddRef() {
 	//	return BOOST_INTERLOCKED_INCREMENT(&_ref);
 		return ++_ref;
 	}
-	void Release() {
+	virtual void Release() {
 	//	if(!BOOST_INTERLOCKED_DECREMENT(&_ref)) delete this;
 		if(!--_ref) delete this;		
 	}

@@ -34,8 +34,8 @@
 
 #include "../mgpuhost.cuh"
 #include "../device/ctaloadbalance.cuh"
-#include "../kernels/sortedsearch.cuh"
-#include "../kernels/scan.cuh"
+#include "sortedsearch.cuh"
+#include "scan.cuh"
 
 namespace mgpu {
 
@@ -111,7 +111,7 @@ struct LeftJoinEqualityOp {
 template<int NT>
 __global__ void KernelRightJoinUpsweep(const uint64* matches_global, int count,
 	int* totals_global) {
-
+		
 	typedef CTAReduce<NT> R;
 	__shared__ typename R::Storage reduce;
 
@@ -132,7 +132,7 @@ __global__ void KernelRightJoinUpsweep(const uint64* matches_global, int count,
 		uint2 pair = ulonglong_as_uint2(packed);
 		x = 8 - popc(pair.x) - popc(pair.y);
 	}
-
+	
 	int total = R::Reduce(tid, x, reduce);
 	if(!tid) totals_global[block] = total;
 }
@@ -238,7 +238,8 @@ MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
 			context);
 
 	// Scan the product counts. This is part of the load-balancing search.
-	int leftJoinTotal = Scan(aCounts->get(), aCount, context);
+	int leftJoinTotal;
+	ScanExc(aCounts->get(), aCount, &leftJoinTotal, context);
 
 	// Allocate space for the join indices from the sum of left and right join
 	// sizes.
@@ -248,9 +249,7 @@ MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
 
 	// Launch the inner/left join kernel. Run an upper-bounds partitioning 
 	// to load-balance the data.
-	const int NT = 128;
-	const int VT = 7;
-	typedef LaunchBoxVT<NT, VT> Tuning;
+	typedef LaunchBoxVT<128, 7> Tuning;
 	int2 launch = Tuning::GetLaunchParams(context);
 	int NV = launch.x * launch.y;
 	
@@ -263,6 +262,7 @@ MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(leftJoinTotal, 
 		aLowerBound->get(), aCounts->get(), aCount, partitionsDevice->get(),
 		aIndicesDevice->get(), bIndicesDevice->get());
+	MGPU_SYNC_CHECK("KernelLeftJoin");
 
 	// Launch the right join kernel. Compact the non-matches from B into A.
 	if(SupportRight) {
@@ -272,13 +272,14 @@ MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
 		MGPU_MEM(int) totals = context.Malloc<int>(numBlocks);
 		KernelRightJoinUpsweep<NT><<<numBlocks, NT>>>(
 			(const uint64*)bMatches->get(), bCount, totals->get());
+		MGPU_SYNC_CHECK("KernelRightJoinUpsweep");
 		
-		Scan<MgpuScanTypeExc>(totals->get(), numBlocks, totals->get(),
-			ScanOpAdd(), (int*)0, false, context);
+		ScanExc(totals->get(), numBlocks, context);
 
 		KernelRightJoinDownsweep<NT><<<numBlocks, NT>>>(
 			(const uint64*)bMatches->get(), bCount, totals->get(), 
 			bIndicesDevice->get() + leftJoinTotal);
+		MGPU_SYNC_CHECK("KernelRightJoinDownsweep");
 
 		cudaMemset(aIndicesDevice->get() + leftJoinTotal, -1, 
 			sizeof(int) * rightJoinTotal);

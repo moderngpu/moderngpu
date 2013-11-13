@@ -34,165 +34,7 @@
 
 #pragma once
 
-#if __CUDA_ARCH__ == 100
-	#error "COMPUTE CAPABILITY 1.0 NOT SUPPORTED BY MPGU. TRY 2.0!"
-#endif 
-
-#include <climits>
-#include "../util/static.h"
-
-namespace mgpu {
-
-#define MGPU_HOST __host__ __forceinline__
-#define MGPU_DEVICE __device__ __forceinline__
-#define MGPU_HOST_DEVICE __host__ __device__ __forceinline__
-
-const int WARP_SIZE = 32;
-const int LOG_WARP_SIZE = 5;
-
-template<typename T>
-struct less {
-	MGPU_HOST_DEVICE bool operator()(T a, T b) { return a < b; }
-};
-template<typename T>
-struct less_equal {
-	MGPU_HOST_DEVICE bool operator()(T a, T b) { return a <= b; }
-};
-template<typename T>
-struct greater {
-	MGPU_HOST_DEVICE bool operator()(T a, T b) { return a > b; }
-};
-template<typename T>
-struct greater_equal {
-	MGPU_HOST_DEVICE bool operator()(T a, T b) { return a >= b; }
-};
-
-
-template<typename T>
-MGPU_HOST_DEVICE void swap(T& a, T& b) {
-	T c = a;
-	a = b;
-	b = c;
-}
-
-template<typename T> struct numeric_limits;
-template<> struct numeric_limits<int> {
-	MGPU_HOST_DEVICE static int min() { return INT_MIN; }
-	MGPU_HOST_DEVICE static int max() { return INT_MAX; }
-	MGPU_HOST_DEVICE static int lowest() { return INT_MIN; }
-};
-template<> struct numeric_limits<long long> {
-	MGPU_HOST_DEVICE static long long min() { return LLONG_MIN; }
-	MGPU_HOST_DEVICE static long long max() { return LLONG_MAX; }
-	MGPU_HOST_DEVICE static long long lowest() { return LLONG_MIN; }
-};
-template<> struct numeric_limits<uint> {
-	MGPU_HOST_DEVICE static uint min() { return 0; }
-	MGPU_HOST_DEVICE static uint max() { return UINT_MAX; }
-	MGPU_HOST_DEVICE static uint lowest() { return 0; }
-};
-template<> struct numeric_limits<unsigned long long> {
-	MGPU_HOST_DEVICE static unsigned long long min() { return 0; }
-	MGPU_HOST_DEVICE static unsigned long long max() { return ULLONG_MAX; }
-	MGPU_HOST_DEVICE static unsigned long long lowest() { return 0; }
-};
-template<> struct numeric_limits<float> {
-	MGPU_HOST_DEVICE static float min() { return FLT_MIN; }
-	MGPU_HOST_DEVICE static float max() { return FLT_MAX; }
-	MGPU_HOST_DEVICE static float lowest() { return -FLT_MAX; }
-};
-template<> struct numeric_limits<double> {
-	MGPU_HOST_DEVICE static double min() { return DBL_MIN; }
-	MGPU_HOST_DEVICE static double max() { return DBL_MAX; }
-	MGPU_HOST_DEVICE static double lowest() { return -DBL_MAX; }
-};
-
-template<typename T>
-class counting_iterator : public std::iterator_traits<const T*> {
-public:
-	MGPU_HOST_DEVICE counting_iterator(T value) : _value(value) { }
-
-	MGPU_HOST_DEVICE T operator[](ptrdiff_t i) { 
-		return _value + i;
-	}
-	MGPU_HOST_DEVICE T operator*() {
-		return _value;
-	}
-	MGPU_HOST_DEVICE counting_iterator operator+(ptrdiff_t diff) {
-		return counting_iterator(_value + diff);
-	}
-	MGPU_HOST_DEVICE counting_iterator operator-(ptrdiff_t diff) {
-		return counting_iterator(_value - diff);
-	}
-	MGPU_HOST_DEVICE counting_iterator& operator+=(ptrdiff_t diff) {
-		_value += diff;
-		return *this;
-	}
-	MGPU_HOST_DEVICE counting_iterator& operator-=(ptrdiff_t diff) {
-		_value -= diff;
-		return *this;
-	}
-private:
-	T _value;
-};
-template<typename T>
-class step_iterator : public std::iterator_traits<const T*> {
-public:
-	MGPU_HOST_DEVICE step_iterator(T base, T step) :
-		_base(base), _step(step), _offset(0) { }
-
-	MGPU_HOST_DEVICE T operator[](ptrdiff_t i) { 
-		return _base + (_offset + i) * _step; 
-	}
-	MGPU_HOST_DEVICE T operator*() { 
-		return _base + _offset * _step; 
-	} 
-	MGPU_HOST_DEVICE step_iterator operator+(ptrdiff_t diff) {
-		step_iterator it = *this;
-		it._offset += diff;
-		return it;
-	}
-	MGPU_HOST_DEVICE step_iterator operator-(ptrdiff_t diff) {
-		step_iterator it = *this;
-		it._offset -= diff;
-		return it;
-	}
-	MGPU_HOST_DEVICE step_iterator& operator+=(ptrdiff_t diff) { 
-		_offset += diff;
-		return *this;
-	}
-	MGPU_HOST_DEVICE step_iterator& operator-=(ptrdiff_t diff) { 
-		_offset -= diff;
-		return *this;
-	}
-private:
-	ptrdiff_t _offset;
-	T _base, _step;	
-};
-
-} // namespace mgpu
-
-
-template<typename T>
-MGPU_HOST_DEVICE mgpu::counting_iterator<T> operator+(ptrdiff_t diff,
-	mgpu::counting_iterator<T> it) {
-	return it + diff;
-}
-template<typename T>
-MGPU_HOST_DEVICE mgpu::counting_iterator<T> operator-(ptrdiff_t diff,
-	mgpu::counting_iterator<T> it) {
-	return it + (-diff);
-}
-template<typename T>
-MGPU_HOST_DEVICE mgpu::step_iterator<T> operator+(ptrdiff_t diff, 
-	mgpu::step_iterator<T> it) {
-	return it + diff;
-}
-template<typename T>
-MGPU_HOST_DEVICE mgpu::step_iterator<T> operator-(ptrdiff_t diff, 
-	mgpu::step_iterator<T> it) {
-	return it + (-diff);
-}
+#include "../device/intrinsics.cuh"
 
 namespace mgpu {
 
@@ -210,6 +52,10 @@ template<typename T>
 MGPU_HOST_DEVICE T* PtrOffset(T* p, ptrdiff_t i) {
 	return (T*)((byte*)p + i);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Task range support
+// Evenly distributes variable-length arrays over a fixed number of CTAs.
 
 MGPU_HOST int2 DivideTaskRange(int numItems, int numWorkers) {
 	div_t d = div(numItems, numWorkers);
@@ -232,5 +78,66 @@ MGPU_HOST_DEVICE int2 ComputeTaskRange(int block, int2 task, int blockSize,
 	return range;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// DeviceExtractHeadFlags
+// Input array flags is a bit array with 32 head flags per word.
+// ExtractThreadHeadFlags returns numBits flags starting at bit index.
+
+MGPU_HOST_DEVICE uint DeviceExtractHeadFlags(const uint* flags, int index, 
+	int numBits) {
+
+	int index2 = index>> 5;
+	int shift = 31 & index;
+	uint headFlags = flags[index2]>> shift;
+	int shifted = 32 - shift;
+
+	if(shifted < numBits)
+		// We also need to shift in the next set of bits.
+		headFlags = bfi(flags[index2 + 1], headFlags, shifted, shift);
+	headFlags &= (1<< numBits) - 1;
+	return headFlags;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// DevicePackHeadFlags
+// Pack VT bits per thread at 32 bits/thread. Will consume an integer number of
+// words, because CTA size is a multiple of 32. The first NT * VT / 32 threads
+// return packed words.
+
+template<int NT, int VT>
+MGPU_DEVICE uint DevicePackHeadFlags(uint threadBits, int tid, 
+	uint* flags_shared) {
+
+	const int WordCount = NT * VT / 32;
+
+	// Each thread stores its thread bits to flags_shared[tid].
+	flags_shared[tid] = threadBits;
+	__syncthreads();
+
+	uint packed = 0;
+	if(tid < WordCount) {
+		const int Items = MGPU_DIV_UP(32, VT);
+		int index = 32 * tid;
+		int first = index / VT;
+		int bit = 0;
+
+		int rem = index - VT * first;
+		packed = flags_shared[first]>> rem;
+		bit = VT - rem;
+		++first;
+		
+		#pragma unroll
+		for(int i = 0; i < Items; ++i) {
+			if(i < Items - 1 || bit < 32) {
+				uint x = flags_shared[first + i];
+				if(bit < 32) packed |= x<< bit;
+				bit += VT;
+			}
+		}
+	}
+	__syncthreads();
+
+	return packed;
+}
 
 } // namespace mgpu

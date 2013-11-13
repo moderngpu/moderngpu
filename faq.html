@@ -43,18 +43,18 @@
 <div class="snip"><pre>git clone git@github.com:yourname/moderngpu</pre></div>
 <p>From the command line you can clone your own fork of the project onto your local machine. You can make changes to the project and these will be updated in your own repository. Users forking MGPU are treated to Github's excellent suite of development tools. Use the <a href="https://github.com/blog/39-say-hello-to-the-network-graph-visualizer">Network Graph Visualizer</a> to stay current with Modern GPU updates.</p>
 <h2><a id="compiling">Compiling</a></h2>
-<p>The Modern GPU library is entirely defined in headers under the include directory, except three .cpp 
-files that must be compiled and linked manually: <a href="https://github.com/NVlabs/moderngpu/blob/master/src/format.cpp">src/format.cpp</a>, <a href="https://github.com/NVlabs/moderngpu/blob/master/src/random.cpp">src/random.cpp</a>, and <a href="https://github.com/NVlabs/moderngpu/blob/master/src/mgpucontext.cpp">src/mgpucontext.cpp</a>. You cannot compile for architectures below sm_20 (Fermi), as the sm_1x compiler doesn't support all the features used by MGPU.</p>
+<p>The Modern GPU library is entirely defined in headers under the include directory, except for one .cu and one .cpp 
+files that must be compiled and linked manually: <a href="https://github.com/NVlabs/moderngpu/blob/master/src/mgpucontext.cu">src/mgpucontext.cu</a> and <a href="https://github.com/NVlabs/moderngpu/blob/master/src/mgpuutil.cpp">src/mgpuutil.cpp</a>. This library has not been tested on sm_1x targets, which use a different compiler stack; therefore targeting these architectures has been disabled in the headers. </p>
 <p>All device and host functions are included from <a href="https://github.com/NVlabs/moderngpu/blob/master/include/moderngpu.cuh">include/moderngpu.cuh</a>; this is all you need to include to access everything. Additionally, all functions and types are defined inside the <code>mgpu</code> namespace.</p>
-<p>To compile from the command line (from the <a href="https://github.com/NVlabs/moderngpu/tree/master/tests">moderngpu/tests</a> directory):</p>
+<p>To compile from the command line (from the <a href="https://github.com/NVlabs/moderngpu/tree/master/tests">moderngpu/demo</a> directory):</p>
 <div class="snip">
-  <pre>nvcc -arch=sm_20 -I ../include/ -o demo ../src/format.cpp ../src/random.cpp ^
-    ../src/mgpucontext.cpp demo.cu</pre></div>
+  <pre>nvcc -arch=sm_20 -I ../include/ -o demo ../src/mgpucontext.cu ../src/mgpuutil.cpp demo.cu</pre></div>
 <p>To specifically target multiple device architectures (necessary if you are using LaunchBox to tune kernels), try something like this:</p>
 <div class="snip">
   <pre>nvcc -gencode=arch=compute_20,code=\"sm_20,compute_20\" ^
     -gencode=arch=compute_35,code=\"sm_35,compute_35\" -I ../include -o demo ^
-    ../src/format.cpp ../src/random.cpp ../src/mgpucontext.cpp demo.cu</pre></div>
+    ../src/mgpucontext.cu ../src/mgpuutil.cpp demo.cu</pre></div>
+<p>Developers on Linux can modify one of the provided GNU Make files.</p>
 <p>If you are a Visual Studio user, MGPU includes a solution for VS2010 with projects for the demo and each benchmark. To start a new project that uses CUDA and MGPU, create a new &quot;Win32 Project&quot; or &quot;Win32 Console Project.&quot; Right-click on the project in the Solution Explorer and choose &quot;Build Customizations...&quot; This lists configuration files for each CUDA Toolkit installed on your system. Check the newest one:</p>
 <div class="figure"><img src="msvccustomization.png" width="602" height="358" alt=" " /></div>
 <p>Right-click on the project again, select &quot;Add-&gt;Existing Items...&quot; and add format.cpp, random.cpp, and mgpucontext.cpp from the src directory of your Modern GPU directory.</p>

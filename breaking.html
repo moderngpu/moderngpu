@@ -1,0 +1,78 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type" />
+  <title>Modern GPU</title>
+  <link href="mgpu.css" rel="stylesheet" type="text/css" />
+  <script src="syntaxhighlighter_3.0.83/scripts/shCore.js" type="text/javascript"></script>
+  <script src="syntaxhighlighter_3.0.83/scripts/shBrushCpp.js" type="text/javascript"></script>
+  <link href="syntaxhighlighter_3.0.83/styles/shThemeDefault.css" rel="stylesheet" type="text/css" />
+  <link href="syntaxhighlighter_3.0.83/styles/shCore.css" rel="stylesheet" type="text/css" />
+  <script type="text/javascript"> SyntaxHighlighter.all() </script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25772750-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</head><body class="tutorial">
+
+<a href="https://github.com/NVlabs/moderngpu"><img style="position: absolute; top: 0; right: 0; border: 0;" width="149" height="149" src="forkme_right_green_007200.png" alt="Fork me on GitHub" /></a>
+
+<div class="copyright">
+<p><strong>&copy; 2013, NVIDIA CORPORATION. All rights reserved.</strong></p>
+<p>Code and text by <a href="https://twitter.com/moderngpu">Sean Baxter</a>, NVIDIA Research.</p>
+<p>(Click <a href="faq.html#license">here</a> for license. Click <a href="faq.html#contact">here</a> for contact information.)</p>
+</div><br />
+<h1>Notes on breaking changes</h1>
+<h3>Functions return host data by address.</h3>
+<p>In the previous update, MGPU functions that returned data in host memory returned it unconditionally and by return value. These functions have been modified to return data in host or device memory, or both. </p>
+<p>For example, the <code>Reduce</code> function has been modified from this:</p><div class="snip">
+  <pre class="brush: cpp; toolbar: false; gutter: false">template&lt;typename InputIt, typename Op>
+MGPU_HOST typename Op::value_type Reduce(InputIt data_global, int count, Op op, 
+    CudaContext&amp; context);
+    
+template&lt;MgpuScanType Type, typename InputIt, typename OutputIt, typename Op>
+MGPU_HOST void Scan(InputIt data_global, int count, OutputIt dest_global, Op op,
+    typename Op::value_type* total, bool totalAtEnd, CudaContext&amp; context);</pre></div>
+    <p>To this:</p>
+<div class="snip"><pre class="brush: cpp; toolbar: false; gutter: false">template&lt;typename InputIt, typename T, typename Op>
+MGPU_HOST void Reduce(InputIt data_global, int count, T identity, Op op,
+	T* reduce_global, T* reduce_host, CudaContext&amp; context);
+    
+template&lt;MgpuScanType Type, typename DataIt, typename T, typename Op,
+	typename DestIt>
+MGPU_HOST void Scan(DataIt data_global, int count, T identity, Op op,
+	T* reduce_global, T* reduce_host, DestIt dest_global, 
+	CudaContext&amp; context);    </pre></div>
+<p>A user wanting the reduction in device memory can now get that without suffering the cost of copy-to-host synchronization. If you want the reduction in device memory, pass a pointer to device memory; otherwise pass null. If you want the reduction in host memory, pass a pointer to host memory; otherwise pass null.</p>
+<h3>Simplified reduce and scan operators.</h3>
+<p>The previous update defined a scan op interface with several typedefs and four methods. It also supported operators that were commutative (high-speed, preferred) and non-commutative. This allowed for maximum flexibility. The new update removes this complicated interface and replaces it with a simple functor object and an identity value.</p>
+<div class="snip"><pre class="brush: cpp; toolbar: false; gutter: false;">template&lt;typename T>
+struct plus : public std::binary_function&lt;T, T, T> {
+	MGPU_HOST_DEVICE T operator()(T a, T b) { return a + b; }
+};
+
+template&lt;typename T>
+struct minus : public std::binary_function&lt;T, T, T> {
+	MGPU_HOST_DEVICE T operator()(T a, T b) { return a - b; }
+};
+
+template&lt;typename T>
+struct multiplies : public std::binary_function&lt;T, T, T> {
+	MGPU_HOST_DEVICE T operator()(T a, T b) { return a * b; }
+};</pre></div>
+<p>To use reduce or scan, define a class which inherits <code>std::binary_function</code> and implements a two-argument <code>operator()</code> method. These are device-compatible versions of <code>std::plus</code>, <code>std::minus</code>, etc.</p>
+<p>Reduce and scan functions also require an <em>identity</em> argument. This value is arithmetically neutral with respect to the operator. The identity for <code>mgpu::plus</code> is 0; the identity for <code>mpgu::multiplies</code> is 1, etc. This term is not strictly requried for computing reduction or inclusive scan (exclusive scan needs it for the first element), but the MGPU library uses it to <em>significantly</em> simplify implementation. </p>
+<div class="snip"><pre class="brush: cpp; toolbar: false; gutter: false">template&lt;int NT, int VT, typename InputIt, typename T>
+MGPU_DEVICE void DeviceGlobalToSharedDefault(int count, InputIt source, int tid,
+	T* dest, T init, bool sync);</pre></div>
+<p>Rather than deal with the partial tile in a special branch, our implementations use <code>DeviceGlobalToRegDefault</code> or <code>DeviceGlobalToSharedDefault</code> to load any tile-sized intervals&mdash;partial tiles are padded with the identity. The same execution code is used on both full and partial tile CTAs.</p>
+</body>
+</html>

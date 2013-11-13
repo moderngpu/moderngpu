@@ -1,0 +1,301 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type" />
+  <title>Modern GPU - Crash Course 1</title>
+  <link href="mgpu.css" rel="stylesheet" type="text/css" />
+  <script src="syntaxhighlighter_3.0.83/scripts/shCore.js" type="text/javascript"></script>
+  <script src="syntaxhighlighter_3.0.83/scripts/shBrushCpp.js" type="text/javascript"></script>
+  <link href="syntaxhighlighter_3.0.83/styles/shThemeDefault.css" rel="stylesheet" type="text/css" />
+  <link href="syntaxhighlighter_3.0.83/styles/shCore.css" rel="stylesheet" type="text/css" />
+  <script type="text/javascript"> SyntaxHighlighter.all() </script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25772750-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</head><body class="tutorial">
+
+<a href="https://github.com/NVlabs/moderngpu"><img style="position: absolute; top: 0; right: 0; border: 0;" width="149" height="149" src="forkme_right_green_007200.png" alt="Fork me on GitHub" /></a>
+
+<div class="copyright">
+<p><strong>&copy; 2013, NVIDIA CORPORATION. All rights reserved.</strong></p>
+<p>Code and text by <a href="https://twitter.com/moderngpu">Sean Baxter</a>, NVIDIA Research.</p>
+<p>(Click <a href="faq.html#license">here</a> for license. Click <a href="faq.html#contact">here</a> for contact information.)</p>
+</div><br />
+<div class="toclist"><ul>
+ 	<li class="tocprev">&nbsp;</li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="crashcourse2.html">Crash Course 2</a> &raquo;</li></ul>
+</div><br/>
+<h1>CUDA Crash Course 1</h1>
+<p>The main MGPU content is for intermediate and advanced CUDA developers. To help get users to CUDA fluency, I've prepared a crash course focusing on cooperative parallelism. Readers should pick up one of the many CUDA <a href="faq.html#gettingstarted">books</a> for detailed coverage of the runtime environment.</p>
+<h2><a id="hellocuda">Hello, CUDA</a></h2>
+<p>CUDA allows definitions of host code (executed on the CPU) and device code (executed on the GPU) in the same C++ source file. Functions tagged with <code>__global__</code> are<em> kernels</em> that are run device code and are <em>launched</em> from host code. The kernel launch mechanism is the primary point of interoperation between host and device.</p>
+<div class="snip">
+  <p>crashcourse/crashcourse1a.cu</p>
+<pre class="brush: cpp; toolbar: false; first-line: 35">#include &lt;cuda.h>		// Include all CUDA functions and identifiers.
+#include &lt;cstdio>		// For printf.
+
+// Tag the kernel with __global__ to allow launches on the device.
+__global__ void Kernel1a() {
+
+	// Read the thread index and block dimension from the special variables.
+	int tid = threadIdx.x;
+	int blockSize = blockDim.x;
+
+	// Use printf to print to the console from device code.
+	printf("Hello, CUDA. I'm thread %d/%d.\n", tid, blockSize);
+}
+
+int main(int argc, char** argv) {
+	// Launch a grid with 1 block and blocks with 8 thread.
+	Kernel1a&lt;&lt;&lt;1, 8>>>();
+
+	// Call cudaDeviceSynchronize() to flush the printf() buffer to the console.
+	cudaDeviceSynchronize();
+
+	return 0;
+}</pre>
+<hr /><pre>> nvcc -arch=sm_20 -o crashcourse1a crashcourse1a.cu
+> crashcourse1a
+Hello, CUDA. I'm thread 0/8.
+Hello, CUDA. I'm thread 1/8.
+Hello, CUDA. I'm thread 2/8.
+Hello, CUDA. I'm thread 3/8.
+Hello, CUDA. I'm thread 4/8.
+Hello, CUDA. I'm thread 5/8.
+Hello, CUDA. I'm thread 6/8.
+Hello, CUDA. I'm thread 7/8.</pre></div>
+<p>This is the simplest of CUDA programs. We include <code>cuda.h </code>to bring in all CUDA identifiers, and <code>cstdio</code> to enable printf on the device-side. <code>Kernel1a</code> is a function that prints &quot;Hello, CUDA. I'm thread <em>x</em>/<em>y.</em>&quot; to the console for each thread. The function is tagged <code>__global__</code>, turning it into a GPU kernel. </p>
+<p>Kernels may not be called; they must be <em>launched</em> using the chevron launch mechanism. CUDA launches threads organized in a 3D <em>grid</em> of 3D <em>thread blocks</em>. Blocks may be scheduled in any order, but threads within each block run co-resident on the same <em>Streaming Multiprocessor</em> (SM).</p>
+<p>CUDA defines a number of special variables for communicating information about the current launch to <code>__device__</code> and <code>__global__</code> functions:</p>
+<ul class="idiom">
+  <li>
+    <p><code>dim3 blockDim</code>. The dimensions of the thread block.</p>
+  </li>
+  <li>
+    <p><code>uint3 threadIdx</code>. The index of the current thread within the block.</p>
+  </li>
+  <li>
+    <p><code>dim3 gridDim</code>. The dimensions of the grid.</p>
+  </li>
+  <li>
+    <p><code>uint3 blockIdx</code>. The index of the current block within the grid.</p>
+  </li>
+</ul>
+<p>Although both block and grid dimensions may be 3D, MGPU libraries use only a single dimension for each.</p>
+<p>In the kernel, each thread reads its thread index <code>threadIdx.x</code> and block dimension <code>blockDim.x</code> to identify itself within the launch. These terms are printed to the console with printf.</p>
+<p>The CUDA launch mechanism takes the form <code>Kernel&lt;&lt;&lt;gridDim, blockDim&gt;&gt;&gt;()</code>. <em>Be careful not to transpose the arguments&mdash;gridDim, the larger argument, comes first</em>. The main function calls <code>Kernel1a&lt;&lt;&lt;1, 8&gt;&gt;&gt;();</code> to launch the kernel over a grid with one block (the first chevron argument) and eight threads per block (the second chevron argument). </p>
+<p>Calling printf from the device has one small caveat users should be aware of. Because the GPU doesn't have direct access to the stdout file handle, device-side printf saves expressions to a CUDA-managed buffer. Synchronizing operations on the host wait for all queued work to complete, read the buffer, and send the results to the console. <code>cudaDeviceSynchronize</code>,  when called from the host, waits for all preceding kernel launches to complete. The CUDA runtime then retrieves the printf buffer and sends its content to the console, printing our message.</p>
+<p>crashcourse1a.cu contains a complete CUDA application. Build it with nvcc. Visual Studio users can configure Build Customizations, as described <a href="faq.html#compiling">here</a>.</p>
+<p>Device-side printf requires the CUDA ABI (application binary interface) to make a function call. This is only supported on Fermi architecture and later devices. Compile with <code>-arch=sm_20</code> to target this generation of hardware.</p>
+<h2><a id="squaring">Using device memory</a></h2>
+<p>High-performance GPUs are discrete add-in cards with their own DRAM and memory address spaces. For best performance, kernels should load and store to high-throughput <em>device memory</em>. Memory allocated from the host using conventional methods (<code>malloc</code> and <code>operator new[]</code>) is generally not accessible to the device, as it resides on the far side of the PCI-Express bus.</p>
+<div class="snip">
+<pre><strong>cudaError_t <span class="green">cudaMalloc</span>(void** devPtr, size_t size)</strong>
+		Allocate memory on the device.
+            
+<strong>cudaError_t <span class="green">cudaFree</span>(void* devPtr)</strong>
+		Frees memory on the device.
+            
+<strong>cudaError_t <span class="green">cudaMemcpy</span>(void* dst, const void* src, size_t count, cudaMemcpyKind kind)</strong>
+		Copies data between host and device.
+		cudaMemcpyKind:
+			cudaMemcpyHostToDevice			device-&gt;host
+			cudaMemcpyDeviceToHost			host-&gt;device
+			cudaMemcpyDeviceToDevice		device-&gt;device</pre></div>
+<p>Host code can allocate, free, and copy device memory using these three API functions. <code>cudaMalloc</code> returns a pointer in the address space of the GPU&mdash;this cannot be dereferenced from the host. Simple acceleration can be achieved by offloading &quot;heavy-lifting&quot; to the device:</p>
+<ol class="idiom">
+<li>
+  <p>Prepare inputs on the host.</p></li>
+<li>
+  <p><code>cudaMalloc</code> device memory for input and output.</p></li>
+<li>
+  <p><code>cudaMemcpy</code> inputs from host memory to device memory.</p></li>
+<li>
+  <p>Launch a kernel to compute results. Pass pointers to input and output arrays (in the device's address space) as arguments.</p></li>
+<li>
+  <p>Each thread in the kernel reads its thread ID. It loads an element from the input, processes it, and stores the result into device memory.</p></li>
+<li>
+  <p>The host calls <code>cudaMemcpy</code> to copy results from device to host memory.</p></li>
+<li><p><code>cudaFree</code> device memory. 
+</ol>
+<div class="snip"><p>crashcourse/crashcourse1b.cu</p><pre class="brush: cpp; toolbar: false; first-line: 38">__global__ void Kernel1b(const int* input_global, int* output_global) {
+	// Each thread identifies itself with a thread ID.
+	int tid = threadIdx.x;
+
+	// Each threads reads its own number from input_global.
+	int x = input_global[tid];
+
+	// Square the number and store to output_global.
+	output_global[tid] = x * x;
+}</pre></div>
+<p>This kernel loads values from device memory, squares them, and stores them back. Both arrays are allocated on the host using <code>cudaMalloc</code> and passed as pointers to the kernel. <code>_global</code> is appended to identifiers to indicate that the pointers are in the GPU's global memory address space (backed by off-chip DRAM) and not shared memory (I denote this with <code>_shared</code>).</p>
+<div class="snip"><p>crashcourse/crashcourse1b.cu</p><pre class="brush: cpp; toolbar: false; first-line: 49">int main(int argc, char** argv) {
+	// Choose a block size of 16 threads.
+	const int NT = 16;		
+
+	// Fill the buffer with numbers to square.
+	int hostInput[NT];
+	for(int i = 0; i &lt; NT; ++i)
+		hostInput[i] = i;
+
+	// Allocate device memory for the input and output.
+	int* deviceInput, *deviceOutput;
+	cudaMalloc((void**)&amp;deviceInput, sizeof(int) * NT);
+	cudaMalloc((void**)&amp;deviceOutput, sizeof(int) * NT);
+
+	// Copy the input from host to device memory.
+	cudaMemcpy(deviceInput, hostInput, sizeof(int) * NT, 
+		cudaMemcpyHostToDevice);
+
+	// Launch the kernel and pass it a pointer to the device memory with the
+	// input numbers. Launch 1 block with NT threads.
+	Kernel1b&lt;&lt;&lt;1, NT>>>(deviceInput, deviceOutput);
+
+	// Copy the output from device to host memory.
+	int hostOutput[NT];
+	cudaMemcpy(hostOutput, deviceOutput, sizeof(int) * NT,
+		cudaMemcpyDeviceToHost);
+	
+	// Print the input and output pairs from the host.
+	for(int i = 0; i &lt; NT; ++i)
+		printf("%2d: %2d^2 = %3d\n", i, hostInput[i], hostOutput[i]);
+
+	// Free the device memory.
+	cudaFree(deviceInput);
+	cudaFree(deviceOutput);
+
+	return 0;
+}</pre><hr /><pre>> nvcc -arch=sm_20 -o crashcourse1b crashcourse1b.cu
+> crashcourse1b
+ 0:  0^2 =   0
+ 1:  1^2 =   1
+ 2:  2^2 =   4
+ 3:  3^2 =   9
+ 4:  4^2 =  16
+ 5:  5^2 =  25
+ 6:  6^2 =  36
+ 7:  7^2 =  49
+ 8:  8^2 =  64
+ 9:  9^2 =  81
+10: 10^2 = 100
+11: 11^2 = 121
+12: 12^2 = 144
+13: 13^2 = 169
+14: 14^2 = 196
+15: 15^2 = 225</pre></div>
+<p>The host code follows the steps for offloading work enumerated above. Note that <code>cudaMalloc</code> replaces <code>malloc</code> and <code>cudaMemcpy</code> replaces <code>memcpy</code>, as we need these special functions to work with data over the PCIe bus. </p>
+<p>&nbsp;</p>
+<h2><a id="ctareduction">CTA reduction</a></h2>
+<div class="snip"><p>crashcourse1c.cu</p><pre class="brush: cpp; toolbar: false; first-line: 38">template&lt;int NT, typename T>
+__device__ T DeviceReduce(T x, int tid, T* reduction_shared) {
+	
+	// Each thread stores its value in reduction_shared.
+	reduction_shared[tid] = x;
+	__syncthreads();
+
+	// Recursively fold the shared memory array into halves until only one
+	// element remains.
+	#pragma unroll
+	for(int Width = NT / 2; Width >= 1; Width /= 2) {
+		if(tid &lt; Width) {
+			T y = reduction_shared[Width + tid];
+			x += y;
+			reduction_shared[tid] = x;
+		}
+		__syncthreads();
+	}
+
+	T reduction = reduction_shared[0];
+	__syncthreads();
+
+	return reduction;
+}
+
+template&lt;int NT, typename T>
+__global__ void Kernel1c(const T* input_global, T* output_global) {
+	// Provision NT elements of shared memory of type T. This is provisioned 
+	// once per block and shared by all threads in the block.
+	__shared__ T reduction_shared[NT];
+	
+	int tid = threadIdx.x;
+
+	T x = input_global[tid];
+	T reduction = DeviceReduce&lt;NT>(x, tid, reduction_shared);
+
+	// Store the sum of all inputs to output_global.
+	if(!tid) output_global[0] = reduction;
+}</pre></div>
+<p>.</p>
+<div class="snip"><pre class="brush: cpp; toolbar: false; first-line: 80">int main(int argc, char** argv) {
+	const int NT = 16;
+
+	// Fill the buffer with numbers to reduce.
+	float hostInput[NT];
+	for(int i = 0; i &lt; NT; ++i)
+		hostInput[i] = i + 1;
+
+	float* deviceInput, *deviceOutput;
+	cudaMalloc((void**)&amp;deviceInput, sizeof(float) * NT);
+	cudaMalloc((void**)&amp;deviceOutput, sizeof(float) * 1);
+
+	cudaMemcpy(deviceInput, hostInput, sizeof(float) * NT, 
+		cudaMemcpyHostToDevice);
+	
+	// Statically specialize the kernel over the size of the thread block. This
+	// parameterization lets us unroll the loop in DeviceRender and statically
+	// provision shared memory in Kernel1c.
+	Kernel1c&lt;NT>&lt;&lt;&lt;VT, NT>>>(deviceInput, deviceOutput);
+
+	float hostOutput;
+	cudaMemcpy(&amp;hostOutput, deviceOutput, sizeof(float) * 1, 
+		cudaMemcpyDeviceToHost);
+
+	printf("Reduction of:\n");
+	for(int i = 0; i &lt; NT; ++i)
+		printf("%2d: %5.2lf\n", i, hostInput[i]);
+	printf("Equals %5.2lf\n", hostOutput);
+
+	cudaFree(deviceInput);
+	cudaFree(deviceOutput);
+	
+	return 0;
+}</pre><hr /><pre>> nvcc -arch=sm_20 -o crashcourse1c crashcourse1c.cu
+> crashcourse1c
+Reduction of:
+ 0:  1.00
+ 1:  2.00
+ 2:  3.00
+ 3:  4.00
+ 4:  5.00
+ 5:  6.00
+ 6:  7.00
+ 7:  8.00
+ 8:  9.00
+ 9: 10.00
+10: 11.00
+11: 12.00
+12: 13.00
+13: 14.00
+14: 15.00
+15: 16.00
+Equals 136.00</pre></div>
+<h2><a id="ctascan">CTA scan</a></h2>
+<p>&nbsp;</p>
+<h2><a id="ballotscan">Ballot scan</a></h2>
+<div class="toclist"><ul>
+ 	<li class="tocprev">&nbsp;</li>
+	<li class="tocmiddle"><a href="index.html">Contents</a></li>
+    <li class="tocnext"><a href="crashcourse2.html">Crash Course 2</a> &raquo;</li></ul>
+</div><br/>
+</body>
+</html>

@@ -35,7 +35,7 @@
 </div><br/>
 <h1>The Library</h1>
 <h2><a id="framework">Framework</a></h2>
-<p>To ease development MGPU includes a sample framework, defined in <a href="https://github.com/NVlabs/moderngpu/blob/master/include/util/mgpucontext.h">util/mgpucontext.h</a>. At the start of your program create a <code>CudaContext</code> object. This encapsulates an event, a timer, a stream, and an allocator. Allocations made through this context are recycled after being freed, reducing calls to cudaMalloc.</p>
+<p>To ease development MGPU includes a sample framework, defined in <a href="https://github.com/NVlabs/moderngpu/blob/master/include/util/mgpucontext.h">util/mgpucontext.h</a>. At the start of your program create a <code>CudaContext</code> object. This encapsulates an event, a timer, a stream, and an allocator. Allocations made through this context are recycled after being freed, reducing calls to <code>cudaMalloc</code>.</p>
 <div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/util/mgpucontext.h">include/util/mgpucontext.h</a></p><pre class="brush: cpp; toolbar: false; first-line: 275">ContextPtr CreateCudaDevice(int ordinal);
 ContextPtr CreateCudaDevice(int argc, char** argv, bool printInfo = false);
 
@@ -170,103 +170,6 @@ Data can be stored to shared from registers in thread order with <code>DeviceThr
 </ol>    
 <p>Regimented application of these utility functions to move data between global memory, shared memory, and register helps highlight the novel aspects 
 of the kernel (the stuff in step 3).</p>
-<h2><a id="taskrange">Task range</a></h2>
-<p>Work can be divided into CTAs with two strategies:</p>
-<ol class="idiom"><li>
-  <p>Process one tile per CTA and make the grid a function of your data size. The hardware schedules blocks and fine-grained load balancing keeps the SMs busy.</p></li><li>
-    <p>Evenly divide your data into a fixed number of CTAs (ideally a function of device width) and dynamically loop through tiles. Oversubscribe CTAs to SMs to remedy warp-biasing 
-	artifacts of the hardware. This technique requires more tweaking than the one-tile-per-CTA division, but may also enable algorithmic improvements. Atomic counters can be integrated to facilitate work-stealing, resulting in the &quot;persistent CTAs&quot; idiom of scheduling.</p></li></ol>
-<p>I prefer the first strategy for work division unless there is a compelling algorithmic opportunity to assume tile-scheduling responsibilities. The reduce kernel, covered on the next page, provides such an opportunity. Because the version of <code>KernelReduce</code> which exploits the commutative property only runs a <code>CTAReduce</code> at the end of each CTA rather than the end of each tile, it makes sense to amortize this cost by running many tiles through each CTA.</p>
-<p>Multiple tiles can be evenly balanced over a fixed number of CTAs using an easy trick which requires no division on the device (division is very slow on the GPU).</p>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/reduce.cuh">include/kernels/reduce.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 147">		// We have a large reduction so balance over many CTAs. Launch up to 25
-		// per CTA for oversubscription.
-		const int NT = 128;
-		const int VT = 9;
-		typedef LaunchBoxVT&lt;NT, VT> Tuning;
-		int2 launch = Tuning::GetLaunchParams(context);
-		const int NV = launch.x * launch.y;
-
-		int numTiles = MGPU_DIV_UP(count, NV);
-		int numBlocks = std::min(context.NumSMs() * 25, numTiles);
-		int2 task = DivideTaskRange(numTiles, numBlocks);
-
-		// Reduce on the GPU.
-		MGPU_MEM(T) reductionDevice = context.Malloc&lt;T>(numBlocks);
-		KernelReduce&lt;Tuning>&lt;&lt;&lt;numBlocks, launch.x, 0, context.Stream()>>>(
-			data_global, count, task, reductionDevice->get(), op);</pre></div>
-<p>Data is divided into tiles of size NV (number of Values per Thread). The number of CTAs is set to a small multiple of the number of SMs or the number of tiles, whichever is smaller. We use the C runtime function <code>div()</code> to compute both the quotient 
-and remainder of the tile count over the CTA count. Each CTA reconstructs its range of tiles from this 
-pair of terms. The number of tiles assigned to each CTA differ by no more than one, with the earlier CTAs being assigned the additional tiles.</p>
-<p>After setting tuning parameters, the host calls <code>LaunchBox::GetLaunchParams</code> to retrieve (NT, VT). The product of these is the tile size, and it's used to compute the number of tiles in the launch. A call to <code>DivideTaskRange</code> evenly distributes tiles over CTAs. The returned task structure is passed to the kernel.</p>
-<div class="snip"><p> <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/deviceutil.cuh">include/device/deviceutil.cuh</a></p>
-  <pre class="brush: cpp; toolbar: false; first-line: 214">MGPU_HOST int2 DivideTaskRange(int numItems, int numWorkers) {
-	div_t d = div(numItems, numWorkers);
-	return make_int2(d.quot, d.rem);
-}
-
-MGPU_HOST_DEVICE int2 ComputeTaskRange(int block, int2 task) {
-	int2 range;
-	range.x = task.x * block;
-	range.x += min(block, task.y);
-	range.y = range.x + task.x + (block &lt; task.y);
-	return range;
-}
-
-MGPU_HOST_DEVICE int2 ComputeTaskRange(int block, int2 task, int blockSize,
-	int count) {
-	int2 range = ComputeTaskRange(block, task);
-	range.x *= blockSize;
-	range.y = min(count, range.y * blockSize);
-	return range;
-}</pre>
-  <hr />
-<pre>NumTiles = 1234.    NumCTAs = 20.    d.quot = 61.    d.rem = 14.
-CTA   begin   end  count
-   0: (   0,   62:   62)<br />   1: (  62,  124:   62)<br />   2: ( 124,  186:   62)<br />   3: ( 186,  248:   62)<br />   4: ( 248,  310:   62)<br />   5: ( 310,  372:   62)<br />   6: ( 372,  434:   62)<br />   7: ( 434,  496:   62)<br />   8: ( 496,  558:   62)<br />   9: ( 558,  620:   62)<br />  10: ( 620,  682:   62)<br />  11: ( 682,  744:   62)<br />  12: ( 744,  806:   62)<br />  13: ( 806,  868:   62)<br />  14: ( 868,  929:   61)<br />  15: ( 929,  990:   61)<br />  16: ( 990, 1051:   61)<br />  17: (1051, 1112:   61)<br />  18: (1112, 1173:   61)<br />  19: (1173, 1234:   61)</pre>
-</div>
-<p>A problem with 1234 tiles and 20 CTAs calls <code>div()</code> to compute the quot/rem pair(61, 14), which is passed to the kernel as <code>task</code>. Call <code>DivideTaskRange</code> to handle the division and casting; the <code>int2</code> it returns may be passed directly to the kernel.</p>
-<p><code>ComputeTaskRange</code> returns the interval of tiles for the block. The four-argument overload accepts the block size and item count to compute a range in values rather than tiles. This is called from inside a kernel to establish the kernel's operating range.</p>
-<div class="snip"><p> <a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/reduce.cuh">include/kernels/reduce.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 41">// Run a high-throughput reduction over multiple CTAs. Used as the upsweep phase
-// for global reduce and global scan.
-template&lt;typename Tuning, typename InputIt, typename Op>
-MGPU_LAUNCH_BOUNDS void KernelReduce(InputIt data_global, int count, 
-	int2 task, typename Op::value_type* reduction_global, Op op) {
-
-	typedef MGPU_LAUNCH_PARAMS Params;
-	const int NT = Params::NT;
-	const int VT = Params::VT;
-	const int NV = NT * VT;
-
-	KERNEL BOILERPLATE HERE
-	...
-
-	int tid = threadIdx.x;
-	int block = blockIdx.x;
-	int first = VT * tid;
-
-	int2 range = ComputeTaskRange(block, task, NV, count);
-
-	// total is the sum of encountered elements. It's undefined on the first 
-	// loop iteration.
-	value_type total = op.Extract(op.Identity(), -1);
-	bool totalDefined = false;
-	
-    // Loop through all tiles defined by ComputeTaskRange.
-	while(range.x &lt; range.y) {
-    	int count2 = min(NV, count - range.x);
-
-		// Read tile data into register.
-		input_type inputs[VT];
-		DeviceGlobalToReg&lt;NT, VT>(count2, data_global + range.x, tid, inputs);
-        
-        KERNEL BODY HERE
-        ...
-        
-        // Update range pointer to advance to next tile.
-        range.x += NV;
-		totalDefined = true;
-	}  </pre></div>
-<p>On the device side, MGPU_LAUNCH_PARAMS identifies the nested tuning-parameters type for the compute capability. The tile size, NV, is the product of the number of threads per CTA, NT, and the number of values per thread, VT. <code>ComputeTaskRange</code> takes the task structure and returns the range of tiles for the CTA to process.</p>    
 <br /><div class="toclist"><ul>
  	<li class="tocprev"> &laquo; <a href="performance.html">Performance</a></li>
 	<li class="tocmiddle"><a href="index.html">Contents</a></li>

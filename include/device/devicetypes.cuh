@@ -41,6 +41,12 @@
 #include <climits>
 #include "../util/static.h"
 
+#ifdef _MSC_VER
+#define INLINESYMBOL __forceinline__
+#else
+#define INLINESYMBOL inline
+#endif
+
 namespace mgpu {
 
 #define MGPU_HOST __host__ __forceinline__
@@ -113,7 +119,7 @@ struct bit_and : public std::binary_function<T, T, T> {
 
 template<typename T>
 struct bit_xor : public std::binary_function<T, T, T> {
-	MGPU_HOST_DEVICE T operator()(T a, T b) { return a & b; }
+	MGPU_HOST_DEVICE T operator()(T a, T b) { return a ^ b; }
 };
 
 template<typename T>

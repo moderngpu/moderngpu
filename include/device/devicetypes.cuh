@@ -34,7 +34,7 @@
 
 #pragma once
 
-#if __CUDA_ARCH__ == 100
+#if __CUDA_ARCH__ < 200
 	#error "COMPUTE CAPABILITY 1.0 NOT SUPPORTED BY MPGU. TRY 2.0!"
 #endif 
 

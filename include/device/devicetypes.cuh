@@ -49,9 +49,9 @@
 
 namespace mgpu {
 
-#define MGPU_HOST __host__ __forceinline__
-#define MGPU_DEVICE __device__ __forceinline__
-#define MGPU_HOST_DEVICE __host__ __device__ __forceinline__
+#define MGPU_HOST __host__ INLINESYMBOL
+#define MGPU_DEVICE __device__ INLINESYMBOL
+#define MGPU_HOST_DEVICE __host__ __device__ INLINESYMBOL
 
 const int WARP_SIZE = 32;
 const int LOG_WARP_SIZE = 5;

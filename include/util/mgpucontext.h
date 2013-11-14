@@ -238,11 +238,17 @@ protected:
 class CudaContext;
 typedef mgpu::intrusive_ptr<CudaContext> ContextPtr;
 
+// Create a context on the default stream (0).
 ContextPtr CreateCudaDevice(int ordinal);
 ContextPtr CreateCudaDevice(int argc, char** argv, bool printInfo = false);
 
+// Create a context on a new stream.
 ContextPtr CreateCudaDeviceStream(int ordinal);
-ContextPtr CreateCudaDeviceStream(int argc, char** argv, bool printInfo = false);
+ContextPtr CreateCudaDeviceStream(int argc, char** argv, 
+	bool printInfo = false);
+
+// Create a context and attach to an existing stream.
+ContextPtr CreateCudaDeviceAttachStream(int ordinal, cudaStream_t stream);
 
 struct ContextGroup;
 
@@ -251,6 +257,8 @@ class CudaContext : public CudaMemSupport {
 
 	friend ContextPtr CreateCudaDevice(int ordinal);
 	friend ContextPtr CreateCudaDeviceStream(int ordinal);
+	friend ContextPtr CreateCudaDeviceAttachStream(int ordinal, 
+		cudaStream_t stream);
 public:
 	static CudaContext& StandardContext(int ordinal = -1);
 
@@ -291,6 +299,7 @@ private:
 
 	AllocPtr CreateDefaultAlloc(CudaDevice& device);
 
+	bool _ownStream;
 	cudaStream_t _stream;
 	cudaStream_t _auxStream;
 	CudaEvent _event;

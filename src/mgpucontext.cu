@@ -226,6 +226,7 @@ CudaContext::CudaContext(CudaDevice& device, bool newStream, bool standard) :
 		_alloc = CreateDefaultAlloc(device);
 	
 	if(newStream) cudaStreamCreate(&_stream);
+	_ownStream = newStream;
 
 	// Allocate 4KB of page-locked memory.
 	cudaError_t error = cudaMallocHost((void**)&_pageLocked, 4096);
@@ -237,7 +238,7 @@ CudaContext::CudaContext(CudaDevice& device, bool newStream, bool standard) :
 CudaContext::~CudaContext() {
 	if(_pageLocked)
 		cudaFreeHost(_pageLocked);
-	if(_stream)
+	if(_ownStream && _stream)
 		cudaStreamDestroy(_stream);
 	if(_auxStream)
 		cudaStreamDestroy(_auxStream);
@@ -340,8 +341,12 @@ ContextPtr CreateCudaDeviceStream(int argc, char** argv, bool printInfo) {
 	return context;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
+ContextPtr CreateCudaDeviceAttachStream(int ordinal, cudaStream_t stream) {
+	ContextPtr context(new CudaContext(
+		CudaDevice::ByOrdinal(ordinal), false, false));
+	context->_stream = stream;
+	return context;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // CudaAllocSimple

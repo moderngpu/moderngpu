@@ -157,7 +157,7 @@ const int NumTests = sizeof(Tests) / sizeof(*Tests);
 
 int main(int argc, char** argv) {
 	ContextPtr context = CreateCudaDevice(argc, argv, true);
-	
+		
 	typedef int T1;
 	typedef int64 T2;
 	

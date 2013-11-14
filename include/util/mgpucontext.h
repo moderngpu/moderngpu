@@ -248,6 +248,7 @@ ContextPtr CreateCudaDeviceStream(int argc, char** argv,
 	bool printInfo = false);
 
 // Create a context and attach to an existing stream.
+ContextPtr CreateCudaDeviceAttachStream(cudaStream_t stream);
 ContextPtr CreateCudaDeviceAttachStream(int ordinal, cudaStream_t stream);
 
 struct ContextGroup;

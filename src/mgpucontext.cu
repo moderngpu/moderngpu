@@ -348,6 +348,12 @@ ContextPtr CreateCudaDeviceAttachStream(int ordinal, cudaStream_t stream) {
 	return context;
 }
 
+ContextPtr CreateCudaDeviceAttachStream(cudaStream_t stream) {
+	int ordinal;
+	cudaGetDevice(&ordinal);
+	return CreateCudaDeviceAttachStream(ordinal, stream);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // CudaAllocSimple
 

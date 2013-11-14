@@ -402,9 +402,9 @@ MGPU_DEVICE void DeviceGatherDefault(int count, InputIt data, int indices[VT],
 	if(sync) __syncthreads();
 }
 
-template<int NT, int VT, typename T>
+template<int NT, int VT, typename T, typename OutputIt>
 MGPU_DEVICE void DeviceScatter(int count, const T* reg, int tid, 
-	int indices[VT], T* data, bool sync) {
+	int indices[VT], OutputIt data, bool sync) {
 
 	if(count >= NT * VT) {
 		#pragma unroll

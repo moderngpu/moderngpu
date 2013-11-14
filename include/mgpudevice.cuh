@@ -190,9 +190,9 @@ MGPU_DEVICE void DeviceGatherDefault(int count, InputIt data, int indices[VT],
 //			scatter = indices[index];
 //			data[scatter] = reg[i];
 // Synchronize after store.
-template<int NT, int VT, typename T>
+template<int NT, int VT, typename T, typename OutputIt>
 MGPU_DEVICE void DeviceScatter(int count, const T* reg, int tid, 
-	int indices[VT], T* data, bool sync = true);
+	int indices[VT], OutputIt data, bool sync = true);
 
 // For 0 <= i < VT:
 //		shared[VT * tid + i] = threadReg[i];

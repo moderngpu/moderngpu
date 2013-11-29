@@ -631,12 +631,12 @@ MGPU_HOST void SegSortPairsFromFlags(KeyType* keys_global,
 	SegSortPasses<Tuning, true, true>(support, keysSource, valsSource, count, 
 		numBlocks, numPasses, keysDest, valsDest, comp, context, verbose);
 }
-template<bool Stable, typename KeyType, typename ValType, typename Comp>
+template<typename KeyType, typename ValType, typename Comp>
 MGPU_HOST void SegSortPairsFromFlags(KeyType* keys_global, 
 	ValType* values_global, const uint* flags_global, int count,
 	CudaContext& context, bool verbose) {
 
-	SegSortPairsFromFlags<Stable>(keys_global, values_global, flags_global,
+	SegSortPairsFromFlags(keys_global, values_global, flags_global,
 		count, context, mgpu::less<KeyType>(), verbose);
 }
 

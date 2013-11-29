@@ -215,13 +215,13 @@ MGPU_HOST void SegSortKeysFromFlags(T* data_global, int count,
 	const uint* flags_global, CudaContext& context, bool verbose = false);
 
 // Segmented sort using head flags and supporting value exchange.
-template<bool Stable, typename KeyType, typename ValType, typename Comp>
+template<typename KeyType, typename ValType, typename Comp>
 MGPU_HOST void SegSortPairsFromFlags(KeyType* keys_global, 
 	ValType* values_global, const uint* flags_global, int count,
 	CudaContext& context, Comp comp, bool verbose = false);
 
 // SegSortPairsFromFlags specialized with Comp = mgpu::less<T>.
-template<bool Stable, typename KeyType, typename ValType>
+template<typename KeyType, typename ValType>
 MGPU_HOST void SegSortPairsFromFlags(KeyType* keys_global, 
 	ValType* values_global, const uint* flags_global, int count,
 	CudaContext& context, bool verbose = false);

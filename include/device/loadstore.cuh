@@ -298,7 +298,7 @@ template<int NT, int VT, typename InputIt, typename T>
 MGPU_DEVICE void DeviceGlobalToSharedLoop(int count, InputIt source, int tid,
 	T* dest, bool sync) {
 
-	const int Granularity = 3;
+	const int Granularity = MGPU_MIN(VT, 3);
 	DeviceGlobalToShared<NT, Granularity>(count, source, tid, dest, false);
 
 	int offset = Granularity * NT;

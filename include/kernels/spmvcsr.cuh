@@ -112,6 +112,14 @@ struct CTASpmvLoad {
 		#pragma unroll
 		for(int i = 0; i < VT; ++i)
 			vecData[i] = ldg(vec_global + columns[i]);
+		
+		// Clear out the out-of-range inputs. 
+		if(count2 < NV) {
+			#pragma unroll
+			for(int i = 0; i < VT; ++i)
+				if(NT * i + tid >= count2)
+					vecData[i] = identity;
+		}	
 
 		// Multiply matrix and vector values together.
 		T stridedData[VT];
@@ -294,7 +302,7 @@ MGPU_HOST void SpmvCsrInner(MatrixIt matrix_global, ColsIt cols_global, int nz,
 	// Use upper-bound binary search to partition the CSR structure into tiles.
 	MGPU_MEM(int) limitsDevice = PartitionCsrSegReduce(nz, NV, csr_global,
 		numRows, numRows2_global, numBlocks + 1, context);
-	
+		
 	// Evaluate the Spmv product.
 	MGPU_MEM(T) carryOutDevice = context.Malloc<T>(numBlocks);
 	KernelSpmvCsr<Tuning, Indirect, LoadLeft>

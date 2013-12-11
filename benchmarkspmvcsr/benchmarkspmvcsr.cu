@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
 	printf("\ndouble:\n");
 	for(int test = 0; test < NumMatrices; ++test)
 		BenchmarkSpmv<double>(test, 1000, TestTypeCsr, cusparse, *context);
-
+	
 	printf("CSR+:\n");
 	printf("float:\n");
 	for(int test = 0; test < NumMatrices; ++test)
@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
 	printf("\ndouble:\n");
 	for(int test = 0; test < NumMatrices; ++test)
 		BenchmarkSpmv<double>(test, 1000, TestTypeCusparse, cusparse, *context);
-
+	
 	cusparseDestroy(cusparse);
 
 	return 0;

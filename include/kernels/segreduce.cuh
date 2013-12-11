@@ -108,8 +108,6 @@ __global__ void KernelSegReduceSpine1(const int* limits_global, int count,
 	int tid = threadIdx.x;
 	int block = blockIdx.x;
 	int gid = NT * block + tid;
-	int firstRow = 0;
-	T carryIn = identity;
 
 	// Load the current carry-in and the current and next row indices.
 	int row = (gid < count) ? 
@@ -128,15 +126,10 @@ __global__ void KernelSegReduceSpine1(const int* limits_global, int count,
 	T carryOut;
 	T x = SegScan::SegScan(tid, carryIn2, endFlag, shared.segScanStorage,
 		&carryOut, identity, op);
-	if(!tid && row == carryIn)
-		x = carryIn;
-		
-	// Add the carry-in to the reductions when we get to the end of a segment.
-	if(endFlag) {
-		if(row == firstRow)
-			x = op(carryIn, x);
+			
+	// Store the reduction at the end of a segment to dest_global.
+	if(endFlag)
 		dest_global[row] = op(x, dest);
-	}
 	
 	// Store the CTA carry-out.
 	if(!tid) carryOut_global[block] = carryOut;

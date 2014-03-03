@@ -5,9 +5,6 @@ all: build
 
 build: demo
 
-benchmarksets.o: benchmarksets.cu 
-	nvcc $(NVCCFLAGS) -o $@ -c $<
-
 mgpucontext.o: ../src/mgpucontext.cu
 	nvcc $(NVCCFLAGS) -o $@ -c $<
 

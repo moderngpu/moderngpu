@@ -37,6 +37,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "benchmarkspmvcsr", "benchma
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "benchmarkreducebykey", "benchmarkreducebykey\benchmarkreducebykey.vcxproj", "{CAF83096-EA6E-4914-8A7B-D8A803E0CF66}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testsegsortbyflags", "testsegsortbyflags\testsegsortbyflags.vcxproj", "{8E67A375-A4A0-4A1F-A928-9EDE83563405}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -118,6 +120,12 @@ Global
 		{CAF83096-EA6E-4914-8A7B-D8A803E0CF66}.Debug|x64.ActiveCfg = Debug|Win32
 		{CAF83096-EA6E-4914-8A7B-D8A803E0CF66}.Release|Win32.ActiveCfg = Release|Win32
 		{CAF83096-EA6E-4914-8A7B-D8A803E0CF66}.Release|x64.ActiveCfg = Release|Win32
+		{8E67A375-A4A0-4A1F-A928-9EDE83563405}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8E67A375-A4A0-4A1F-A928-9EDE83563405}.Debug|Win32.Build.0 = Debug|Win32
+		{8E67A375-A4A0-4A1F-A928-9EDE83563405}.Debug|x64.ActiveCfg = Debug|Win32
+		{8E67A375-A4A0-4A1F-A928-9EDE83563405}.Release|Win32.ActiveCfg = Release|Win32
+		{8E67A375-A4A0-4A1F-A928-9EDE83563405}.Release|Win32.Build.0 = Release|Win32
+		{8E67A375-A4A0-4A1F-A928-9EDE83563405}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -128,7 +128,7 @@ MGPU_LAUNCH_BOUNDS void KernelSegBlocksortFlags(InputIt1 keys_global,
 	__syncthreads();
 
 	// Each thread extracts its own head flags from the array in shared memory.
-	flags = DeviceExtractThreadHeadFlags(shared.flags, VT * tid, VT);
+	flags = DeviceExtractHeadFlags(shared.flags, VT * tid, VT);
 
 	DeviceSegBlocksort<NT, VT, Stable, HasValues>(keys_global, values_global,
 		count2, shared.keys, shared.values, shared.ranges, flags, tid, block,
@@ -554,9 +554,11 @@ MGPU_HOST void SegSortKeysFromFlags(T* data_global, int count,
 	bool verbose) {
 
 	const bool Stable = true;
-	const int NT = 128;
-	const int VT = 11;
-	typedef LaunchBoxVT<NT, VT> Tuning;
+	typedef LaunchBoxVT<
+		128, 11, 0,
+		128, 11, 0,
+		128, (sizeof(T) > 4) ? 7 : 11, 0
+	> Tuning;
 	int2 launch = Tuning::GetLaunchParams(context);
 	const int NV = launch.x * launch.y;
 	
@@ -592,13 +594,15 @@ MGPU_HOST void SegSortKeysFromFlags(T* data_global, int count,
 
 template<typename KeyType, typename ValType, typename Comp>
 MGPU_HOST void SegSortPairsFromFlags(KeyType* keys_global,
-	ValType* values_global, const uint* flags_global, int count,
+	ValType* values_global,  int count, const uint* flags_global,
 	CudaContext& context, Comp comp, bool verbose) {
 
 	const bool Stable = true;
-	const int NT = 128;
-	const int VT = 11;
-	typedef LaunchBoxVT<NT, VT> Tuning;
+	typedef LaunchBoxVT<
+		128, 11, 0,
+		128, 7, 0,
+		128, 7, 0
+	> Tuning;
 	int2 launch = Tuning::GetLaunchParams(context); 
 	const int NV = launch.x * launch.y;
 	
@@ -618,7 +622,7 @@ MGPU_HOST void SegSortPairsFromFlags(KeyType* keys_global,
 
 	KernelSegBlocksortFlags<Tuning, Stable, true>
 		<<<numBlocks, launch.x, 0, context.Stream()>>>(keysSource, valsSource,
-		flags_global, count, (1 & numPasses) ? keysDest : keysSource,
+		count, flags_global, (1 & numPasses) ? keysDest : keysSource,
 		(1 & numPasses) ? valsDest : valsSource, support.ranges_global, 
 		comp);
 	MGPU_SYNC_CHECK("KernelSegBlocksortFlags");
@@ -631,13 +635,13 @@ MGPU_HOST void SegSortPairsFromFlags(KeyType* keys_global,
 	SegSortPasses<Tuning, true, true>(support, keysSource, valsSource, count, 
 		numBlocks, numPasses, keysDest, valsDest, comp, context, verbose);
 }
-template<typename KeyType, typename ValType, typename Comp>
+template<typename KeyType, typename ValType>
 MGPU_HOST void SegSortPairsFromFlags(KeyType* keys_global, 
-	ValType* values_global, const uint* flags_global, int count,
+	ValType* values_global, int count, const uint* flags_global, 
 	CudaContext& context, bool verbose) {
 
-	SegSortPairsFromFlags(keys_global, values_global, flags_global,
-		count, context, mgpu::less<KeyType>(), verbose);
+	SegSortPairsFromFlags(keys_global, values_global, count, flags_global,
+		context, mgpu::less<KeyType>(), verbose);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

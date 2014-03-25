@@ -34,26 +34,9 @@
 <p><em><strong>Modern GPU is code and commentary intended to promote new and productive ways
 of thinking about GPU computing.</strong></em></p>
 <p>This project is a<strong> library</strong>, an <strong>algorithms book</strong>, a <strong>tutorial</strong>, and a <strong>best-practices guide</strong>. If you are new to CUDA, start <a href="faq.html#gettingstarted">here</a>. If you're already familiar with CUDA, are ready for a challenge, and want to learn design patterns for parallel programming, enjoy this series.</p>
+<p><a href="http://www.github.com/seanbaxter/gtc_2014">GTC 2014 slides and companion source code</a>.</p>
 <p><a href="cascon.pptx">Turning the Crank on Streaming Algorithms</a> presentation for <a href="https://www-927.ibm.com/ibm/cas/cascon/">IBM CASCON 2013</a>.</p>
 <p><a href="breaking.html">Notes on breaking changes</a>.</p>
-<ol class="contents" start='14'>
-	<li>
-	  <h3><span class="red">NEW</span>&nbsp;<a href="segreduce.html">Segmented Reduction</a>&nbsp;<span class="red">NEW</span></h3><ul>
-    	<li><a href="segreduce.html#segreducecsr">Benchmarks and usage: Segmented reduction (CSR)</a></li>
-        <li><a href="segreduce.html#reducebykey">Benchmarks and usage: Reduce-by-key</a></li>
-        <li><a href="segreduce.html#spmv">Benchmarks and usage: Sparse matrix * vector (CSR)</a></li>
-        <li><a href="segreduce.html#usernotes">User notes</a></li>
-        <li><a href="segreduce.html#algorithm">Intra-tile algorithm</a></li>
-        <li><a href="segreduce.html#carryout">Carry-out and carry-in</a></li>
-        <li><a href="segreduce.html#ctasegreduce">CTASegReduce</a></li>
-        <li><a href="segreduce.html#reducebykeyfrontend">Reduce-by-key front-end</a></li>
-        <li><a href="segreduce.html#preprocessapply">Preprocessed segmented reduction - Apply</a></li>
-        <li><a href="segreduce.html#csrtocoo">CSR to COO</a></li>
-        <li><a href="segreduce.html#preprocessconstruct">Preprocessed segmented reduction - Construct</a></li>
-        <li><a href="segreduce.html#segreducecsrfrontend">Segmented reduction (CSR) front-end</a></li>
-      </ul>
-  </li>
-</ol>
 <br />
 <ol class="contents" start='0'>
   <li><h3><a href="faq.html">FAQ</a></h3></li>
@@ -181,6 +164,24 @@ of thinking about GPU computing.</strong></em></p>
     <li><a href="sets.html#serialops">Serial multiset operations</a></li>
     <li><a href="sets.html#kernel">Multisets kernel</a></li>
 </ul></li>
+
+
+	<li>
+	  <h3><a href="segreduce.html">Segmented Reduction</a></h3><ul>
+    	<li><a href="segreduce.html#segreducecsr">Benchmarks and usage: Segmented reduction (CSR)</a></li>
+        <li><a href="segreduce.html#reducebykey">Benchmarks and usage: Reduce-by-key</a></li>
+        <li><a href="segreduce.html#spmv">Benchmarks and usage: Sparse matrix * vector (CSR)</a></li>
+        <li><a href="segreduce.html#usernotes">User notes</a></li>
+        <li><a href="segreduce.html#algorithm">Intra-tile algorithm</a></li>
+        <li><a href="segreduce.html#carryout">Carry-out and carry-in</a></li>
+        <li><a href="segreduce.html#ctasegreduce">CTASegReduce</a></li>
+        <li><a href="segreduce.html#reducebykeyfrontend">Reduce-by-key front-end</a></li>
+        <li><a href="segreduce.html#preprocessapply">Preprocessed segmented reduction - Apply</a></li>
+        <li><a href="segreduce.html#csrtocoo">CSR to COO</a></li>
+        <li><a href="segreduce.html#preprocessconstruct">Preprocessed segmented reduction - Construct</a></li>
+        <li><a href="segreduce.html#segreducecsrfrontend">Segmented reduction (CSR) front-end</a></li>
+      </ul>
+  </li>
 
 </ol>
 <br />

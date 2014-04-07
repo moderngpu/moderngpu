@@ -106,14 +106,14 @@ void VerifyReduceByKey(const std::vector<KeyType>& keysHost,
 }
 
 
-template<typename T>
+template<typename KeyType, typename ValType>
 void BenchmarkReduceByKey(int count, int randomSize, int numIt,
 	CudaContext& context) {
 
 #ifdef _DEBUG
 	numIt = 1;
 #endif
-	
+
 	std::vector<int> segCountsHost, csrHost;
 	int total = 0;
 	while(total < count) {
@@ -124,8 +124,8 @@ void BenchmarkReduceByKey(int count, int randomSize, int numIt,
 	}
 	int numSegments = (int)segCountsHost.size();
 	
-	std::vector<int> segsHost(count);
-	std::vector<int> keysHost(numSegments);
+	std::vector<KeyType> segsHost(count);
+	std::vector<KeyType> keysHost(numSegments);
 	for(int i = 0; i < numSegments; ++i) {
 		int begin = csrHost[i];
 		int end = (i + 1 < numSegments) ? csrHost[i + 1] : count;
@@ -133,31 +133,31 @@ void BenchmarkReduceByKey(int count, int randomSize, int numIt,
 		keysHost[i] = i;
 	}
 
-	MGPU_MEM(int) keysDevice = context.Malloc(segsHost);
-	MGPU_MEM(int) keysDestDevice = context.Malloc<int>(numSegments);
+	MGPU_MEM(KeyType) keysDevice = context.Malloc(segsHost);
+	MGPU_MEM(KeyType) keysDestDevice = context.Malloc<KeyType>(numSegments);
 
 	// Generate random ints as input.
-	std::vector<T> dataHost(count);
+	std::vector<ValType> dataHost(count);
 	for(int i = 0; i < count; ++i)
-		dataHost[i] = (T)Rand(0, 9);
+		dataHost[i] = (ValType)Rand(0, 9);
 
 	// Compute reference output.
-	std::vector<T> resultsRef(numSegments);
+	std::vector<ValType> resultsRef(numSegments);
 	for(int seg = 0; seg < numSegments; ++seg) {
 		int begin = csrHost[seg];
 		int end = (seg + 1 < numSegments) ? csrHost[seg + 1] : count;
 			
-		T x = 0;
+		ValType x = 0;
 		for(int i = begin; i < end; ++i)
 			x = x + dataHost[i];
 
 		resultsRef[seg] = x;
 	}
 
-	MGPU_MEM(T) dataDevice = context.Malloc(dataHost);
-	MGPU_MEM(T) resultsDevice = context.Malloc<T>(numSegments);
-	std::vector<int> keysDestHost;
-	std::vector<T> resultsHost;
+	MGPU_MEM(ValType) dataDevice = context.Malloc(dataHost);
+	MGPU_MEM(ValType) resultsDevice = context.Malloc<ValType>(numSegments);
+	std::vector<KeyType> keysDestHost;
+	std::vector<ValType> resultsHost;
 
 	////////////////////////////////////////////////////////////////////////////
 	// MGPU reduce-by-key
@@ -201,8 +201,8 @@ void BenchmarkReduceByKey(int count, int randomSize, int numIt,
 
 	context.Start();
 	for(int it = 0; it < numIt; ++it) {
-		typedef thrust::device_ptr<int> PK;
-		typedef thrust::device_ptr<T> PV;
+		typedef thrust::device_ptr<KeyType> PK;
+		typedef thrust::device_ptr<ValType> PV;
 		
 		PK keys_first(keysDevice->get());
 		PK keys_last(keysDevice->get() + count);
@@ -212,7 +212,7 @@ void BenchmarkReduceByKey(int count, int randomSize, int numIt,
 
 		thrust::pair<PK, PV> result = thrust::reduce_by_key(keys_first, 
 			keys_last, values_first, keys_output, values_output,
-			mgpu::equal_to<int>(), mgpu::plus<T>());
+			mgpu::equal_to<KeyType>(), mgpu::plus<ValType>());
 
 		numSegments2 = (int)(result.first - keys_output);
 	}
@@ -258,17 +258,17 @@ const int SegSizes[] = {
 };
 const int NumSegSizes = sizeof(SegSizes) / sizeof(*SegSizes);
 
-template<typename T>
+template<typename KeyType, typename ValType>
 void BenchmarkReduceByKey1(CudaContext& context) {
 
 	int avSegSize = 500;
-	printf("Benchmarking reduce-by-key type (int, %s). AvSegSize = %d.\n",
-		TypeIdName<T>(), avSegSize);
+	printf("Benchmarking reduce-by-key type (%s, %s). AvSegSize = %d.\n",
+		TypeIdName<KeyType>(), TypeIdName<ValType>(), avSegSize);
 
 	for(int test = 0; test < NumTests; ++test) {
 		int count = Tests[test][0];
 
-		BenchmarkReduceByKey<T>(count, avSegSize, Tests[test][1], 
+		BenchmarkReduceByKey<KeyType, ValType>(count, avSegSize, Tests[test][1], 
 			context);
 
 		context.GetAllocator()->Clear();
@@ -276,16 +276,16 @@ void BenchmarkReduceByKey1(CudaContext& context) {
 	printf("\n");
 }
 
-template<typename T>
+template<typename KeyType, typename ValType>
 void BenchmarkReduceByKey2(CudaContext& context) {
 	int count = 20000000;
-	printf("Benchmarking reduce-by-key type (int, %s). Count = %d.\n",
-		TypeIdName<T>(), count);
+	printf("Benchmarking reduce-by-key type (%s, %s). Count = %d.\n",
+		TypeIdName<KeyType>(), TypeIdName<ValType>(), count);
 
 	for(int test = 0; test < NumSegSizes; ++test) {
 		int avSegSize = SegSizes[test];
 
-		BenchmarkReduceByKey<T>(count, avSegSize, 500, context);
+		BenchmarkReduceByKey<KeyType, ValType>(count, avSegSize, 500, context);
 
 		context.GetAllocator()->Clear();
 	}
@@ -294,12 +294,14 @@ void BenchmarkReduceByKey2(CudaContext& context) {
 
 int main(int argc, char** argv) {
 	ContextPtr context = CreateCudaDevice(argc, argv, true);
+
+	typedef int KeyType;
 	
-	BenchmarkReduceByKey1<float>(*context);		
-	BenchmarkReduceByKey1<double>(*context);
+	BenchmarkReduceByKey1<KeyType, float>(*context);		
+	BenchmarkReduceByKey1<KeyType, double>(*context);
 	
-	BenchmarkReduceByKey2<float>(*context);
-	BenchmarkReduceByKey2<double>(*context);
+	BenchmarkReduceByKey2<KeyType, float>(*context);
+	BenchmarkReduceByKey2<KeyType, double>(*context);
 		
 	return 0;
 }

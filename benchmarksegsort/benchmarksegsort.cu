@@ -144,7 +144,7 @@ void BenchmarkSegsortPairs(int count, int segLen, int numIt,
 		}
 	}
 }
-
+/*
 const int Tests[][3] = { 
 	{ 10000, 300000, 1000 },
 	{ 50000, 300000, 1000 },
@@ -156,8 +156,8 @@ const int Tests[][3] = {
 	{ 5000000, 300000, 200 },
 	{ 10000000, 300000, 100 },
 	{ 20000000, 300000, 100 }
-};
-/*
+};*/
+
 const int Tests[][3] = {
 	{ 10000000, 100, 50 },
 	{ 10000000, 300, 50 },
@@ -170,7 +170,7 @@ const int Tests[][3] = {
 	{ 10000000, 1000000, 50 },
 	{ 10000000, 3000000, 50 },
 	{ 10000000, 10000000, 50 }
-};*/
+};
 const int NumTests = sizeof(Tests) / sizeof(Tests[0]);
 
 int main(int argc, char** argv) {
@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
 	for(int test = 0; test < NumTests; ++test)
 		BenchmarkSegsortKeys<T1>(Tests[test][0], Tests[test][1], Tests[test][2],
 			*context);
-	/*
+	
 	printf("\nSegmented sort keys on type %s.\n", TypeIdName<T2>());
 	for(int test = 0; test < NumTests; ++test)
 		BenchmarkSegsortKeys<T2>(Tests[test][0], Tests[test][1], Tests[test][2],
@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
 	printf("\nSegmented sort pairs on type %s.\n", TypeIdName<T2>());
 	for(int test = 0; test < NumTests; ++test)
 		BenchmarkSegsortPairs<T2>(Tests[test][0], Tests[test][1], Tests[test][2],
-			*context);*/
+			*context);
 
 	return 0;
 }

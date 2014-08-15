@@ -12,7 +12,7 @@ mgpuutil.o: ../src/mgpuutil.cpp
 	nvcc $(NVCCFLAGS) -o $@ -c $<
 
 demo.o: demo.cu
-        nvcc $(NVCCFLAGS) -o $@ -c $<
+	nvcc $(NVCCFLAGS) -o $@ -c $<
 
 demo: demo.o mgpucontext.o mgpuutil.o
 	nvcc $(NVCCFLAGS) -o $@ $+

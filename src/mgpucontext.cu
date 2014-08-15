@@ -439,7 +439,7 @@ cudaError_t CudaAllocBuckets::Malloc(size_t size, void** p) {
 	if(size) error = cudaMalloc(p, allocSize);
 	while((cudaErrorMemoryAllocation == error) && (_committed < _allocated)) {
 		SetCapacity(_capacity - _capacity / 10, _maxObjectSize);
-		error = cudaMalloc(&p, size);
+		error = cudaMalloc(p, size);
 	}
 	if(cudaSuccess != error) return error;
 

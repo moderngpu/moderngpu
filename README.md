@@ -77,6 +77,7 @@ Five tutorials on kernel-level programming are also included:
   TODO: Complete kernel unit tests. 
   TODO: API references.
   TODO: Multiset operations for feature parity with moderngpu 1.0.
+  TODO: Restore the moderngpu 1.0 text by integrating it with this markdown.
 ```
 
 ### License

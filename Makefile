@@ -34,9 +34,6 @@ test_reduce: tests/test_reduce.cu src/moderngpu/*.hxx
 test_scan: tests/test_scan.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
 
-test_segscan: tests/test_segscan.cu src/moderngpu/*.hxx
-	nvcc $(ARCH) $(OPTIONS) -o $@ $<
-
 test_bulkremove: tests/test_bulkremove.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
 
@@ -94,11 +91,6 @@ tut_04_launch_custom: tutorial/tut_04_launch_custom.cu src/moderngpu/*.hxx
 tut_05_iterators: tutorial/tut_05_iterators.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
 
-tut_06_lbs: tutorial/tut_06_lbs.cu src/moderngpu/*.hxx
-	nvcc $(ARCH) $(OPTIONS) -o $@ $<
-
-# more advanced demos
-
 demos: \
 	cities \
 	bfs
@@ -112,7 +104,6 @@ bfs: demo/bfs.cu src/moderngpu/*.hxx
 clean:
 	rm test_reduce
 	rm test_scan
-	rm test_segscan
 	rm test_bulkremove
 	rm test_merge
 	rm test_bulkinsert
@@ -129,7 +120,5 @@ clean:
 	rm tut_03_launch_box
 	rm tut_04_launch_custom
 	rm tut_05_iterators
-	rm tut_06_lbs
 	rm cities
 	rm bfs
-	rm test

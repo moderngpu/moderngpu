@@ -22,6 +22,8 @@ Five tutorials on kernel-level programming are also included:
   4. **[tut_04_launch_custom.cu](#tutorial-4---custom-launch-parameters)** - architecture-specific tuning with a custom parameters structure.
   5. **[tut_05_iterators.cu](#tutorial-5---iterators)** - attach lambda functions to load and store operators.
 
+Users familiar with CUDA programming wishing to cut to the chase should start at [Examples of automatic load-balancing](#examples-of-automatic-load-balancing) where the most novel features of this library are demonstrated. 
+
 ## Contents
 1. [Release notes](#release-notes)
   1. [License](#license)
@@ -38,9 +40,22 @@ Five tutorials on kernel-level programming are also included:
     1. [transform_lbs](#transform_lbs)
     1. [lbs_segreduce](#lbs_segreduce)
   1. [Array functions](#array-functions)
+    1. [reduce](#reduce)
+    1. [scan](#scan)
+    1. [merge](#merge)
+    1. [sorted_search](#sorted-search)
+    1. [bulk_insert](#bulk-insert)
+    1. [bulk_remove](#bulk-remove)
+    1. [mergesort](#mergesort)
+    1. [segsort](#segsort)
+    1. [inner_join](#inner-join)
+    1. [load_balance_search](#load-balance-search)
+    1. [interval_move](#interval-move)
+    1. [inner_join](#inner-join)
+    1. [segreduce](#segreduce)
 1. [Examples of automatic load-balancing](#examples-of-automatic-load-balancing)
   1. [Sparse matrix*vector](#sparse-matrix--vector)
-  1. [Interval move](#interval-move)
+  1. [Interval move and interval expand](#interval-move-and-interval-expand)
   1. [Relational join](#relational-join)
   1. [Breadth-first search](#breadth-first-search)
   1. [Attu Station, AK](#attu-station-ak)
@@ -206,7 +221,7 @@ template<
 void transform_scan(func_t f, int count, output_it output, op_t op,
   reduction_it reduction, context_t& context);
 ```
-`transform_scan` invokes the provided lambda and computes a prefix sum over all elements. The reduction is also returned. In fact, by utilizing the _lambda iterator_ feature in moderngpu 2.0, you can get the reduction or even the output of the scan itself passed to additional __device__-tagged lambdas that you provide. The distinction between _iterators_ (a generalization of pointers) and _functions_ is mostly about syntax rather than functionality.
+`transform_scan` invokes the provided lambda and computes a prefix sum over all elements. The reduction is also returned. In fact, by utilizing the _lambda iterator_ feature in moderngpu 2.0, you can get the reduction or even the output of the scan itself passed to additional `__device__`-tagged lambdas that you provide. The distinction between _iterators_ (a generalization of pointers) and _functions_ is mostly about syntax rather than functionality.
 
 #### transform_segreduce
 **`kernel_segreduce.hxx`**
@@ -299,7 +314,127 @@ void lbs_segreduce(func_t f, int count, segments_it segments,
 `lbs_segreduce` combines `transform_lbs` with segmented reduction. The caller's lambda is invoked with the segment ID and rank for each element, but the return values are folded into a single element per segment. `lbs_segreduce` is like a simultaneous mapper and reducer: each segment is expanded into an irregular number of work-items; a user-provided function is called on each work-item; then the results are reduced according to the segment geometry. This is the most sophisticated mechanism in moderngpu 2.0, and makes data science operations very easy to program.
 
 ### Array functions
-documentation coming soon
+
+#### reduce
+**`kernel_reduce.hxx`**
+```cpp
+template<typename launch_arg_t = empty_t, typename input_it, 
+  typename output_it, typename op_t>
+void reduce(input_it input, int count, output_it reduction, op_t op, 
+  context_t& context);
+```
+
+#### scan
+**`kernel_scan.hxx`**
+```cpp
+
+template<scan_type_t scan_type = scan_type_exc,
+  typename launch_arg_t = empty_t, typename input_it, 
+  typename output_it, typename op_t, typename reduction_it>
+void scan_event(input_it input, int count, output_it output, op_t op, 
+  reduction_it reduction, context_t& context, cudaEvent_t event);
+
+template<scan_type_t scan_type = scan_type_exc, 
+  typename launch_arg_t = empty_t, typename input_it, 
+  typename output_it, typename op_t, typename reduction_it>
+void scan(input_it input, int count, output_it output, op_t op, 
+  reduction_it reduction, context_t& context);
+
+template<scan_type_t scan_type = scan_type_exc, 
+  typename launch_arg_t = empty_t, 
+  typename input_it, typename output_it>
+void scan(input_it input, int count, output_it output, context_t& context);
+
+template<scan_type_t scan_type = scan_type_exc, 
+  typename launch_arg_t = empty_t, typename func_t, typename output_it,
+  typename op_t, typename reduction_it>
+void transform_scan_event(func_t f, int count, output_it output, op_t op,
+  reduction_it reduction, context_t& context, cudaEvent_t event);
+
+template<
+  scan_type_t scan_type = scan_type_exc, // scan_type_exc or scan_type_inc.
+  typename launch_arg_t = empty_t, 
+  typename func_t,         // implements type_t operator()(int index).
+  typename output_it,
+  typename op_t,           // implements type_t operator()(type_t a, type_t b).   
+  typename reduction_it    // iterator for storing the scalar reduction
+                           //   pass discard_iterator_t<type_t>() to ignore 
+                           //   the reduction.
+>
+void transform_scan(func_t f, int count, output_it output, op_t op,
+  reduction_it reduction, context_t& context);
+```
+The prefix sum implementation `scan` has several overloads for convenience. The scan is implemented as three kernels: an upsweep that reduces values mapped into tiles; a spine which scans the partial reductions and stores the total reduction of the array; and a downsweep which distributes the scanned partials and completes the scan. 
+
+Because of this structure, the reduction is computed about a third of the way through the reduction. (One load for the upsweep; one load and one store for the downsweep.) The caller may need the reduction as soon as possible to allocate memory and schedule more work. Rather than suffer the latency of waiting for `scan` to return and copying the reduction from device to host memory, the user can allocate space in page-locked host memory and call `scan_event` or `transform_scan_event` to store the reduction directly into this host memory. The caller provides an event which is recorded when the reduction is computed. When `scan_event` returns the caller can synchronize on the event and read the reduction directly out of page-locked memory. This relieves the code from waiting for the downsweep kernel to complete before getting the reduction.
+
+#### merge
+
+**`kernel_merge.hxx`**
+```cpp
+// Key-value merge.
+template<
+  typename launch_arg_t = empty_t,
+  typename a_keys_it, typename a_vals_it, // A source keys and values
+  typename b_keys_it, typename b_vals_it, // B source keys and values
+  typename c_keys_it, typename c_vals_it, // C dest keys and values
+  typename comp_t         // implements bool operator()(type_t a, type_t b)
+                          //   computes a < b.
+>
+void merge(a_keys_it a_keys, a_vals_it a_vals, int a_count, 
+  b_keys_it b_keys, b_vals_it b_vals, int b_count,
+  c_keys_it c_keys, c_vals_it c_vals, comp_t comp, context_t& context);
+
+// Key-only merge.
+template<typename launch_t = empty_t,
+  typename a_keys_it, typename b_keys_it, typename c_keys_it,
+  typename comp_t>
+void merge(a_keys_it a_keys, int a_count, b_keys_it b_keys, int b_count,
+  c_keys_it c_keys, comp_t comp, context_t& context);
+```
+
+#### sorted_search
+
+**`kernel_sortedsearch.hxx`**
+```cpp
+template<
+  bounds_t bounds,         // bounds_lower or bounds_upper
+  typename launch_arg_t = empty_t,
+  typename needles_it,     // search to find the insertion index of each
+  typename haystack_it,    //   sorted needle into the sorted haystack.
+  typename indices_it,     // output integer indices. 
+                           //   sized to the number of needles.
+  typename comp_it         // implements bool operator()(type_t a, type_t b)
+                           //   computes a < b.
+>
+void sorted_search(needles_it needles, int num_needles, haystack_it haystack,
+  int num_haystack, indices_it indices, comp_it comp, context_t& context);
+```
+`sorted_search` is a vectorized searching algorithm. It's equivalent to calling `std::lower_bound` or `std::upper_bound` into the haystack array for each key in the needles array. We could easily implement a parallel binary search on the GPU, and it would have cost O(A log B).
+
+But we can do better if the keys in the needles array are themselves sorted. Rather than process each needle individually using a binary search, the threads cooperatively compute the entire output array `indices` as a single merge-like operation. Consider comparing the front of the haystack array to the front of the needles array. If `*haystack < *needles`, we advance the `haystack` pointer. Otherwise we store the index of `haystack` to the `indices` results array at the `needles` index and advance the `needles` index.
+
+The cost of `sorted_search` is O(A + B) and the routine is easily load-balanced over all available processing units. This function is helpful when implementing key-matching operations like [relational join](#relational-join).
+
+#### bulk_insert
+
+These functions are ready-to-use but not yet documented.
+
+#### bulk_remove
+
+#### mergesort
+
+#### segsort
+
+#### inner_join
+
+#### load\_balance\_search
+
+#### interval_move
+
+#### inner_join
+
+#### segreduce
 
 ## Examples of automatic load-balancing
 
@@ -337,7 +472,7 @@ This new `spmv` function is efficient, robust, flexible and tunable. Matrices wi
 
 The tuning of the function is also pushed out to the user: pass a `launch_arg_t` to specialize the kernel over an architecture-specific set of launch parameters, including the block size, grain size, cache ratio and SM occupancy. By moving tuning parameters _outside_ of the function implementation, the user can tweak the parameters for best performance for their specific needs, including generating multiple versions of the same function for inputs with different characteristics.
 
-### Interval move
+### Interval move and interval expand
 
 Features demonstrated:
 
@@ -1161,7 +1296,7 @@ ptxas info    : Used 8 registers, 64 bytes smem, 336 bytes cmem[0]
 
 * Be careful with __host__ __device__-tagged functions.
 
-  The CUDA compiler sometimes prohibits __host__ __device__-tagged code from calling __device__-tagged or __host__-tagged functions. However this restriction does not square with much of moderngpu's usage. We pass lambdas defined inside kernels (which are implicitly __device__-tagged) to the template loop-unrolling function `iterate<>`, which is __host__ __device__-tagged for greater generality. This compiles except when the enclosing scope of the `iterate<>` call is a non-template function. This is a dark area of the CUDA language where the forward-looking features have raced ahead of established features like tagging. If you are using moderngpu features and receive errors like 
+  The CUDA compiler sometimes prohibits `__host__ __device__`-tagged code from calling `__device__`-tagged or `_`_host__`-tagged functions. However this restriction does not square with much of moderngpu's usage. We pass lambdas defined inside kernels (which are implicitly `__device__`-tagged) to the template loop-unrolling function `iterate<>`, which is `__host__ __device__`-tagged for greater generality. This compiles except when the enclosing scope of the `iterate<>` call is a non-template function. This is a dark area of the CUDA language where the forward-looking features have raced ahead of established features like tagging. If you are using moderngpu features and receive errors like 
   ```
   error: calling a __device__ function("operator()") from a __host__ __device__ function("eval") is not allowed
           detected during:

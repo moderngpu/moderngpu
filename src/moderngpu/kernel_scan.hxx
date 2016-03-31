@@ -9,8 +9,8 @@ BEGIN_MGPU_NAMESPACE
 template<scan_type_t scan_type = scan_type_exc, 
   typename launch_arg_t = empty_t, typename input_it, 
   typename output_it, typename op_t, typename reduction_it>
-void scan(input_it input, int count, output_it output, op_t op, 
-  reduction_it reduction, context_t& context) {
+void scan_event(input_it input, int count, output_it output, op_t op, 
+  reduction_it reduction, context_t& context, cudaEvent_t event) {
 
   typedef typename conditional_typedef_t<launch_arg_t, 
     launch_box_t<
@@ -24,7 +24,7 @@ void scan(input_it input, int count, output_it output, op_t op,
 
   int num_ctas = launch_t::cta_dim(context).num_ctas(count);
 
-  if(num_ctas > 1) {
+  if(num_ctas > 8) {
     mem_t<type_t> partials(num_ctas, context);
     type_t* partials_data = partials.data();
 
@@ -62,43 +62,10 @@ void scan(input_it input, int count, output_it output, op_t op,
     cta_transform<launch_t>(upsweep_k, count, context);
 
     ////////////////////////////////////////////////////////////////////////////
-    // Spine phase. Execute inclusive scan of partial reductions. These serve
-    // as carry-in for the downsweep phase.
+    // Spine phase. Recursively call scan on the CTA partials.
 
-    typedef launch_params_t<512, 3> spine_params_t;
-    auto spine_k = [=] MGPU_DEVICE(int tid, int cta) {
-      enum { nt = spine_params_t::nt, vt = spine_params_t::vt, nv = nt * vt };
-      typedef cta_scan_t<nt, type_t, op_t> scan_t;
-
-      __shared__ union {
-        typename scan_t::storage_t scan;
-        type_t values[nv];
-      } shared;
-
-      type_t carry_in = type_t();
-      for(int cur = 0; cur < num_ctas; cur += nv) {
-        // Cooperatively load values into register.
-        int count2 = min<int>(num_ctas - cur, nv);
-        array_t<type_t, vt> x = mem_to_reg_thread<nt, vt>(partials_data + cur, 
-          tid, count2, shared.values);
-
-        scan_result_t<type_t, vt> result = scan_t().scan(tid, x, shared.scan,
-          carry_in, cur > 0, count2, op, type_t(), scan_type_exc);
-
-        // Store the scanned values back to global memory.
-        reg_to_mem_thread<nt, vt>(result.scan, tid, count2, 
-          partials_data + cur, shared.values);
-        
-        // Roll the reduction into carry_in.
-        carry_in = result.reduction;
-      }
-
-      // Store the carry-out to the reduction pointer. This may be a
-      // discard_iterator_t if no reduction is wanted.
-      if(!tid)
-        *reduction = carry_in;
-    };
-    cta_launch<spine_params_t>(spine_k, 1, context);
+    scan_event<scan_type_exc>(partials_data, num_ctas, partials_data,
+      op, reduction, context, event);
 
     ////////////////////////////////////////////////////////////////////////////
     // Downsweep phase. Perform an intra-tile scan and add the scan of the 
@@ -132,12 +99,13 @@ void scan(input_it input, int count, output_it output, op_t op,
   
   } else {
 
-    // We only have one CTA's worth of work, so compute the scan in one 
-    // kernel. We implement this as a separate path to reduce latency on 
-    // very small scans.
-    auto k = [=] MGPU_DEVICE(int tid, int cta) {
-      typedef typename launch_t::sm_ptx params_t;
-      enum { nt = params_t::nt, vt = params_t::vt, nv = nt * vt };
+    ////////////////////////////////////////////////////////////////////////////
+    // Small input specialization. This is the non-recursive branch.
+
+    typedef launch_params_t<512, 3> spine_params_t;
+    auto spine_k = [=] MGPU_DEVICE(int tid, int cta) {
+     
+      enum { nt = spine_params_t::nt, vt = spine_params_t::vt, nv = nt * vt };
       typedef cta_scan_t<nt, type_t, op_t> scan_t;
 
       __shared__ union {
@@ -145,31 +113,54 @@ void scan(input_it input, int count, output_it output, op_t op,
         type_t values[nv];
       } shared;
 
-      // Load a tile to register in thread order.
-      array_t<type_t, vt> x = mem_to_reg_thread<nt, vt>(input, tid, count, 
-        shared.values);
+      type_t carry_in = type_t();
+      for(int cur = 0; cur < count; cur += nv) {
+        // Cooperatively load values into register.
+        int count2 = min<int>(count - cur, nv);
+        array_t<type_t, vt> x = mem_to_reg_thread<nt, vt>(input + cur, 
+          tid, count2, shared.values);
 
-      // Scan the array without carry-in.
-      scan_result_t<type_t, vt> result = scan_t().scan(tid, x, shared.scan, 
-        type_t(), false, count, op, type_t(), scan_type);
+        scan_result_t<type_t, vt> result = scan_t().scan(tid, x, shared.scan,
+          carry_in, cur > 0, count2, op, type_t(), scan_type);
 
-      // Store the scanned values to the output.
-      reg_to_mem_thread<nt, vt>(result.scan, tid, count, output, 
-        shared.values);    
+        // Store the scanned values back to global memory.
+        reg_to_mem_thread<nt, vt>(result.scan, tid, count2, 
+          output + cur, shared.values);
+        
+        // Roll the reduction into carry_in.
+        carry_in = result.reduction;
+      }
 
       // Store the carry-out to the reduction pointer. This may be a
       // discard_iterator_t if no reduction is wanted.
       if(!tid)
-        *reduction = result.reduction;
+        *reduction = carry_in;
     };
-    cta_launch<launch_t>(k, 1, context);
+    cta_launch<spine_params_t>(spine_k, 1, context);
+
+    // Record the event. This lets the caller wait on just the reduction 
+    // part of the operation. It's useful when writing the reduction to
+    // host-side paged-locked memory; the caller can read out the value more
+    // quickly to allocate memory and launch the next kernel.
+    if(event)
+      cudaEventRecord(event, context.stream());
   }
+}
+
+template<scan_type_t scan_type = scan_type_exc, 
+  typename launch_arg_t = empty_t, typename input_it, 
+  typename output_it, typename op_t, typename reduction_it>
+void scan(input_it input, int count, output_it output, op_t op, 
+  reduction_it reduction, context_t& context) {
+  return scan_event<scan_type, launch_arg_t>(input, count, output, op, 
+    reduction, context, 0);
 }
 
 template<scan_type_t scan_type = scan_type_exc, 
   typename launch_arg_t = empty_t, 
   typename input_it, typename output_it>
 void scan(input_it input, int count, output_it output, context_t& context) {
+
   typedef typename std::iterator_traits<input_it>::value_type type_t;
   scan<scan_type, launch_arg_t>(input, count, output, plus_t<type_t>(),
     discard_iterator_t<type_t>(), context);
@@ -178,11 +169,21 @@ void scan(input_it input, int count, output_it output, context_t& context) {
 template<scan_type_t scan_type = scan_type_exc, 
   typename launch_arg_t = empty_t, typename func_t, typename output_it,
   typename op_t, typename reduction_it>
+void transform_scan_event(func_t f, int count, output_it output, op_t op,
+  reduction_it reduction, context_t& context, cudaEvent_t event) {
+
+  scan_event<scan_type, launch_arg_t>(make_load_iterator<decltype(f(0))>(f),
+    count, output, op, reduction, context, event);
+}
+
+template<scan_type_t scan_type = scan_type_exc, 
+  typename launch_arg_t = empty_t, typename func_t, typename output_it,
+  typename op_t, typename reduction_it>
 void transform_scan(func_t f, int count, output_it output, op_t op,
   reduction_it reduction, context_t& context) {
 
-  scan<scan_type, launch_arg_t>(make_load_iterator<decltype(f(0))>(f),
-    count, output, op, reduction, context);
+  transform_scan_event<scan_type, launch_arg_t>(f, count, output, op,
+    reduction, context, 0);
 }
 
 END_MGPU_NAMESPACE

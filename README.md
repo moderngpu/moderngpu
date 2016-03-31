@@ -68,6 +68,9 @@ Users familiar with CUDA programming wishing to cut to the chase should start at
 
 ## Release notes
 ```
+2.01 2016 Mar 31 -
+  Refactored scan implementation and added scan_event.
+
 2.00 2016 Mar 28 - 
   moderngpu 2.0 first release.
 

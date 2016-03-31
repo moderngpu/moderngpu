@@ -48,7 +48,6 @@ Users familiar with CUDA programming wishing to cut to the chase should start at
     1. [bulk_remove](#bulk_remove)
     1. [mergesort](#mergesort)
     1. [segsort](#segsort)
-    1. [inner_join](#inner_join)
     1. [load_balance_search](#load_balance_search)
     1. [interval_move](#interval_move)
     1. [inner_join](#inner_join)
@@ -418,23 +417,131 @@ The cost of `sorted_search` is O(A + B) and the routine is easily load-balanced 
 
 #### bulk_insert
 
-These functions are ready-to-use but not yet documented.
+**`kernel_bulkinsert.hxx`**
+```cpp
+// Insert the values at a_keys before the values at b_keys identified by
+// insert.
+template<typename launch_t = empty_t, typename a_it, typename insert_it, 
+  typename b_it, typename c_it>
+void bulk_insert(a_it a, insert_it a_insert, int insert_size, b_it b, 
+  int source_size, c_it c, context_t& context);
+```
 
 #### bulk_remove
 
+**`kernel_bulkremove.hxx`**
+```cpp
+template<typename launch_arg_t = empty_t,
+  typename input_it, typename indices_it, typename output_it>
+void bulk_remove(input_it input, int count, indices_it indices, 
+  int num_indices, output_it output, context_t& context);
+```
+
 #### mergesort
+
+**`kernel_mergesort.hxx`**
+```cpp
+// Key-value sort.
+template<
+  typename launch_arg_t = empty_t, 
+  typename key_t,          // key type.
+  typename val_t,          // value type.
+  typename comp_t          // implements bool operator()(type_t a, type_t b)
+                           //   computes a < b.
+>
+void mergesort(key_t* keys_input, val_t* vals_input, int count,
+  comp_t comp, context_t& context);
+
+// Key-only sort.
+template<typename launch_arg_t = empty_t, typename key_t, typename comp_t>
+void mergesort(key_t* keys_input, int count, comp_t comp, 
+  context_t& context);
+```
+Sort keys or key-value pairs. Unlike most other functions in moderngpu, this takes no iterators and transforms arrays in place.
 
 #### segsort
 
+**`kernel_segsort.hxx`**
+```cpp
+template<typename launch_arg_t = empty_t, typename key_t, typename val_t,
+  typename seg_it, typename comp_t>
+void segmented_sort(key_t* keys_input, val_t* vals_input, int count,
+  seg_it segments, int num_segments, comp_t comp, context_t& context);
+
+template<typename launch_arg_t = empty_t, typename key_t, typename seg_it, 
+  typename comp_t>
+void segmented_sort(key_t* keys_input, int count, seg_it segments, 
+  int num_segments, comp_t comp, context_t& context);
+```
+
+Sort keys or key-value pairs in place. This function sorts elements within segments and denoted by the segments-descriptor array. 
+
 #### inner_join
+
+**`kernel_join.hxx`**
+```cpp
+template<typename launch_arg_t = empty_t, 
+  typename a_it, typename b_it, typename comp_t>
+mem_t<int2> inner_join(a_it a, int a_count, b_it b, int b_count, 
+  comp_t comp, context_t& context);\
+```
 
 #### load\_balance\_search
 
 #### interval_move
 
+**`kernel_intervalmove.hxx`**
+```cpp
+template<typename launch_arg_t = empty_t, typename input_it, 
+  typename segments_it, typename output_it>
+void interval_expand(input_it input, int count, segments_it segments,
+  int num_segments, output_it output, context_t& context);
+
+template<typename launch_arg_t = empty_t, typename input_it, 
+  typename segments_it, typename gather_it, typename output_it>
+void interval_gather(input_it input, int count, segments_it segments,
+  int num_segments, gather_it gather, output_it output, context_t& context);
+
+template<typename launch_arg_t = empty_t, typename input_it, 
+  typename segments_it, typename scatter_it, typename output_it>
+void interval_scatter(input_it input, int count, segments_it segments,
+  int num_segments, scatter_it scatter, output_it output, context_t& context);
+
+template<typename launch_arg_t = empty_t, 
+  typename input_it, typename segments_it, typename scatter_it,
+  typename gather_it, typename output_it>
+void interval_move(input_it input, int count, segments_it segments,
+  int num_segments, scatter_it scatter, gather_it gather, output_it output, 
+  context_t& context);
+```
+
 #### inner_join
 
+**`kernel_join.hxx`**
+```cpp
+template<typename launch_arg_t = empty_t, 
+  typename a_it, typename b_it, typename comp_t>
+mem_t<int2> inner_join(a_it a, int a_count, b_it b, int b_count, 
+  comp_t comp, context_t& context);
+```
+
 #### segreduce
+
+**`kernel_segreduce.hxx`**
+```cpp
+template<typename launch_arg_t = empty_t, typename input_it,
+  typename segments_it, typename output_it, typename op_t, typename type_t>
+void segreduce(input_it input, int count, segments_it segments, 
+  int num_segments, output_it output, op_t op, type_t init, 
+  context_t& context);
+
+template<typename launch_arg_t = empty_t, typename matrix_it,
+  typename columns_it, typename vector_it, typename segments_it, 
+  typename output_it>
+void spmv(matrix_it matrix, columns_it columns, vector_it vector,
+  int count, segments_it segments, int num_segments, output_it output,
+  context_t& context);
+```
 
 ## Examples of automatic load-balancing
 
@@ -1294,9 +1401,9 @@ ptxas info    : Used 8 registers, 64 bytes smem, 336 bytes cmem[0]
 
   If the PTX assembler's output lists any byte's spilled, it is likely that the kernel is attempting to dynamically index an array that was intended to sit in register. Only random-access memories like shared, local and device memory support random access. Registers must be accessed by name, so array accesses must be made with static indices, either hard-coded or produced from the indices of compile-time unrolled loops. CUDA has its own mechanism `#pragma unroll` for unrolling loops. Unfortunately this mechanism is just a hint, and the directive can be applied to many kinds of loops that do not unroll. Use moderngpu's `iterate<>` template to guarantee loop unrolling.
 
-* Be careful with __host__ __device__-tagged functions.
+* Be careful with `__host__ __device__`-tagged functions.
 
-  The CUDA compiler sometimes prohibits `__host__ __device__`-tagged code from calling `__device__`-tagged or `_`_host__`-tagged functions. However this restriction does not square with much of moderngpu's usage. We pass lambdas defined inside kernels (which are implicitly `__device__`-tagged) to the template loop-unrolling function `iterate<>`, which is `__host__ __device__`-tagged for greater generality. This compiles except when the enclosing scope of the `iterate<>` call is a non-template function. This is a dark area of the CUDA language where the forward-looking features have raced ahead of established features like tagging. If you are using moderngpu features and receive errors like 
+  The CUDA compiler sometimes prohibits `__host__ __device__`-tagged code from calling `__device__`-tagged or `__host__`-tagged functions. However this restriction does not square with much of moderngpu's usage. We pass lambdas defined inside kernels (which are implicitly `__device__`-tagged) to the template loop-unrolling function `iterate<>`, which is `__host__ __device__`-tagged for greater generality. This compiles except when the enclosing scope of the `iterate<>` call is a non-template function. This is a dark area of the CUDA language where the forward-looking features have raced ahead of established features like tagging. If you are using moderngpu features and receive errors like 
   ```
   error: calling a __device__ function("operator()") from a __host__ __device__ function("eval") is not allowed
           detected during:

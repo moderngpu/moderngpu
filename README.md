@@ -929,6 +929,8 @@ Features demonstrated:
 1. `transform_scan`
 2. `transform_lbs`
 
+**Note:** To run this demo you'll need to download the [coPapersCiteseer](http://www.cise.ufl.edu/research/sparse/matrices/DIMACS10/coPapersCiteseer.html) graph in the _Matrix Market_ format from the University of Florida Sparse Matrix Collection. Decompress the `.mtx` file into `demo/coPapersCiteseer/coPapersCiteseer.mtx`.
+
 #### `bfs.cu`
 
 ```cpp

@@ -14,6 +14,9 @@ The library also includes many CTA-level structures which the higher-order host-
 The distribution includes two demos on the usage of the high-level transforms:
   1. **[bfs.cu](#breadth-first-search)** - a simple implementation of a classic breadth-first search graph algorithm.
   2. **[cities.cu](#attu-station-ak)** - a geographic data sciences query posed as high-level segmented transformations.
+  
+An experimental dynamic work creation feature is also being tested. There's one demo showing its usage:
+  1. **[bfs2.cu](#improved-breadth-first-search)** - an improved breadth-first search where work for the next iteration is enqueued on successful return of an atomic operation.
 
 Five tutorials on kernel-level programming are also included:
   1. **[tut_01_transform.cu](#tutorial-1---parallel-transforms)** - launch a parallel for loop using lambda closure to capture kernel arguments.

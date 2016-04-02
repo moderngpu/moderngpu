@@ -13,7 +13,7 @@
 ---
 moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. 
 
-The notes below document the interface and describe the usage of the library's host-callable functions. In these operations the kernel launch is made moderngpu, although the caller has much flexibility in customizing the behavior of the function and tuning its performance. 
+The notes below document the interface and describe the usage of the library's host-callable functions. In these operations the kernel launch is made by moderngpu, although the caller has much flexibility in customizing the behavior of the function and tuning its performance. 
 
 The library also includes many CTA-level structures which the higher-order host-callable functions are built upon. Appealing to a smaller audience of developers and undergoing a higher rate of churn, these functions are mostly undocumented at this time, although experienced programmers should be able to understand the usage of these features upon inspection of the source. However, unlike with moderngpu 1.0, effective use of CTA-level structures is not critical to realizing most of the value of the library.
 

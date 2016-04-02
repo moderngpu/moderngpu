@@ -1,3 +1,6 @@
+// moderngpu copyright (c) 2016, Sean Baxter http://www.moderngpu.com
+#pragma once
+
 #include "search.hxx"
 #include "cta_load_balance.hxx"
 #include "kernel_scan.hxx"
@@ -82,6 +85,8 @@ public:
       typedef cta_load_balance_t<nt, vt> load_balance_t;
       typedef detail::cached_segment_load_t<0, nt, vt, tpl_t> cached_load_t;
 
+      static_assert(vt <= 16, "mgpu::workcreate_t vt must be <= 16.");
+
       __shared__ union {
         typename reduce_t::storage_t reduce;
         typename load_balance_t::storage_t lbs;
@@ -94,7 +99,7 @@ public:
         tid, cta, mp_data, shared.lbs);
 
       // Call the user-supplied functor f.
-      int segment_bits = 0;
+      short segment_bits = 0;
       int work_items = 0;
 
       // Load from the cached iterators. Use the placement range, not the 
@@ -115,7 +120,7 @@ public:
       }, tid, lbs.merge_range.a_count());
 
       // Store the worker bits for this thread.
-      bits_data[nt * cta + tid] = (short)segment_bits;
+      bits_data[nt * cta + tid] = segment_bits;
 
       // Scan the segment and work-item counts.
       int2 reduction = reduce_t().reduce(tid, 
@@ -126,7 +131,7 @@ public:
     cta_launch<launch_t>(upsweep_k, num_ctas, context);
 
     // Scan the partial reductions.
-    mem_t<int2> counts_host(1, this->context, memory_space_host);
+    mem_t<int2> counts_host(1, context, memory_space_host);
     scan_event(counts_data, num_ctas, counts_data, add_int2_t(),
       counts_host.data(), context, context.event());
     cudaEventSynchronize(context.event());  
@@ -250,6 +255,8 @@ public:
   }
 };
 
+// Use lbs_workcreate to construct an expt::workcreate_t instance. Then call
+// upsweep and downsweep, providing an appropriate lambda function.
 template<typename launch_arg_t = empty_t, typename segments_it>
 workcreate_t<launch_arg_t, segments_it>
 lbs_workcreate(int count, segments_it segments, int num_segments,

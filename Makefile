@@ -12,13 +12,6 @@ all: \
 	demos
 
 # kernel tests
-
-expt:
-	test_compact
-
-test_compact: tests/test_compact.cu src/moderngpu/*.hxx
-	nvcc $(ARCH) $(OPTIONS) -o $@ $<
-
 tests: \
 	test_reduce \
 	test_scan \
@@ -32,7 +25,8 @@ tests: \
 	test_intervalmove \
 	test_sortedsearch \
 	test_join \
-	test_segreduce
+	test_segreduce \
+	test_compact
 
 test_reduce: tests/test_reduce.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
@@ -71,6 +65,9 @@ test_join: tests/test_join.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
 
 test_segreduce: tests/test_segreduce.cu src/moderngpu/*.hxx
+	nvcc $(ARCH) $(OPTIONS) -o $@ $<
+
+test_compact: tests/test_compact.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
 
 # simple tutorials

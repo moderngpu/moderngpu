@@ -39,6 +39,7 @@ Users familiar with CUDA programming wishing to cut to the chase should start at
     1. [transform_segreduce](#transform_segreduce)
     1. [transform_lbs](#transform_lbs)
     1. [lbs_segreduce](#lbs_segreduce)
+    1. [lbs_workcreate](#lbs_workcreate)
   1. [Array functions](#array-functions)
     1. [reduce](#reduce)
     1. [scan](#scan)
@@ -58,6 +59,8 @@ Users familiar with CUDA programming wishing to cut to the chase should start at
   1. [Relational join](#relational-join)
   1. [Breadth-first search](#breadth-first-search)
   1. [Attu Station, AK](#attu-station-ak)
+1. [Examples of dynamic work creation](#examples-of-dynamic-work-creation)
+  1. [Improved breadth-first search](#improved-breadth-first-search)
 1. [Kernel programming](#kernel-programming)
   1. [Tutorial 1 - parallel transforms](#tutorial-1---parallel-transforms)
   1. [Tutorial 2 - cooperative thread arrays](#tutorial-2---cooperative-thread-arrays)
@@ -68,6 +71,11 @@ Users familiar with CUDA programming wishing to cut to the chase should start at
 
 ## Release notes
 ```
+2.02 2016 Apr 1 -
+  Added dynamic work-creation function lbs_workcreate.
+  Improved ease of calling cta_scan_t.
+  cta_reduce_t now uses shfl for all datatypes and operators on sm_30+.
+
 2.01 2016 Mar 31 -
   Refactored scan implementation and added scan_event.
 
@@ -314,6 +322,60 @@ void lbs_segreduce(func_t f, int count, segments_it segments,
   context_t& context);
 ```
 `lbs_segreduce` combines `transform_lbs` with segmented reduction. The caller's lambda is invoked with the segment ID and rank for each element, but the return values are folded into a single element per segment. `lbs_segreduce` is like a simultaneous mapper and reducer: each segment is expanded into an irregular number of work-items; a user-provided function is called on each work-item; then the results are reduced according to the segment geometry. This is the most sophisticated mechanism in moderngpu 2.0, and makes data science operations very easy to program.
+
+#### lbs_workcreate
+**`kernel_workcreate.hxx`**
+```cpp
+namespace expt {
+
+template<typename launch_arg_t = empty_t, typename segments_it>
+workcreate_t<launch_arg_t, segments_it>
+lbs_workcreate(int count, segments_it segments, int num_segments,
+  context_t& context) {
+  return workcreate_t<launch_arg_t, segments_it> {
+    count, segments, num_segments, context
+  };
+}
+
+template<typename launch_arg_t, typename segments_it>
+struct workcreate_t {
+  ...
+public:
+  struct count_t {
+    int count;
+    int num_segments;
+  };
+
+  // f(int index, int seg, int rank, tuple<...> desc) returns the number
+  // of work-items to create.
+  template<typename func_t, typename tpl_t>
+  count_t upsweep(func_t f, tpl_t caching_iterators);
+
+  // upsweep without caching iterators.
+  template<typename func_t>
+  count_t upsweep(func_t f);
+
+  // f(int dest_seg, int index, int source_seg, int rank, tuple<...> desc)
+  // returns the number of work-items to create.
+  template<typename func_t, typename tpl_t>
+  mem_t<int> downsweep(func_t f, tpl_t caching_iterators);
+
+  template<typename func_t>
+  mem_t<int> downsweep(func_t f);
+};
+
+} // namespace expt
+```
+`lbs_workcreate` returns the state for a two-pass load-balancing search work-creation process. This function is included in the `mgpu::expt` namespace to reflect its experimental status.
+
+`lbs_workcreate` is called similarly to `transform_lbs`. The work-item count and segments-descriptor array are passed as arguments, and have the same meaning as in `transform_lbs`. However these individual work-items now have the capability of _dynamic work creation_. This function returns a `workcreate_t` object, on which `upstream` and `downstream` calls are made by the client. `upsweep` returns a `count_t` structure with the number of total work-items and segments generated.
+
+1. `upsweep` is called for every work-item in the work load and returns the number of work-items to create. If the return count is greater than 0, one new _segment_ of work will is emitted. That segment will have _count_ number of ranks associated with it. This call can be non-deterministic. The [improved breadth-first search](#improved-breadth-first-search) demo uses the CUDA intrinsic `atomicCAS` to non-deterministically generate work for newly-visited vertices.
+2. `downsweep` once again returns the number of work-items to create (it must match what it returned in `upsweep`), however `downsweep` is only invoked on work-items that attempted to generate new work in `upstream`. During this second pass the callback lambda `f` is also provided with the index of the newly-created segment of work. The caller should stream to this index information for processing the work in this segment. The function returns the segments-descriptor array of the dynamically-created work.
+
+Because the implementation has no knowledge of the number of work-items opting for dynamic work creation it cannot size the segments-descriptor array; nor does it choose to store the work-creation requests for each work-item. It therefore makes two passes. The first pass requests the number of work-items created. This is scanned on a per-CTA basis, and passed to the second pass, which again requests the number of work-items created, adds that to the running total of work-items, and stores to the new segments-descriptor array.
+
+This pattern is constructed by fusing together the operations of load-balancing search, stream compaction, and scan to enable the user to dispatch work-items and dynamically create new ones.
 
 ### Array functions
 
@@ -1082,6 +1144,105 @@ By our measure [Attu Station, AK](https://en.wikipedia.org/wiki/Attu_Station,_Al
 
 This demo is a starting point for all sorts of geographic data sciences queries. Moving from census data to Twitter, Instagram or Facebook data, we can imagine huge volumes of geo-tagged data available for accelerated analytics. By using moderngpu's high-level transforms, the business intelligence is kept inside the user's reduction operators; the library solves the parallel decomposition challenges of the GPU.
 
+## Examples of dynamic work creation
+### Improved breadth-first search
+
+Features demonstrated:
+
+1. `lbs_workcreate`
+
+#### `bfs2.cu`
+
+```cpp
+struct workload_t {
+  int count;
+  int num_segments;
+  mem_t<int> segments;        // scanned sum of active vertex edge counts.
+  mem_t<int> edge_indices;    // indices into edges array.
+};
+
+// Label vertices that have -1 value to cur_value + 1 if they are adjacent to a 
+// vertex that is set tocur_value.
+// Returns the size of the front for this pass.
+template<typename vertices_it, typename edges_it>
+void bfs2(vertices_it vertices, int num_vertices, edges_it edges, 
+  int* values, int cur_value, workload_t& wl, context_t& context) {
+
+  // Create a dynamic work-creation engine.
+  auto engine = expt::lbs_workcreate(wl.count, wl.segments.data(), 
+    wl.num_segments, context);
+
+  // The upsweep attempts atomicCAS. If it succeeds, return the number of 
+  // edges for that vertex.
+  auto wl2_count = engine.upsweep(
+    [=]MGPU_DEVICE(int index, int seg, int rank, tuple<int> desc) {
+      int neighbor = edges[get<0>(desc) + rank];
+      int count = 0;
+      if(-1 == atomicCAS(values + neighbor, -1, cur_value + 1))
+        count = vertices[neighbor + 1] - vertices[neighbor];
+      return count;
+    }, make_tuple(wl.edge_indices.data())
+  );
+
+  // The downsweep streams out the new edge pointers.
+  mem_t<int> edge_indices(wl2_count.num_segments, context);
+  int* out_edge_indices_data = edge_indices.data();
+  mem_t<int> segments = engine.downsweep(
+    [=]MGPU_DEVICE(int dest_seg, int index, int seg, int rank, tuple<int> desc) {
+      // Return the same count as before and store output segment-specific
+      // data using dest_index.
+      int neighbor = edges[get<0>(desc) + rank];
+      int begin = vertices[neighbor];
+      int end = vertices[neighbor + 1];
+
+      out_edge_indices_data[dest_seg] = begin;
+      return end - begin;
+    }, make_tuple(wl.edge_indices.data())
+  );
+
+  // Update the workload.
+  wl.count = wl2_count.count;
+  wl.num_segments = wl2_count.num_segments;
+  wl.segments = std::move(segments);
+  wl.edge_indices = std::move(edge_indices);
+}
+```
+```
+Front for level 0 has 136 vertices and 19439 edges.
+Front for level 1 has 109 vertices and 5787 edges.
+Front for level 2 has 1002 vertices and 92743 edges.
+Front for level 3 has 5001 vertices and 543328 edges.
+Front for level 4 has 28936 vertices and 4310689 edges.
+Front for level 5 has 123198 vertices and 14915384 edges.
+Front for level 6 has 159570 vertices and 9606212 edges.
+Front for level 7 has 77191 vertices and 2005590 edges.
+Front for level 8 has 26536 vertices and 408041 edges.
+Front for level 9 has 8406 vertices and 125195 edges.
+Front for level 10 has 2507 vertices and 25576 edges.
+Front for level 11 has 849 vertices and 7617 edges.
+Front for level 12 has 426 vertices and 5256 edges.
+Front for level 13 has 140 vertices and 1897 edges.
+Front for level 14 has 55 vertices and 437 edges.
+Front for level 15 has 7 vertices and 19 edges.
+Front for level 16 has 7 vertices and 18 edges.
+Front for level 17 has 4 vertices and 15 edges.
+Front for level 18 has 4 vertices and 12 edges.
+Front for level 19 has 1 vertices and 5 edges.
+Front for level 20 has 3 vertices and 10 edges.
+Front for level 21 has 2 vertices and 6 edges.
+Front for level 22 has 3 vertices and 11 edges.
+Front for level 23 has 6 vertices and 15 edges.
+Front for level 24 has 1 vertices and 1 edges.
+Front for level 25 has 0 vertices and 0 edges.
+```
+`bfs2.cu` is an improved breadth-first search. Like the [naive version](#breadth-first-search), each segment of work represents one vertex on the current level; each work-item represents a neighbor connected to the active-level vertex by an out-going edge. 
+
+The naive version checked each vertex on each iteration to see if it was on the active front, and if it was, emitted its number of out-going edges at work-items. All of these counts were then scanned.
+
+This improved version uses dynamic work creation to emit a request for new work (on the next round) when the CUDA intrinsic `atomicCAS` successfully sets the state of a vertex from unvisited to visited. If only 50 vertices are set to the visited state in a round, only 50 segments of work will be created, and no operations with costs that scale with the total number of vertices will be executed. 
+
+Note that the `atomicCAS` call is only made during the `upsweep` phase. The actual count of work-items to emit is implicit in the number of out-going edges from that vertex; the `atomicCAS` really only determines if all those out-going edges materialize to work-items or not.
+
 ## Kernel programming
 ### Tutorial 1 - parallel transforms
 **`tut_01_transform.cu`**
@@ -1403,13 +1564,3 @@ ptxas info    : Used 8 registers, 64 bytes smem, 336 bytes cmem[0]
   This is the ptx verbose output for the intra-CTA reducer in the tutorial `tut_02_cta_launch.cu`. It only uses 8 registers and 64 bytes of shared memory. Occupancy is limited by max threads per SM (2048 on recent architectures), which means the user should increase grain size `vt` to do more work per thread. 
 
   If the PTX assembler's output lists any byte's spilled, it is likely that the kernel is attempting to dynamically index an array that was intended to sit in register. Only random-access memories like shared, local and device memory support random access. Registers must be accessed by name, so array accesses must be made with static indices, either hard-coded or produced from the indices of compile-time unrolled loops. CUDA has its own mechanism `#pragma unroll` for unrolling loops. Unfortunately this mechanism is just a hint, and the directive can be applied to many kinds of loops that do not unroll. Use moderngpu's `iterate<>` template to guarantee loop unrolling.
-
-* Be careful with `__host__ __device__`-tagged functions.
-
-  The CUDA compiler sometimes prohibits `__host__ __device__`-tagged code from calling `__device__`-tagged or `__host__`-tagged functions. However this restriction does not square with much of moderngpu's usage. We pass lambdas defined inside kernels (which are implicitly `__device__`-tagged) to the template loop-unrolling function `iterate<>`, which is `__host__ __device__`-tagged for greater generality. This compiles except when the enclosing scope of the `iterate<>` call is a non-template function. This is a dark area of the CUDA language where the forward-looking features have raced ahead of established features like tagging. If you are using moderngpu features and receive errors like 
-  ```
-  error: calling a __device__ function("operator()") from a __host__ __device__ function("eval") is not allowed
-          detected during:
-            instantiation of "void mgpu::iterate_t<i, count, valid>::eval(func_t) [with i=2, count=3, valid=true, func_t=lambda [](int)->void]"
-  ```
-  try making the enclosing scope a template function. There's no shame in tricking the compiler into doing what you want.

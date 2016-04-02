@@ -1,4 +1,6 @@
 // moderngpu copyright (c) 2016, Sean Baxter http://www.moderngpu.com
+#pragma once
+
 #include "cta_reduce.hxx"
 #include "cta_scan.hxx"
 #include "memory.hxx"
@@ -34,7 +36,7 @@ void scan_event(input_it input, int count, output_it output, op_t op,
     auto upsweep_k = [=] MGPU_DEVICE(int tid, int cta) {
       typedef typename launch_t::sm_ptx params_t;
       enum { nt = params_t::nt, vt = params_t::vt, nv = nt * vt };
-      typedef cta_reduce_t<nt, type_t, op_t> reduce_t;
+      typedef cta_reduce_t<nt, type_t> reduce_t;
 
       __shared__ union {
         typename reduce_t::storage_t reduce;
@@ -67,6 +69,13 @@ void scan_event(input_it input, int count, output_it output, op_t op,
     scan_event<scan_type_exc>(partials_data, num_ctas, partials_data,
       op, reduction, context, event);
 
+    // Record the event. This lets the caller wait on just the reduction 
+    // part of the operation. It's useful when writing the reduction to
+    // host-side paged-locked memory; the caller can read out the value more
+    // quickly to allocate memory and launch the next kernel.
+    if(event)
+      cudaEventRecord(event, context.stream());
+
     ////////////////////////////////////////////////////////////////////////////
     // Downsweep phase. Perform an intra-tile scan and add the scan of the 
     // partials as carry-in.
@@ -74,7 +83,7 @@ void scan_event(input_it input, int count, output_it output, op_t op,
     auto downsweep_k = [=] MGPU_DEVICE(int tid, int cta) {
       typedef typename launch_t::sm_ptx params_t;
       enum { nt = params_t::nt, vt = params_t::vt, nv = nt * vt };
-      typedef cta_scan_t<nt, type_t, op_t> scan_t;
+      typedef cta_scan_t<nt, type_t> scan_t;
 
       __shared__ union {
         typename scan_t::storage_t scan;
@@ -106,7 +115,7 @@ void scan_event(input_it input, int count, output_it output, op_t op,
     auto spine_k = [=] MGPU_DEVICE(int tid, int cta) {
      
       enum { nt = spine_params_t::nt, vt = spine_params_t::vt, nv = nt * vt };
-      typedef cta_scan_t<nt, type_t, op_t> scan_t;
+      typedef cta_scan_t<nt, type_t> scan_t;
 
       __shared__ union {
         typename scan_t::storage_t scan;

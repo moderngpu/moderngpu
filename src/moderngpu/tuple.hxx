@@ -162,6 +162,63 @@ struct tuple_iterator_value_t<tuple<> > {
   typedef tuple<> type_t;
 };
 
+namespace detail {
+
+template<int i, typename tpl_t, int size = tuple_size<tpl_t>::value>
+struct load_tuple_t {
+  typedef typename tuple_iterator_value_t<tpl_t>::type_t value_t;
+  MGPU_HOST_DEVICE static void load(tpl_t it, int index, value_t& x) {
+    get<i>(x) = get<i>(it)[index];
+    load_tuple_t<i + 1, tpl_t, size>::load(it, index, x);
+  }
+};
+template<typename tpl_t, int size>
+struct load_tuple_t<size, tpl_t, size> {
+  typedef typename tuple_iterator_value_t<tpl_t>::type_t value_t;
+  MGPU_HOST_DEVICE static void load(tpl_t it, int index, value_t& x) { }
+};
+
+} // namespace detail
+
+template<typename tpl_t>
+MGPU_HOST_DEVICE typename tuple_iterator_value_t<tpl_t>::type_t
+load_tuple(tpl_t it, int index) {
+  typedef typename tuple_iterator_value_t<tpl_t>::type_t value_t;
+  value_t x = value_t();
+  detail::load_tuple_t<0, tpl_t>::load(it, index, x);
+  return x;
+}
+
+namespace detail {
+
+template<int i, typename tpl_t, template<class> class op_t, 
+  int size = tuple_size<tpl_t>::value>
+struct tuple_operator_t {
+  MGPU_HOST_DEVICE static void apply(tpl_t& a, tpl_t b) {
+    op_t<typename tuple_element<i, tpl_t>::type> op;
+    get<i>(a) = op(get<i>(a), get<i>(b));
+    tuple_operator_t<i + 1, tpl_t, op_t, size>::apply(a, b);
+  }
+};
+template<typename tpl_t, template<class> class op_t, int size>
+struct tuple_operator_t<size, tpl_t, op_t, size> {
+  MGPU_HOST_DEVICE static void apply(tpl_t& a, tpl_t b) { }
+};
+
+} // namespace detail
+
+template<template<class> class op_t, typename tpl_t>
+MGPU_HOST_DEVICE tpl_t tuple_reduce(tpl_t a, tpl_t b) {
+  detail::tuple_operator_t<0, tpl_t, op_t>::apply(a, b);
+  return a;
+}
+
+template<typename... args_t>
+MGPU_HOST_DEVICE tuple<args_t...> 
+operator+(tuple<args_t...> a, tuple<args_t...> b) {
+  return tuple_reduce<plus_t>(a, b);
+}
+
 // tuple_union_size_t.
 // returns the max of the sizeof each element in the tuple.
 template<typename... args_t>

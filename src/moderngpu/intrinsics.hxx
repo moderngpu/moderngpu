@@ -174,7 +174,7 @@ template<typename type_t, typename op_t>
 MGPU_DEVICE type_t shfl_down_op(type_t x, int offset, op_t op, 
   int width = warp_size) {
 
-  type_t y = shfl_up(x, offset, width);
+  type_t y = shfl_down(x, offset, width);
   int lane = (width - 1) & threadIdx.x;
   if(lane < width - offset) x = op(x, y);
   return x;

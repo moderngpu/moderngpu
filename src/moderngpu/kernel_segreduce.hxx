@@ -66,7 +66,7 @@ struct cta_segreduce_t {
 
     // Compute the carry-in for each thread.
     segscan_result_t<type_t> result = segscan_t().segscan(tid, has_head_flag,
-      has_carry_out, x[vt - 1], init, op, storage.segscan);
+      has_carry_out, x[vt - 1], storage.segscan, init, op);
 
     // Add the carry-in back into each value and recompute the reductions.
     type_t* x_shared = storage.values - placement.range.b_begin;
@@ -153,7 +153,7 @@ void segreduce_fixup(output_it output, const type_t* values,
     shared.head_flags[tid] = has_head_flag;
 
     segscan_result_t<type_t> result = segscan_t().segscan(tid, has_head_flag,
-      has_carry_out, value, init, op, shared.segscan);
+      has_carry_out, value, shared.segscan, init, op);
 
     bool carry_out_written = false;
     if(-1 != seg1 && (has_end_flag || nt - 1 == tid)) {

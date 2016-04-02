@@ -138,6 +138,7 @@ struct ternary_typedef_t<false, type_a, type_b> {
 
 template<int i, int count, bool valid = (i < count)>
 struct iterate_t {
+  #pragma nv_exec_check_disable
   template<typename func_t>
   MGPU_HOST_DEVICE static void eval(func_t f) {
     f(i);
@@ -149,7 +150,6 @@ struct iterate_t<i, count, false> {
   template<typename func_t>
   MGPU_HOST_DEVICE static void eval(func_t f) { }
 };
-
 template<int begin, int end, typename func_t>
 MGPU_HOST_DEVICE void iterate(func_t f) {
   iterate_t<begin, end>::eval(f);
@@ -172,14 +172,15 @@ MGPU_HOST_DEVICE void fill(type_t(&x)[count], type_t val) {
 }
 
 // Invoke unconditionally.
+#pragma nv_exec_check_disable
 template<int nt, int vt, typename func_t>
-MGPU_HOST_DEVICE void strided_iterate(func_t f, int tid) {
+MGPU_DEVICE void strided_iterate(func_t f, int tid) {
   iterate<vt>([=](int i) { f(i, nt * i + tid); });
 }
 
 // Check range.
 template<int nt, int vt, int vt0 = vt, typename func_t>
-MGPU_HOST_DEVICE void strided_iterate(func_t f, int tid, int count) {
+MGPU_DEVICE void strided_iterate(func_t f, int tid, int count) {
   // Unroll the first vt0 elements of each thread.
   if(count >= nt * vt0) {
     strided_iterate<nt, vt0>(f, tid);    // No checking
@@ -195,9 +196,8 @@ MGPU_HOST_DEVICE void strided_iterate(func_t f, int tid, int count) {
     if(j < count) f(i, j);
   });
 }
-
 template<int vt, typename func_t>
-MGPU_HOST_DEVICE void thread_iterate(func_t f, int tid) {
+MGPU_DEVICE void thread_iterate(func_t f, int tid) {
   iterate<vt>([=](int i) { f(i, vt * tid + i); });
 }
 

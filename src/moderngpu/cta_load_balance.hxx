@@ -64,6 +64,46 @@ MGPU_DEVICE lbs_placement_t cta_load_balance_place(int tid,
   };
 }
 
+struct lbs_fill_t {
+  merge_range_t range;
+  int b_offset;
+};
+
+template<int nt, int vt, typename segments_it, typename partition_it>
+MGPU_DEVICE lbs_fill_t cta_load_balance_fill(int count, 
+  segments_it segments, int num_segments, int tid, int cta, 
+  partition_it partitions, int* shared) {
+ 
+  merge_range_t range = compute_merge_range(count, num_segments, cta, 
+    nt * vt, partitions[cta], partitions[cta + 1]);
+
+  int* a_shared = shared - range.a_begin;
+  int* b_shared = shared + range.a_count();
+
+  lbs_placement_t placement = cta_load_balance_place<nt, vt>(tid, range, 
+    count, segments, num_segments, b_shared);
+
+  // Adjust the b pointer by the loaded b_begin. This lets us dereference it
+  // directly with the segment index.
+  b_shared -= placement.range.b_begin;
+
+  // Fill shared memory with the segment IDs of the in-range values.
+  int cur_item = placement.a_index;
+  int cur_segment = placement.b_index;
+
+  iterate<vt>([&](int i) {
+    bool p = cur_item < b_shared[cur_segment + 1];
+    if(p) a_shared[cur_item++] = cur_segment;
+    else ++cur_segment;
+  });
+  __syncthreads();
+
+  return lbs_fill_t {
+    range,
+    range.a_count() - placement.range.b_begin
+  };
+}
+
 template<int nt, int vt>
 struct cta_load_balance_t {
   enum { nv = nt * vt };
@@ -89,11 +129,8 @@ struct cta_load_balance_t {
     int num_segments, int tid, int cta, partition_it partitions, 
     storage_t& storage) const {
 
-    int mp0 = partitions[cta];
-    int mp1 = partitions[cta + 1];
-
     merge_range_t range = compute_merge_range(count, num_segments, cta, 
-      nv, mp0, mp1);
+      nv, partitions[cta], partitions[cta + 1]);
 
     int* a_shared = storage.indices - range.a_begin;
     int* b_shared = storage.indices + range.a_count();
@@ -186,7 +223,6 @@ struct cached_segment_load_t {
       segments, storage, iterators, values);
   }
 };
-
 template<int nt, int vt, typename tpl_t, int size>
 struct cached_segment_load_t<size, nt, vt, tpl_t, size> {
   struct storage_t { };
@@ -195,6 +231,7 @@ struct cached_segment_load_t<size, nt, vt, tpl_t, size> {
     array_t<int, vt> segments, dummy_t& storage, tpl_t iterators, 
     array_t<value_t, vt>& values) { }
 };
+
 
 } // namespace detail 
 

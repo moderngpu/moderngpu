@@ -38,6 +38,7 @@ struct context_t {
   // cudaStreamSynchronize or cudaDeviceSynchronize for stream 0.
   virtual void synchronize() = 0;
 
+  virtual cudaEvent_t event() = 0;
   virtual void timer_begin() = 0;
   virtual double timer_end() = 0;
 };
@@ -52,6 +53,7 @@ protected:
   cudaStream_t _stream;
 
   cudaEvent_t _timer[2];
+  cudaEvent_t _event;
 
 public:
   standard_context_t() : context_t(), _stream(0) {
@@ -61,6 +63,12 @@ public:
     
     cudaEventCreate(&_timer[0]);
     cudaEventCreate(&_timer[1]);
+    cudaEventCreate(&_event);
+  }
+  ~standard_context_t() {
+    cudaEventDestroy(_timer[0]);
+    cudaEventDestroy(_timer[1]);
+    cudaEventDestroy(_event);
   }
 
   virtual int ptx_version() const { return _ptx_version; }
@@ -94,6 +102,9 @@ public:
     if(cudaSuccess != result) throw cuda_exception_t { result };
   }
 
+  virtual cudaEvent_t event() {
+    return _event;
+  }
   virtual void timer_begin() {
     cudaEventRecord(_timer[0], _stream);
   }

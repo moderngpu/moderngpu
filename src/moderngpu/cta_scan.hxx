@@ -24,7 +24,7 @@ struct scan_result_t<type_t, vt, true> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-template<int nt, typename type_t, typename op_t = plus_t<type_t> >
+template<int nt, typename type_t>
 struct cta_scan_t {
   enum { num_warps = nt / warp_size, capacity = nt + num_warps };
   union storage_t {
@@ -37,6 +37,7 @@ struct cta_scan_t {
   //////////////////////////////////////////////////////////////////////////////
   // Standard CTA scan code that does not use shfl intrinsics. 
 
+  template<typename op_t = plus_t<type_t> >
   MGPU_DEVICE scan_result_t<type_t> 
   scan(int tid, type_t x, storage_t& storage, int count = nt, op_t op = op_t(), 
     type_t init = type_t(), scan_type_t type = scan_type_exc) const {
@@ -72,6 +73,7 @@ struct cta_scan_t {
   // Shfl is used for all data types, not just 4-byte built-in types, however
   // those have accelerated plus, maximum and minimum operators.
 
+  template<typename op_t = plus_t<type_t> >
   MGPU_DEVICE scan_result_t<type_t>
   scan(int tid, type_t x, storage_t& storage, int count = nt, op_t op = op_t(), 
     type_t init = type_t(), scan_type_t type = scan_type_exc) const {
@@ -126,11 +128,12 @@ struct cta_scan_t {
   // CTA vectorized scan. Accepts multiple values per thread and adds in 
   // optional global carry-in.
 
-  template<int vt>
+  template<int vt, typename op_t = plus_t<type_t> >
   MGPU_DEVICE scan_result_t<type_t, vt>
-  scan(int tid, array_t<type_t, vt> x, storage_t& storage, type_t carry_in,
-    bool use_carry_in, int count = nt, op_t op = op_t(),
-    type_t init = type_t(), scan_type_t type = scan_type_exc) const {
+  scan(int tid, array_t<type_t, vt> x, storage_t& storage, 
+    type_t carry_in = type_t(), bool use_carry_in = false, 
+    int count = nt, op_t op = op_t(), type_t init = type_t(),
+    scan_type_t type = scan_type_exc) const {
 
     // Start with an inclusive scan of the in-range elements.
     if(count >= nt * vt) {
@@ -169,6 +172,58 @@ struct cta_scan_t {
     });
 
     return scan_result_t<type_t, vt> { y, result.reduction };
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Overload for scan of bools.
+
+template<int nt>
+struct cta_scan_t<nt, bool> {
+  enum { num_warps = nt / warp_size };
+  struct storage_t {
+    int warps[num_warps];
+  };
+
+  MGPU_DEVICE scan_result_t<int> scan(int tid, bool x, 
+    storage_t& storage) const {
+
+    // Store the bit totals for each warp.
+    int lane = (warp_size - 1) & tid;
+    int warp = tid / warp_size;
+
+    int bits = __ballot(x);
+    storage.warps[warp] = popc(bits);
+    __syncthreads();
+
+#if __CUDA_ARCH__ < 300
+    if(0 == tid) {
+      // Inclusive scan of partial reductions..
+      int scan = 0;
+      iterate<num_warps>([&](int i) {
+        storage.warps[i] = scan += storage.warps[i];
+      });
+    }
+    __syncthreads();
+#else
+    if(tid < num_warps) {
+      // Cooperative warp scan of partial reductions.
+      int scan = storage.warps[tid];
+      iterate<s_log2(num_warps)>([&](int i) {
+        scan = shfl_up_opp(scan, 1<< i, plus_t<int>(), num_warps);
+      });
+      storage.warps[tid] = scan;
+    }
+    __syncthreads();
+
+#endif    
+
+    int scan = ((warp > 0) ? storage.warps[warp - 1] : 0) +
+      popc(bfe(bits, 0, lane));
+    int reduction = storage.warps[num_warps - 1];
+    __syncthreads();
+
+    return scan_result_t<int> { scan, reduction };
   }
 };
 

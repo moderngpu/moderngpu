@@ -8,16 +8,90 @@ BEGIN_MGPU_NAMESPACE
 // cta_reduce_t returns the reduction of all inputs for thread 0, and returns
 // type_t() for all other threads. This behavior saves a broadcast.
 
-template<int nt, typename type_t, typename op_t = plus_t<type_t>,
-  bool optimized = 
-    std::is_same<plus_t<int>, op_t>::value || 
-    std::is_same<plus_t<float>, op_t>::value
->
+template<int nt, typename type_t>
 struct cta_reduce_t {
+
+#if __CUDA_ARCH__ >= 300
+
+  enum { 
+    num_sections = warp_size, 
+    section_size = nt / num_sections
+  };
+  struct storage_t { 
+    type_t data[num_sections];
+    type_t reduction;
+  };
+
+  template<typename op_t = plus_t<type_t> >
+  MGPU_DEVICE type_t reduce(int tid, type_t x, storage_t& storage, 
+    int count = nt, op_t op = op_t()) const {
+
+    int lane = (section_size - 1) & tid;
+    int section = tid / section_size;
+
+    if(count >= nt) {
+      // In the first phase, threads cooperatively reduce within their own
+      // section.
+      
+      iterate<s_log2(section_size)>([&](int pass) {
+        x = shfl_down_op(x, 1<< pass, op, section_size);
+      });
+
+      // The last thread in each section stores the local reduction to shared 
+      // memory.
+      if(!lane)
+        storage.data[section] = x;
+      __syncthreads();
+
+      // Reduce the totals of each input section.
+      if(tid < num_sections) {
+        x = storage.data[tid];
+        iterate<s_log2(num_sections)>([&](int pass) {
+          x = shfl_down_op(x, 1<< pass, op, num_sections);
+        });
+        if(!tid) storage.reduction = x;
+      }
+      __syncthreads();
+      
+    } else {
+
+      iterate<s_log2(section_size)>([&](int pass) {
+        int offset = 1<< pass;
+        type_t y = shfl_down(x, offset, section_size);
+        if(tid < count - offset && lane < section_size - offset) 
+          x = op(x, y);
+      });
+      if(!lane)
+        storage.data[section] = x;
+      __syncthreads();
+
+      // Reduce the totals of each input section.
+      if(tid < num_sections) {
+        int spine_pop = div_up(count, section_size);
+        x = storage.data[tid];
+        iterate<s_log2(num_sections)>([&](int pass) {
+          int offset = 1<< pass;
+          type_t y = shfl_down(x, offset, num_sections);
+          if(tid < spine_pop - offset) x = op(x, y);
+        });
+        if(!tid) storage.reduction = x;
+      }
+      __syncthreads();
+    }
+
+    type_t reduction = storage.reduction;
+    __syncthreads();
+
+    return reduction;
+  }
+
+#else
+
   struct storage_t {
     type_t data[nt];
   };
-	
+  
+  template<typename op_t = plus_t<type_t> >
   MGPU_DEVICE type_t reduce(int tid, type_t x, storage_t& storage, 
     int count = nt, op_t op = op_t()) const {
 
@@ -34,67 +108,13 @@ struct cta_reduce_t {
       }
       __syncthreads();
     });
-    return tid ? type_t() : x;
+    type_t reduction = storage.data[0];
+    __syncthreads();
+
+    return reduction;
   }
 
-  MGPU_DEVICE type_t reduce(int tid, type_t x, storage_t& storage,
-    op_t op = op_t()) const {
-    return reduce(tid, x, nt, storage, op, false);
-  }
+#endif  
 };
-
-#if __CUDA_ARCH__ >= 300
-
-template<int nt, typename type_t, typename op_t>
-struct cta_reduce_t<nt, type_t, op_t, true> {
-  enum { 
-    num_sections = warp_size, 
-    section_size = nt / num_sections
-  };
-  struct storage_t { 
-    type_t data[num_sections];
-  };
-
-  MGPU_DEVICE type_t reduce(int tid, type_t x, storage_t& storage, 
-    int count = nt, op_t op = op_t()) const {
-
-    if(tid >= count) x = 0;
-
-    if(nt > warp_size) {
-      int lane = (section_size - 1) & tid;
-      int section = tid / section_size;
-
-      // In the first phase, threads cooperatively reduce within their own
-      // section.
-      iterate<s_log2(section_size)>([&](int pass) {
-        x = shfl_down_op(x, 1<< pass, plus_t<type_t>(), section_size);
-      });
-
-      // The last thread in each section stores the local reduction to shared 
-      // memory.
-      if(!lane)
-        storage.data[section] = x;
-      __syncthreads();
-
-      // Reduce the totals of each input section.
-      if(tid < num_sections) {
-        x = storage.data[tid];
-        iterate<s_log2(num_sections)>([&](int pass) {
-          x = shfl_down_op(x, 1<< pass, plus_t<type_t>(), num_sections);
-        });
-      }
-      __syncthreads();
-
-    } else {
-      iterate<s_log2(nt)>([&](int pass) {
-        x = shfl_down_op(x, 1<< pass, plus_t<type_t>(), nt);
-      });
-    }
-
-    return tid ? type_t() : x;
-  }
-};
-
-#endif
 
 END_MGPU_NAMESPACE

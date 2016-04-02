@@ -2,6 +2,7 @@
 #pragma once
 
 #include "meta.hxx"
+#include "operators.hxx"
 
 BEGIN_MGPU_NAMESPACE
 
@@ -29,8 +30,8 @@ struct array_t<type_t, 0> {
 };
 
 // Reduce on components of array_t.
-template<typename type_t, int size, typename op_t>
-MGPU_HOST_DEVICE type_t reduce(array_t<type_t, size> x, op_t op) {
+template<typename type_t, int size, typename op_t = plus_t<type_t> >
+MGPU_HOST_DEVICE type_t reduce(array_t<type_t, size> x, op_t op = op_t()) {
   type_t a;
   iterate<size>([&](int i) {
     a = i ? op(a, x[i]) : x[i];
@@ -46,6 +47,18 @@ MGPU_HOST_DEVICE array_t<type_t, size> combine(array_t<type_t, size> x,
   array_t<type_t, size> z;
   iterate<size>([&](int i) { z[i] = op(x[i], y[i]); });
   return z;
+}
+
+template<typename type_t, int size>
+MGPU_HOST_DEVICE array_t<type_t, size> operator+(
+  array_t<type_t, size> a, array_t<type_t, size> b) {
+  return combine(a, b, plus_t<type_t>());
+}
+
+template<typename type_t, int size>
+MGPU_HOST_DEVICE array_t<type_t, size> operator-(
+  array_t<type_t, size> a, array_t<type_t, size> b) {
+  return combine(a, b, minus_t<type_t>());
 }
 
 

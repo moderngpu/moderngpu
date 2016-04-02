@@ -1,5 +1,6 @@
 #include <moderngpu/kernel_scan.hxx>
 #include <moderngpu/kernel_load_balance.hxx>
+#include "graph.hxx"
 
 // We use the coPapersCiteseer graph from the University of Florida Sparse
 // Matrix Collection.
@@ -13,7 +14,7 @@ using namespace mgpu;
 // vertex that is set tocur_value.
 // Returns the size of the front for this pass.
 template<typename vertices_it, typename edges_it>
-int bfs(vertices_it vertices, int num_vertices, edges_it edges, int num_edges,
+int bfs(vertices_it vertices, int num_vertices, edges_it edges,
   int* values, int cur_value, context_t& context) {
 
   // Allocate space for load-balancing search segments and total work-items.
@@ -30,7 +31,7 @@ int bfs(vertices_it vertices, int num_vertices, edges_it edges, int num_edges,
     int count = 0;
     if(values[vertex] == cur_value) {
       int begin = vertices[vertex];
-      int end = (vertex + 1 < num_vertices) ? vertices[vertex + 1] : num_edges;
+      int end = vertices[vertex + 1];
       count = end - begin;
     }
     return count;
@@ -56,60 +57,14 @@ int bfs(vertices_it vertices, int num_vertices, edges_it edges, int num_edges,
   return front;
 }
 
-bool load_graph(const char* name, std::vector<int>& vertices, 
-  std::vector<int>& edges) {
-
-  FILE* f = fopen(name, "r");
-  if(!f) return false;
-
-  char line[100];
-  while(fgets(line, 100, f) && '%' == line[0]);
-
-  int height, width, num_edges;
-  if(3 != sscanf(line, "%d %d %d", &height, &width, &num_edges)) {
-    printf("Error reading %s\n", name);
-    exit(0);
-  }
-  int num_vertices = height;
-
-  std::vector<std::pair<int, int> > pairs(2 * num_edges);
-  for(int edge = 0; edge < num_edges; ++edge) {
-    std::pair<int, int> pair;
-    if(!fgets(line, 100, f) || 
-      2 != sscanf(line, "%d %d", &pair.first, &pair.second)) {
-      printf("Error reading %s\n", name);
-      exit(0);
-    }
-    pairs[edge] = pair;
-    std::swap(pair.first, pair.second);
-    pairs[edge + num_edges] = pair;
-  }
-  num_edges *= 2;
-
-  // Sort the pairs.
-  std::sort(pairs.begin(), pairs.end());
-
-  // Insert the edges.
-  vertices.resize(num_vertices, num_edges);
-  edges.resize(num_edges);
-  int cur_vertex = -1;
-  for(int edge = 0; edge < num_edges; ++edge) {
-    while(cur_vertex < pairs[edge].first) vertices[++cur_vertex] = edge;
-    edges[edge] = pairs[edge].second;
-  }
-
-  return true;
-}
-
 int main(int argc, char** argv) {
-  std::vector<int> vertices_host, edges_host;
-  bool success = load_graph(filename, vertices_host, edges_host);
+  std::unique_ptr<graph_t> graph = load_graph(filename);
 
   standard_context_t context;
-  mem_t<int> vertices = to_mem(vertices_host, context);
-  mem_t<int> edges = to_mem(edges_host, context);
-  int num_vertices = (int)vertices.size();
-  int num_edges = (int)edges.size();
+  mem_t<int> vertices = to_mem(graph->edge_indices, context);
+  mem_t<int> edges = to_mem(graph->edges, context);
+  int num_vertices = graph->num_vertices;
+  int num_edges = graph->num_edges;
 
   // Allocate space for the vertex levels.
   // Set the source to vertex 23.
@@ -119,7 +74,7 @@ int main(int argc, char** argv) {
   mem_t<int> values = to_mem(values_host, context);
 
   for(int cur_level = 0; ; ++cur_level) {
-    int front = bfs(vertices.data(), num_vertices, edges.data(), num_edges,
+    int front = bfs(vertices.data(), num_vertices, edges.data(),
       values.data(), cur_level, context);
     printf("Front for level %d has %d edges.\n", cur_level, front);
     if(!front) break;

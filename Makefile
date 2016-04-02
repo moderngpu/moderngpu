@@ -1,7 +1,7 @@
 
- ARCH=-gencode arch=compute_20,code=sm_20 \
-	 	  -gencode arch=compute_35,code=sm_35 \
-	  	-gencode arch=compute_52,code=sm_52
+ARCH=-gencode arch=compute_20,code=sm_20 \
+ 	  -gencode arch=compute_35,code=sm_35 \
+  	-gencode arch=compute_52,code=sm_52
 # ARCH=-gencode arch=compute_35,code=sm_35
 
 OPTIONS=-std=c++11 -O2 -g -Xcompiler="-Werror" -lineinfo  --expt-extended-lambda -use_fast_math -Xptxas="-v" -I src
@@ -12,6 +12,12 @@ all: \
 	demos
 
 # kernel tests
+
+expt:
+	test_compact
+
+test_compact: tests/test_compact.cu src/moderngpu/*.hxx
+	nvcc $(ARCH) $(OPTIONS) -o $@ $<
 
 tests: \
 	test_reduce \
@@ -93,13 +99,17 @@ tut_05_iterators: tutorial/tut_05_iterators.cu src/moderngpu/*.hxx
 
 demos: \
 	cities \
-	bfs
+	bfs \
+	bfs2
 
 cities: demo/cities.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
 
-bfs: demo/bfs.cu src/moderngpu/*.hxx
-	nvcc $(ARCH) $(OPTIONS) -o $@ $<
+bfs: demo/bfs.cu demo/graph.cxx src/moderngpu/*.hxx
+	nvcc $(ARCH) $(OPTIONS) -o $@ $< demo/graph.cxx
+
+bfs2: demo/bfs2.cu demo/graph.cxx src/moderngpu/*.hxx
+	nvcc $(ARCH) $(OPTIONS) -o $@ $< demo/graph.cxx
 
 clean:
 	rm test_reduce

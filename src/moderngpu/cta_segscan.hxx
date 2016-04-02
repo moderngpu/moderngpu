@@ -54,10 +54,10 @@ struct cta_segscan_t {
     return start;
   }
 
-  template<typename op_t>
+  template<typename op_t = plus_t<type_t> >
   MGPU_DEVICE segscan_result_t<type_t> segscan(int tid, bool has_head_flag,
-    bool has_carry_out, type_t x, type_t init, op_t op, 
-    storage_t& storage) const {
+    bool has_carry_out, type_t x, storage_t& storage, type_t init = type_t(),
+    op_t op = op_t()) const {
 
     if(!has_carry_out) x = init;
 

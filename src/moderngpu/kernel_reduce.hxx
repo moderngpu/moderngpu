@@ -26,7 +26,7 @@ void reduce(input_it input, int count, output_it reduction, op_t op,
   auto k = [=] MGPU_DEVICE(int tid, int cta) {
     typedef typename launch_t::sm_ptx params_t;
     enum { nt = params_t::nt, vt = params_t::vt, nv = nt * vt };
-    typedef cta_reduce_t<nt, type_t, op_t> reduce_t;
+    typedef cta_reduce_t<nt, type_t> reduce_t;
     __shared__ typename reduce_t::storage_t shared_reduce;
 
     // Load the data for the first tile for each cta.

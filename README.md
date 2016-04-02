@@ -1,10 +1,16 @@
 
 # moderngpu 2.0 
-
 **(c) 2016 [Sean Baxter](http://twitter.com/moderngpu)** 
 
 **You can drop me a line [here](mailto:moderngpu@gmail.com)**
 
+
+**Latest update**:
+```
+2.03 2016 Apr 2 -
+  Added transform_compact pattern and test_compact.cu.
+```
+---
 moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. 
 
 The notes below document the interface and describe the usage of the library's host-callable functions. In these operations the kernel launch is made moderngpu, although the caller has much flexibility in customizing the behavior of the function and tuning its performance. 

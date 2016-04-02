@@ -840,7 +840,7 @@ Features demonstrated:
 // vertex that is set tocur_value.
 // Returns the size of the front for this pass.
 template<typename vertices_it, typename edges_it>
-int bfs(vertices_it vertices, int num_vertices, edges_it edges, int num_edges,
+int bfs(vertices_it vertices, int num_vertices, edges_it edges,
   int* values, int cur_value, context_t& context) {
 
   // Allocate space for load-balancing search segments and total work-items.
@@ -857,7 +857,7 @@ int bfs(vertices_it vertices, int num_vertices, edges_it edges, int num_edges,
     int count = 0;
     if(values[vertex] == cur_value) {
       int begin = vertices[vertex];
-      int end = (vertex + 1 < num_vertices) ? vertices[vertex + 1] : num_edges;
+      int end = vertices[vertex + 1];
       count = end - begin;
     }
     return count;
@@ -882,6 +882,7 @@ int bfs(vertices_it vertices, int num_vertices, edges_it edges, int num_edges,
 
   return front;
 }
+
 ```
 ```
 Front for level 0 has 136 edges.

@@ -55,6 +55,7 @@ void launch_box_cta_k(func_t f) {
 }
 
 // Dummy kernel for retrieving PTX version.
+template<int dummy_arg>
 __global__ void dummy_k() { }
 
 template<int nt_, int vt_ = 1, int vt0_ = vt_, int occ_= 0>

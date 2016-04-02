@@ -7,8 +7,9 @@
 
 **Latest update**:
 ```
-2.03 2016 Apr 2 -
-  Added transform_compact pattern and test_compact.cu.
+2.04 2016 Apr 2 -
+  Fixed multiple definition of dummy_k kernel when including 
+    standard_context_t in multiple translation units.
 ```
 ---
 moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. 
@@ -81,6 +82,10 @@ Users familiar with CUDA programming wishing to cut to the chase should start at
 
 ## Release notes
 ```
+2.04 2016 Apr 2 -
+  Fixed multiple definition of dummy_k kernel when including 
+    standard_context_t in multiple translation units.
+
 2.03 2016 Apr 2 -
   Added transform_compact pattern and test_compact.cu.
 

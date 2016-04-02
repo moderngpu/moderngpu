@@ -56,9 +56,12 @@ protected:
   cudaEvent_t _event;
 
 public:
+  // Making this a template argument means we won't generate an instance
+  // of dummy_k for each translation unit. 
+  template<int dummy_arg = 0>
   standard_context_t() : context_t(), _stream(0) {
     cudaFuncAttributes attr;
-    cudaError_t error = cudaFuncGetAttributes(&attr, &dummy_k);
+    cudaError_t error = cudaFuncGetAttributes(&attr, &dummy_k<0>);
     _ptx_version = attr.binaryVersion;
     
     cudaEventCreate(&_timer[0]);

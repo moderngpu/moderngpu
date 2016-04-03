@@ -7,6 +7,8 @@
 
 **Latest update**:
 ```
+Added bfs3.cu demo showing bit-compressed breadth-first search.
+
 2.05 2016 Apr 3 -
   Restructured segmented sort and added segmented_sort_indices.
   Wrote more robust test_segsort.cu test.

@@ -64,7 +64,7 @@ Users familiar with CUDA programming wishing to cut to the chase should start at
     1. [bulk_insert](#bulk_insert)
     1. [bulk_remove](#bulk_remove)
     1. [mergesort](#mergesort)
-    1. [segsort](#segsort)
+    1. [segmented_sort](#segmented_sort)
     1. [load_balance_search](#load_balance_search)
     1. [interval_move](#interval_move)
     1. [inner_join](#inner_join)
@@ -632,7 +632,7 @@ void mergesort(key_t* keys_input, int count, comp_t comp,
 ```
 Sort keys or key-value pairs. Unlike most other functions in moderngpu, this takes no iterators and transforms arrays in place.
 
-#### segsort
+#### segmented_sort
 
 **`kernel_segsort.hxx`**
 ```cpp

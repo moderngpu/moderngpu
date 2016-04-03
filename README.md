@@ -1440,7 +1440,7 @@ int bfs3(vertices_it vertices, edges_it edges, int* visited_bits,
     [=]MGPU_DEVICE(int dest_seg, int index, int seg, int rank, 
       tuple<int> desc) {
       // Return the same count as before and store output segment-specific
-      // data using dest_index.
+      // data using dest_seg.
       int neighbor = edges[get<0>(desc) + rank];
       int begin = vertices[neighbor];
       int end = vertices[neighbor + 1];
@@ -1463,7 +1463,6 @@ int bfs3(vertices_it vertices, edges_it edges, int* visited_bits,
 
   return wl.num_segments;
 }
-
 ```
 The third demo version of breadth-first search uses the same work-creation mechanism of `bfs2.cu` but now utilizes the data streaming capability as well. The model for the second implementation was to store the level of each vertex (visited or not) in a contiguous integer array. On the work-creation _upsweep_ phase, an `atomicCAS` would attempt to store the next level in the search as the vertex's level. This would succeed only if the vertex hadn't already been visited. The downsweep phase would then request work for this newly visited vertex.
 

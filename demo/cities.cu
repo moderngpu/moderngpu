@@ -207,8 +207,7 @@ compute_distances(const int* cities_per_state, const float2* city_pos,
   // Allocate on best_t<> per result.
   std::unique_ptr<query_results<d> > results(new query_results<d>);
   results->distances = mem_t<best_t<d> >(num_cities, context);
-  results->indices = copy_to_mem(counting_iterator_t<int>(0), 
-    num_cities, context);
+  results->indices = mem_t<int>(num_cities, context);
 
   // 7. Call lbs_segreduce to fold all invocations of the 
   // Use fewer values per thread than the default lbs_segreduce tuning because
@@ -222,13 +221,13 @@ compute_distances(const int* cities_per_state, const float2* city_pos,
     make_tuple(city_to_city_map.data(), city_pos), results->distances.data(), 
     combine_scores_t(), init, context);
 
-  // 6: For each state, sort all cities by the distance of the (d-1`th) closest
+  // 8: For each state, sort all cities by the distance of the (d-1`th) closest
   // city.  
   auto compare = []MGPU_DEVICE(best_t<d> left, best_t<d> right) {
     // Compare the least significant scores in each term.
     return left.terms[d - 1].score < right.terms[d - 1].score;
   };
-  segmented_sort<
+  segmented_sort_indices<
     launch_params_t<128, 3> 
   >(results->distances.data(), results->indices.data(), num_cities, 
     state_segments.data(), num_states, compare, context);

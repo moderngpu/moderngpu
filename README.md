@@ -7,9 +7,11 @@
 
 **Latest update**:
 ```
-2.04 2016 Apr 2 -
-  Fixed multiple definition of dummy_k kernel when including 
-    standard_context_t in multiple translation units.
+2.05 2016 Apr 3 -
+  Restructured segmented sort and added segmented_sort_indices.
+  Wrote more robust test_segsort.cu test.
+  Modified cities demo to use segmented_sort_indices.
+  TODO: Segmented sort with bitfield for segmented headers.
 ```
 ---
 moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. 
@@ -82,6 +84,12 @@ Users familiar with CUDA programming wishing to cut to the chase should start at
 
 ## Release notes
 ```
+2.05 2016 Apr 3 -
+  Restructured segmented sort and added segmented_sort_indices.
+  Wrote more robust test_segsort.cu test.
+  Modified cities demo to use segmented_sort_indices.
+  TODO: Segmented sort with bitfield for segmented headers.
+
 2.04 2016 Apr 2 -
   Fixed multiple definition of dummy_k kernel when including 
     standard_context_t in multiple translation units.
@@ -629,13 +637,19 @@ template<typename launch_arg_t = empty_t, typename key_t, typename val_t,
 void segmented_sort(key_t* keys_input, val_t* vals_input, int count,
   seg_it segments, int num_segments, comp_t comp, context_t& context);
 
+// Key-value mergesort. Automatically generate indices to sort as values.
+template<typename launch_arg_t = empty_t, typename key_t, typename seg_it, 
+  typename comp_t>
+void segmented_sort_indices(key_t* keys, int* indices, int count, 
+  seg_it segments, int num_segments, comp_t comp, context_t& context);
+
 template<typename launch_arg_t = empty_t, typename key_t, typename seg_it, 
   typename comp_t>
 void segmented_sort(key_t* keys_input, int count, seg_it segments, 
   int num_segments, comp_t comp, context_t& context);
 ```
 
-Sort keys or key-value pairs in place. This function sorts elements within segments and denoted by the segments-descriptor array. 
+Sort keys or key-value pairs in place. This function sorts elements within segments and denoted by the segments-descriptor array. `segmented_sort_indices` ignores the initial contents of `indices` and on return stores there the gather indices of the keys.
 
 #### inner_join
 
@@ -1130,7 +1144,42 @@ struct combine_scores_t {
   }
 };
 ```
-Here we define the distance storage type `best_t<>`. If `count = 3`, it holds the indices of the three closest cities with their great-circle distances. The reduction operator chooses the three smallest distances from arguments `a` and `b`, each with three distances of their own. `combine_scores_t` is conscientiously designed to avoid dynamic indexing into any of the terms. We want to avoid spilling to high-latency local memory (dynamic indexing causes spilling into local memory), so we employ the compile-time loop-unwinding function `iterate<>`. We iteratively choose the smallest distance at the front of `a` or `b`, rotating forward the remaining distances of the respective argument. In theoretical terms this is an inefficient implementation, but rather than using memory operations it eats into register-register compute thoughput which the GPU has in abundance.
+Here we define the distance storage type `best_t<>`. If `count = 3`, it holds the indices of the three closest cities with their great-circle distances. The reduction operator chooses the three smallest distances from arguments `a` and `b`, each with three distances of their own. `combine_scores_t` is conscientiously designed to avoid dynamic indexing into any of the terms. We want to avoid spilling to high-latency local memory (dynamic indexing causes spilling into local memory), so we employ the compile-time loop-unwinding function `iterate<>`. We iteratively choose the smallest distance at the front of `a` or `b`, rotating forward the remaining distances of the respective argument. In theoretical terms this is an inefficient implementation, but rather than using memory operations it eats into register-register compute throughput which the GPU has in abundance.
+
+```cpp
+////////////////////////////////////////////////////////////////////////////////
+// Compute the great circle distance between two points.
+
+template<typename real_t>
+MGPU_HOST_DEVICE real_t deg_to_rad(real_t deg) {
+  return (real_t)(M_PI / 180) * deg;
+}
+
+// https://en.wikipedia.org/wiki/Haversine_formula#The_haversine_formula
+template<typename real_t>
+MGPU_HOST_DEVICE real_t hav(real_t theta) {
+  return sq(sin(theta / 2));
+}
+
+// https://en.wikipedia.org/wiki/Great-circle_distance#Computational_formulas
+template<typename real_t>
+MGPU_HOST_DEVICE real_t earth_distance(real_t lat_a, real_t lon_a, 
+  real_t lat_b, real_t lon_b) {
+
+  lat_a = deg_to_rad(lat_a);
+  lat_b = deg_to_rad(lat_b);
+  lon_a = deg_to_rad(lon_a);
+  lon_b = deg_to_rad(lon_b);
+
+  const real_t earth_radius = 3958.76;  // Approx earth radius in miles.
+  real_t arg = hav(lat_b - lat_a) + 
+    cos(lat_a) * cos(lat_b) * hav(lon_b - lon_a);
+  real_t angle = 2 * asin(sqrt(arg));
+
+  return angle * earth_radius;
+}
+```
+The score we use to rank city-city distances uses this great circle calculation. `earth_distance` is an ordinary math function tagged with `MGPU_HOST_DEVICE`, letting us call it from the `lbs_segreduce` device-tagged lambda. The power of C++11 and the design of moderngpu 2.0 let's us separate concerns: the numerics know nothing about the high-level transformer and the high-level transformer knows nothing about the numerics. It's the user's choice of lambda that brings them together into a single optimized kernel.
 
 ```cpp
 template<int d>
@@ -1200,8 +1249,7 @@ compute_distances(const int* cities_per_state, const float2* city_pos,
   // Allocate on best_t<> per result.
   std::unique_ptr<query_results<d> > results(new query_results<d>);
   results->distances = mem_t<best_t<d> >(num_cities, context);
-  results->indices = copy_to_mem(counting_iterator_t<int>(0), 
-    num_cities, context);
+  results->indices = mem_t<int>(num_cities, context);
 
   // 7. Call lbs_segreduce to fold all invocations of the 
   // Use fewer values per thread than the default lbs_segreduce tuning because
@@ -1215,13 +1263,13 @@ compute_distances(const int* cities_per_state, const float2* city_pos,
     make_tuple(city_to_city_map.data(), city_pos), results->distances.data(), 
     combine_scores_t(), init, context);
 
-  // 6: For each state, sort all cities by the distance of the (d-1`th) closest
+  // 8: For each state, sort all cities by the distance of the (d-1`th) closest
   // city.  
   auto compare = []MGPU_DEVICE(best_t<d> left, best_t<d> right) {
     // Compare the least significant scores in each term.
     return left.terms[d - 1].score < right.terms[d - 1].score;
   };
-  segmented_sort<
+  segmented_sort_indices<
     launch_params_t<128, 3> 
   >(results->distances.data(), results->indices.data(), num_cities, 
     state_segments.data(), num_states, compare, context);
@@ -1237,7 +1285,7 @@ The operative `lbs_segreduce` call requires only trivial storage space. Its usag
 
 `lbs_segreduce` is a different, more fundamentally powerful function than the `transform_segreduce` used in [sparse matrix * vector](sparse-matrix--vector). The segment ID and rank-within-segment index are delivered to the user-provided lambda. In this query, the segment is the city and the rank is the index of the city within the state to compute the distance with. The rank is added to the iterator-cached `city_to_city_map` term to produce a global city index. The positions of each city are loaded (one from a cached iterator), the great-circle distance is computed, and a `best_t<>` structure is returned for reduction.
 
-Finally, the moderngpu library function `segmented_sort` sorts each struct of distances and indices by ascending order within each state. The most-connected cities occur first, the most-remote cities last. The demo source writes all 29 thousand cities to a file and prints the most-remote cities to the console.
+Finally, the moderngpu library function `segmented_sort_indices` sorts each struct of distances and indices by ascending order within each state. The most-connected cities occur first, the most-remote cities last. The demo source writes all 29 thousand cities to a file and prints the most-remote cities to the console.
 
 By our measure [Attu Station, AK](https://en.wikipedia.org/wiki/Attu_Station,_Alaska) is the most remote city in the United States. It's 435 miles from the nearest census-designated place and 712 miles from the third-nearest place. At the western extent of the Aleutian islands, Attu Station is actually in the eastern hemisphere and much closer to Russia than to the continental United States.
 

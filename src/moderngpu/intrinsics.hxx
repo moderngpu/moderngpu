@@ -5,32 +5,6 @@
 
 BEGIN_MGPU_NAMESPACE
 
-
-////////////////////////////////////////////////////////////////////////////////
-// PTX for bfe and bfi
-
-MGPU_DEVICE inline unsigned bfe_ptx(unsigned x, unsigned bit, 
-  unsigned num_bits) {
-  unsigned result;
-  asm("bfe.u32 %0, %1, %2, %3;" : 
-    "=r"(result) : "r"(x), "r"(bit), "r"(num_bits));
-  return result;
-}
-
-MGPU_DEVICE inline unsigned bfi_ptx(unsigned x, unsigned y, unsigned bit, 
-  unsigned num_bits) {
-  unsigned result;
-  asm("bfi.b32 %0, %1, %2, %3, %4;" : 
-    "=r"(result) : "r"(x), "r"(y), "r"(bit), "r"(num_bits));
-  return result;
-}
-
-MGPU_DEVICE inline unsigned prmt_ptx(unsigned a, unsigned b, unsigned index) {
-  unsigned ret;
-  asm("prmt.b32 %0, %1, %2, %3;" : "=r"(ret) : "r"(a), "r"(b), "r"(index));
-  return ret;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // brev, popc, clz, bfe, bfi, prmt
 
@@ -81,18 +55,22 @@ MGPU_HOST_DEVICE int ffs(int x) {
 }
 
 MGPU_HOST_DEVICE unsigned bfe(unsigned x, unsigned bit, unsigned num_bits) {
+  uint result;
 #if __CUDA_ARCH__ >= 200
-  return bfe_ptx(x, bit, num_bits);
+  asm("bfe.u32 %0, %1, %2, %3;" : 
+    "=r"(result) : "r"(x), "r"(bit), "r"(num_bits));
 #else
-  return ((1<< num_bits) - 1) & (x>> bit);
+  result = ((1<< num_bits) - 1) & (x>> bit);
 #endif
+  return result;
 }
 
 MGPU_HOST_DEVICE unsigned bfi(unsigned x, unsigned y, unsigned bit, 
   unsigned num_bits) {
   unsigned result;
 #if __CUDA_ARCH__ >= 200
-  result = bfi_ptx(x, y, bit, num_bits);
+  asm("bfi.b32 %0, %1, %2, %3, %4;" : 
+    "=r"(result) : "r"(x), "r"(y), "r"(bit), "r"(num_bits));
 #else
   if(bit + num_bits > 32) num_bits = 32 - bit;
   unsigned mask = ((1<< num_bits) - 1)<< bit;
@@ -105,7 +83,7 @@ MGPU_HOST_DEVICE unsigned bfi(unsigned x, unsigned y, unsigned bit,
 MGPU_HOST_DEVICE unsigned prmt(unsigned a, unsigned b, unsigned index) {
   unsigned result;
 #if __CUDA_ARCH__ >= 200
-  result = prmt_ptx(a, b, index);
+  asm("prmt.b32 %0, %1, %2, %3;" : "=r"(result) : "r"(a), "r"(b), "r"(index));
 #else
   result = 0;
   for(int i = 0; i < 4; ++i) {

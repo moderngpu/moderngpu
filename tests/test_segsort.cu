@@ -13,47 +13,43 @@ std::vector<int> cpu_segsort(const std::vector<int>& data,
     cur = next;
   }
   std::sort(copy.data() + cur, copy.data() + data.size());
-  return data;
+  return copy;
 }
 
 int main(int argc, char** argv) {
   standard_context_t context;
 
-  for(int count = 100; count < 23456789; count += count / 100) {
+  for(int count = 1000; count < 23456789; count += count / 10) {
 
-    for(int it = 1; it <= 100; ++it) {
+    for(int it = 1; it <= 10; ++it) {
 
-      int num_segments = div_up(count, 30);
+      int num_segments = div_up(count, 100);
       mem_t<int> segs = fill_random(0, count - 1, num_segments, true, context);
       std::vector<int> segs_host = from_mem(segs);
       mem_t<int> data = fill_random(0, 100000, count, false, context);
+      mem_t<int> values(count, context);
+      std::vector<int> host_data = from_mem(data);
 
-      segmented_sort<
-        launch_params_t<256, 5>
-      >(data.data(), count, segs.data(), num_segments, 
-        less_t<int>(), context);
+      segmented_sort_indices(data.data(), values.data(), count, segs.data(), 
+        num_segments, less_t<int>(), context);
 
-      std::vector<int> ref = cpu_segsort(from_mem(data), segs_host);
+      std::vector<int> ref = cpu_segsort(host_data, segs_host);
       std::vector<int> sorted = from_mem(data);
 
-      bool print_sorted = ref != sorted;
-      if(print_sorted) {
-        enum { width = 4 };
-        for(int i = 0; i < div_up(count, width); ++i) {
-           printf("%4d: ", width * i);
-           for(int j = 0; j < width; ++j) {
-              int index = width * i + j;
-             if(index < count) printf("%5d ", sorted[index]);
-           }
-           printf("\n");
+      // Check that the indices are correct.
+      std::vector<int> host_indices = from_mem(values);
+      for(int i = 0; i < count; ++i) {
+        if(sorted[i] != host_data[host_indices[i]]) {
+          printf("count = %8d it = %3d KEY FAILURE\n", count, it);
+          exit(0);
         }
       }
-     
+
+      // Check that the keys are sorted.
+      bool success = ref == sorted;
       printf("count = %8d it = %3d %s\n", count, it, 
         (ref == sorted) ? "SUCCESS" : "FAILURE");
-
-      if(ref != sorted)
-        return 0;
+      if(!success) exit(0);
     }
   }
 

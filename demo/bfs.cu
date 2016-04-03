@@ -65,6 +65,7 @@ int main(int argc, char** argv) {
   mem_t<int> edges = to_mem(graph->edges, context);
   int num_vertices = graph->num_vertices;
   int num_edges = graph->num_edges;
+  printf("NUM VERTICES = %d    NUM_EDGES = %d\n", num_vertices, num_edges);
 
   // Allocate space for the vertex levels.
   // Set the source to vertex 23.

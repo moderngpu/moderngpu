@@ -44,7 +44,8 @@ void bfs2(vertices_it vertices, int num_vertices, edges_it edges,
   mem_t<int> edge_indices(wl2_count.num_segments, context);
   int* out_edge_indices_data = edge_indices.data();
   mem_t<int> segments = engine.downsweep(
-    [=]MGPU_DEVICE(int dest_seg, int index, int seg, int rank, tuple<int> desc) {
+    [=]MGPU_DEVICE(int dest_seg, int index, int seg, int rank, 
+      tuple<int> desc) {
       // Return the same count as before and store output segment-specific
       // data using dest_index.
       int neighbor = edges[get<0>(desc) + rank];
@@ -72,6 +73,7 @@ int main(int argc, char** argv) {
   mem_t<int> edges = to_mem(graph->edges, context);
   int num_vertices = graph->num_vertices;
   int num_edges = graph->num_edges;
+  printf("NUM VERTICES = %d    NUM_EDGES = %d\n", num_vertices, num_edges);
 
   // Allocate space for the vertex levels.
   // Set the source to vertex 23.

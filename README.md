@@ -24,8 +24,9 @@ The distribution includes two demos on the usage of the high-level transforms:
   1. **[bfs.cu](#breadth-first-search)** - a simple implementation of a classic breadth-first search graph algorithm.
   2. **[cities.cu](#attu-station-ak)** - a geographic data sciences query posed as high-level segmented transformations.
   
-An experimental dynamic work creation feature is also being tested. There's one demo showing its usage:
+An experimental dynamic work creation feature is also being tested. There are two demo showing its usage:
   1. **[bfs2.cu](#improved-breadth-first-search)** - an improved breadth-first search where work for the next iteration is enqueued on successful return of an atomic operation.
+  1. **[bfs3.cu](#bit-compressed-breadth-first-search)** - an optimization on `bfs2` where vertex visitation information is compressed into bits and on return vertex indices are sorted by their distance from the source.
 
 Five tutorials on kernel-level programming are also included:
   1. **[tut_01_transform.cu](#tutorial-1---parallel-transforms)** - launch a parallel for loop using lambda closure to capture kernel arguments.
@@ -74,6 +75,7 @@ Users familiar with CUDA programming wishing to cut to the chase should start at
   1. [Attu Station, AK](#attu-station-ak)
 1. [Examples of dynamic work creation](#examples-of-dynamic-work-creation)
   1. [Improved breadth-first search](#improved-breadth-first-search)
+  1. [Bit-compressed breadth-first search](#bit-compressed-breadth-first-search)
 1. [Kernel programming](#kernel-programming)
   1. [Tutorial 1 - parallel transforms](#tutorial-1---parallel-transforms)
   1. [Tutorial 2 - cooperative thread arrays](#tutorial-2---cooperative-thread-arrays)
@@ -997,24 +999,25 @@ int bfs(vertices_it vertices, int num_vertices, edges_it edges,
 
 ```
 ```
-Front for level 0 has 136 edges.
-Front for level 1 has 19439 edges.
-Front for level 2 has 5787 edges.
-Front for level 3 has 92743 edges.
-Front for level 4 has 543328 edges.
-Front for level 5 has 4310689 edges.
-Front for level 6 has 14915384 edges.
-Front for level 7 has 9606212 edges.
-Front for level 8 has 2005591 edges.
-Front for level 9 has 408041 edges.
-Front for level 10 has 125195 edges.
-Front for level 11 has 25576 edges.
-Front for level 12 has 7617 edges.
-Front for level 13 has 5256 edges.
-Front for level 14 has 1897 edges.
-Front for level 15 has 437 edges.
-Front for level 16 has 19 edges.
-Front for level 17 has 18 edges.
+NUM VERTICES = 434102    NUM_EDGES = 32073440
+Front for level 0 has 163 edges.
+Front for level 1 has 21112 edges.
+Front for level 2 has 9561 edges.
+Front for level 3 has 98990 edges.
+Front for level 4 has 900032 edges.
+Front for level 5 has 4617596 edges.
+Front for level 6 has 15439710 edges.
+Front for level 7 has 8686685 edges.
+Front for level 8 has 1781177 edges.
+Front for level 9 has 365748 edges.
+Front for level 10 has 113306 edges.
+Front for level 11 has 24539 edges.
+Front for level 12 has 7215 edges.
+Front for level 13 has 5198 edges.
+Front for level 14 has 1871 edges.
+Front for level 15 has 427 edges.
+Front for level 16 has 18 edges.
+Front for level 17 has 17 edges.
 Front for level 18 has 15 edges.
 Front for level 19 has 12 edges.
 Front for level 20 has 5 edges.
@@ -1355,23 +1358,24 @@ void bfs2(vertices_it vertices, int num_vertices, edges_it edges,
 }
 ```
 ```
-Front for level 0 has 136 vertices and 19439 edges.
-Front for level 1 has 109 vertices and 5787 edges.
-Front for level 2 has 1002 vertices and 92743 edges.
-Front for level 3 has 5001 vertices and 543328 edges.
-Front for level 4 has 28936 vertices and 4310689 edges.
-Front for level 5 has 123198 vertices and 14915384 edges.
-Front for level 6 has 159570 vertices and 9606212 edges.
-Front for level 7 has 77191 vertices and 2005590 edges.
-Front for level 8 has 26536 vertices and 408041 edges.
-Front for level 9 has 8406 vertices and 125195 edges.
-Front for level 10 has 2507 vertices and 25576 edges.
-Front for level 11 has 849 vertices and 7617 edges.
-Front for level 12 has 426 vertices and 5256 edges.
-Front for level 13 has 140 vertices and 1897 edges.
-Front for level 14 has 55 vertices and 437 edges.
-Front for level 15 has 7 vertices and 19 edges.
-Front for level 16 has 7 vertices and 18 edges.
+NUM VERTICES = 434102    NUM_EDGES = 32073440
+Front for level 0 has 163 vertices and 21112 edges.
+Front for level 1 has 165 vertices and 9561 edges.
+Front for level 2 has 1067 vertices and 98990 edges.
+Front for level 3 has 5961 vertices and 900032 edges.
+Front for level 4 has 32678 vertices and 4617596 edges.
+Front for level 5 has 131856 vertices and 15439710 edges.
+Front for level 6 has 155163 vertices and 8686685 edges.
+Front for level 7 has 71401 vertices and 1781177 edges.
+Front for level 8 has 24208 vertices and 365748 edges.
+Front for level 9 has 7670 vertices and 113306 edges.
+Front for level 10 has 2324 vertices and 24539 edges.
+Front for level 11 has 814 vertices and 7215 edges.
+Front for level 12 has 410 vertices and 5198 edges.
+Front for level 13 has 132 vertices and 1871 edges.
+Front for level 14 has 52 vertices and 427 edges.
+Front for level 15 has 7 vertices and 18 edges.
+Front for level 16 has 6 vertices and 17 edges.
 Front for level 17 has 4 vertices and 15 edges.
 Front for level 18 has 4 vertices and 12 edges.
 Front for level 19 has 1 vertices and 5 edges.
@@ -1389,6 +1393,81 @@ The naive version checked each vertex on each iteration to see if it was on the 
 This improved version uses dynamic work creation to emit a request for new work (on the next round) when the CUDA intrinsic `atomicCAS` successfully sets the state of a vertex from unvisited to visited. If only 50 vertices are set to the visited state in a round, only 50 segments of work will be created, and no operations with costs that scale with the total number of vertices will be executed. 
 
 Note that the `atomicCAS` call is only made during the `upsweep` phase. The actual count of work-items to emit is implicit in the number of out-going edges from that vertex; the `atomicCAS` really only determines if all those out-going edges materialize to work-items or not.
+
+### Bit-compressed breadth-first search
+
+Features demonstrated:
+
+1. `lbs_workcreate`
+
+#### `bfs3.cu`
+```cpp
+// Visit all edges for vertices in the frontier and described in the workload_t
+// structure. Overwrite this with a new workload_t structure for the next
+// level in the algorithm.
+// Return the number of vertices in the next level of the frontier and stream
+// their IDs to frontier_vertices.
+
+template<typename vertices_it, typename edges_it>
+int bfs3(vertices_it vertices, edges_it edges, int* visited_bits, 
+  int* frontier_vertices, workload_t& wl, context_t& context) {
+
+  // Create a dynamic work-creation engine.
+  auto engine = expt::lbs_workcreate(wl.count, wl.segments.data(), 
+    wl.num_segments, context);
+
+  // The upsweep attempts atomicOr. If it succeeds, return the number of 
+  // edges for that vertex.
+  auto wl2_count = engine.upsweep(
+    [=]MGPU_DEVICE(int index, int seg, int rank, tuple<int> desc) {
+      int count = 0;
+      int neighbor = edges[get<0>(desc) + rank];
+      int mask = 1<< (31 & neighbor);
+      if(0 == (mask & atomicOr(visited_bits + neighbor / 32, mask)))
+        count = vertices[neighbor + 1] - vertices[neighbor];
+      return count;
+    }, make_tuple(wl.edge_indices.data())
+  );
+
+  // The downsweep streams out the new edge pointers.
+  mem_t<int> edge_indices(wl2_count.num_segments, context);
+  int* out_edge_indices_data = edge_indices.data();
+  mem_t<int> segments = engine.downsweep(
+    [=]MGPU_DEVICE(int dest_seg, int index, int seg, int rank, 
+      tuple<int> desc) {
+      // Return the same count as before and store output segment-specific
+      // data using dest_index.
+      int neighbor = edges[get<0>(desc) + rank];
+      int begin = vertices[neighbor];
+      int end = vertices[neighbor + 1];
+
+      // Store the pointer into the edges array for the new work segment.
+      out_edge_indices_data[dest_seg] = begin;
+
+      // Stream out the vertex index.
+      frontier_vertices[dest_seg] = neighbor;
+
+      return end - begin;
+    }, make_tuple(wl.edge_indices.data())
+  );
+
+  // Update the workload.
+  wl.count = wl2_count.count;
+  wl.num_segments = wl2_count.num_segments;
+  wl.segments = std::move(segments);
+  wl.edge_indices = std::move(edge_indices);
+
+  return wl.num_segments;
+}
+
+```
+The third demo version of breadth-first search uses the same work-creation mechanism of `bfs2.cu` but now utilizes the data streaming capability as well. The model for the second implementation was to store the level of each vertex (visited or not) in a contiguous integer array. On the work-creation _upsweep_ phase, an `atomicCAS` would attempt to store the next level in the search as the vertex's level. This would succeed only if the vertex hadn't already been visited. The downsweep phase would then request work for this newly visited vertex.
+
+While this was an easy model, it was cache-inefficient. The slow part of top-down breadth-first search is the many disorganized atomic operations into an array representing vertex visitation. `bfs3.cu` improves on the earlier implementations by storing vertex visitation status as a single bit in a `visited_bits` array. The bit array is initially cleared. Before the BFS loop is started, each source vertex pokes in a bit to prevent itself from being visited from an incoming edge.
+
+During _upsweep_ the bit corresponding to the vertex for each work-item is atomically set. If this was a successful operation, the upsweep lambda returns the number of outgoing edges of this newly visited vertex, just like `bfs2.cu`. The _downsweep_ lambda now streams the index of each newly visited vertex into a `frontier_vertices` array. On return, the caller advances the `frontier_vertices` pointer by the number of streamed-out vertices.
+
+The performance advantage of this different implementation is that the region of memory undergoing heavy atomic operations is 32 times smaller, so we can expect much better utilization of the GPU's limited L2 cache. The convenience advantage is that the IDs of the connected vertices end up sorted by their distance from the source. 
 
 ## Kernel programming
 ### Tutorial 1 - parallel transforms

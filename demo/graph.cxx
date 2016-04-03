@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <algorithm>
+#include <cassert>
 
 std::unique_ptr<graph_t> load_graph(const char* name) {
 
@@ -26,6 +27,10 @@ std::unique_ptr<graph_t> load_graph(const char* name) {
       printf("Error reading %s\n", name);
       exit(0);
     }
+
+    // The Matrix Market format uses 1-based indexing. Decrement the vertex
+    // ID so its sensible to the rest of our code.
+    --pair.first, --pair.second;
     pairs[edge] = pair;
     std::swap(pair.first, pair.second);
     pairs[edge + num_edges] = pair;

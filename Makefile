@@ -97,7 +97,8 @@ tut_05_iterators: tutorial/tut_05_iterators.cu src/moderngpu/*.hxx
 demos: \
 	cities \
 	bfs \
-	bfs2
+	bfs2 \
+	bfs3
 
 cities: demo/cities.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
@@ -106,6 +107,9 @@ bfs: demo/bfs.cu demo/graph.cxx src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $< demo/graph.cxx
 
 bfs2: demo/bfs2.cu demo/graph.cxx src/moderngpu/*.hxx
+	nvcc $(ARCH) $(OPTIONS) -o $@ $< demo/graph.cxx
+
+bfs3: demo/bfs3.cu demo/graph.cxx src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $< demo/graph.cxx
 
 clean:
@@ -122,6 +126,7 @@ clean:
 	rm test_sortedsearch
 	rm test_join
 	rm test_segreduce
+	rm test_compact
 	rm tut_01_transform
 	rm tut_02_cta_launch
 	rm tut_03_launch_box
@@ -129,3 +134,5 @@ clean:
 	rm tut_05_iterators
 	rm cities
 	rm bfs
+	rm bfs2
+	rm bfs3

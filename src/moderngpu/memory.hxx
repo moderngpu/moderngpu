@@ -117,7 +117,7 @@ inline std::mt19937& get_mt19937() {
   return mt19937;
 }
 
-mem_t<int> fill_random(int a, int b, size_t count, bool sorted, 
+mem_t<int> inline fill_random(int a, int b, size_t count, bool sorted, 
   context_t& context) {
 
   std::uniform_int_distribution<int> d(a, b);

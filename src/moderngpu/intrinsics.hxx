@@ -9,14 +9,15 @@ BEGIN_MGPU_NAMESPACE
 ////////////////////////////////////////////////////////////////////////////////
 // PTX for bfe and bfi
 
-MGPU_DEVICE unsigned bfe_ptx(unsigned x, unsigned bit, unsigned num_bits) {
+MGPU_DEVICE inline unsigned bfe_ptx(unsigned x, unsigned bit, 
+  unsigned num_bits) {
   unsigned result;
   asm("bfe.u32 %0, %1, %2, %3;" : 
     "=r"(result) : "r"(x), "r"(bit), "r"(num_bits));
   return result;
 }
 
-MGPU_DEVICE unsigned bfi_ptx(unsigned x, unsigned y, unsigned bit, 
+MGPU_DEVICE inline unsigned bfi_ptx(unsigned x, unsigned y, unsigned bit, 
   unsigned num_bits) {
   unsigned result;
   asm("bfi.b32 %0, %1, %2, %3, %4;" : 
@@ -24,7 +25,7 @@ MGPU_DEVICE unsigned bfi_ptx(unsigned x, unsigned y, unsigned bit,
   return result;
 }
 
-MGPU_DEVICE unsigned prmt_ptx(unsigned a, unsigned b, unsigned index) {
+MGPU_DEVICE inline unsigned prmt_ptx(unsigned a, unsigned b, unsigned index) {
   unsigned ret;
   asm("prmt.b32 %0, %1, %2, %3;" : "=r"(ret) : "r"(a), "r"(b), "r"(index));
   return ret;
@@ -181,7 +182,7 @@ MGPU_DEVICE type_t shfl_down_op(type_t x, int offset, op_t op,
 }
 
 #define SHFL_OP_MACRO(dir, is_up, ptx_type, r, c_type, ptx_op, c_op) \
-MGPU_DEVICE c_type shfl_##dir##_op(c_type x, int offset, \
+MGPU_DEVICE inline c_type shfl_##dir##_op(c_type x, int offset, \
   c_op<c_type> op, int width = warp_size) { \
   c_type result = c_type(); \
   int mask = (warp_size - width)<< 8 | (is_up ? 0 : (width - 1)); \
@@ -219,7 +220,7 @@ SHFL_OP_MACRO(down, false, f32, f, float, max, minimum_t)
 #undef SHFL_OP_MACRO
 
 #define SHFL_OP_64b_MACRO(dir, is_up, ptx_type, r, c_type, ptx_op, c_op) \
-MGPU_DEVICE c_type shfl_##dir##_op(c_type x, int offset, \
+MGPU_DEVICE inline c_type shfl_##dir##_op(c_type x, int offset, \
   c_op<c_type> op, int width = warp_size) { \
   c_type result = c_type(); \
   int mask = (warp_size - width)<< 8 | (is_up ? 0 : (width - 1)); \

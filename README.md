@@ -636,17 +636,19 @@ Sort keys or key-value pairs. Unlike most other functions in moderngpu, this tak
 
 **`kernel_segsort.hxx`**
 ```cpp
+// Key-value segmented sort.
 template<typename launch_arg_t = empty_t, typename key_t, typename val_t,
   typename seg_it, typename comp_t>
 void segmented_sort(key_t* keys_input, val_t* vals_input, int count,
   seg_it segments, int num_segments, comp_t comp, context_t& context);
 
-// Key-value mergesort. Automatically generate indices to sort as values.
+// Key-value segmented sort. Automatically generate indices to sort as values.
 template<typename launch_arg_t = empty_t, typename key_t, typename seg_it, 
   typename comp_t>
 void segmented_sort_indices(key_t* keys, int* indices, int count, 
   seg_it segments, int num_segments, comp_t comp, context_t& context);
 
+// Key-only segmented sort.
 template<typename launch_arg_t = empty_t, typename key_t, typename seg_it, 
   typename comp_t>
 void segmented_sort(key_t* keys_input, int count, seg_it segments, 

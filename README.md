@@ -1767,6 +1767,58 @@ int main(int argc, char** argv) {
   return 0;
 }
 ```
+```
+Fibonacci  0 =    0
+Fibonacci  1 =    1
+Fibonacci  2 =    1
+Fibonacci  3 =    2
+Fibonacci  4 =    3
+Fibonacci  5 =    5
+Fibonacci  6 =    8
+Fibonacci  7 =   13
+Fibonacci  8 =   21
+Fibonacci  9 =   34
+Fibonacci 10 =   55
+Fibonacci 11 =   89
+Fibonacci 12 =  144
+Fibonacci 13 =  233
+Fibonacci 14 =  377
+Fibonacci 15 =  610
+Fibonacci 16 =  987
+Fibonacci 17 = 1597
+Fibonacci 18 = 2584
+Fibonacci 19 = 4181
+log(   0) = 0.000000
+log(   1) = 0.000000
+log(   1) = 0.000000
+log(   2) = 0.693147
+log(   3) = 1.098612
+log(   5) = 1.609438
+log(   8) = 2.079442
+log(  13) = 2.564949
+log(  21) = 3.044522
+log(  34) = 3.526361
+log(  50) = 3.912023
+log(  55) = 4.007333
+log(  89) = 4.488636
+log( 144) = 4.969813
+log( 233) = 5.451038
+log( 377) = 5.932245
+log( 550) = 6.309918
+log( 610) = 6.413459
+log( 987) = 6.894670
+log(1050) = 6.956545
+log(1550) = 7.346010
+log(1597) = 7.375882
+log(2050) = 7.625595
+log(2550) = 7.843849
+log(2584) = 7.857094
+log(3050) = 8.022897
+log(3550) = 8.174703
+log(4050) = 8.306472
+log(4181) = 8.338306
+log(4550) = 8.422883
+```
 moderngpu provides convenient iterators for passing arguments to array-processing functions without actually storing anything in memory. `counting_iterator_t` defines `operator[]` to return its index argument, which is useful for counting off the natural numbers in load-balancing search. `strided_iterator_t` scales the array-indexing argument and adds an offset. `make_store_iterator` and `make_load_iterator` adapt lambdas to iterators. These functions are a practical way of extending the functionality of any CUDA function that takes an iterator. This mechanism is used extensively in the implementation of moderngpu. For example, the array-processing prefix sum operator `scan` is defined to take an iterator for its input, but is extended into `transform_scan` by wrapping a user-provided lambda with `make_load_iterator`:
 ```cpp
 template<scan_type_t scan_type = scan_type_exc, 

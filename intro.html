@@ -98,7 +98,7 @@ of thinking about GPU computing.</strong></em> The library, <a href="https://www
 	with algorithms. The user shouldn't have to chase a function's flow of execution through more than a couple of files to see its entire implementation.</p>
     <p>For flexibility the functions are heavily templated, each parameterized over input and output types, to support Boost-style iterators, comparators, and predicate objects. Still, this library is not an exercise in meta-programming, and the use of generics is limited.</p>
 <p>A call to each host-level function is demonstrated in a simple form at the top of its corresponding web page 
-(drawn from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a>), and in a more complex form in its benchmark code, 
+(drawn from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a>), and in a more complex form in its benchmark code, 
 which generates the performance charts. The articles are organized so that functions are rolled out with increasing complexity and build on one another. Readers with CUDA experience who take the pages in order should be should not be unprepared for anything presented. </p>
 </li>
   <li>
@@ -130,7 +130,7 @@ void CPUMerge(const T* a, int aCount, const T* b, int bCount, T* dest,
 }</pre></div>
 <p>Consider this sequential merge implementation. It takes two sorted inputs and loops over each output. During each iteration, two inputs are compared and the smaller one is emitted. The implementation is simple and work-efficient. Because it's totally sequential, there's no real consideration given to scheduling or decomposition.</p>
 <div class="snip">
-<p><a href="https://github.com/NVlabs/moderngpu/blob/master/tests/parallelmerge.cu">tests/parallelmerge.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 5">template&lt;int NT, typename InputIt1, typename InputIt2, typename OutputIt,
+<p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/parallelmerge.cu">tests/parallelmerge.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 5">template&lt;int NT, typename InputIt1, typename InputIt2, typename OutputIt,
 	typename Comp>
 __global__ void ParallelMergeA(InputIt1 a_global, int aCount, InputIt2 b_global,
 	int bCount, OutputIt dest_global, Comp comp) {
@@ -161,7 +161,7 @@ __global__ void ParallelMergeB(InputIt1 a_global, int aCount, InputIt2 b_global,
 }</pre></div>
 <p>Now consider this first attempt at parallel merge. There are two kernels: <code>ParallelMergeA</code>, which assigns one thread to each element in A, binary searches for the lower-bound in B, and outputs A keys to the destination; and <code>ParallelMergeB</code>, which assigns one thread to each element in B, binary searches for the upper-bound in A, and outputs B keys to the destination.</p>
 <p>Although this implementation is highly concurrent, it's also highly inefficient. The O(n)-efficiency sequential code is now O(n log n), as each output requires a binary search over the input. The code only runs quickly if the number of processors is large compared to the input size. Additionally, the new code looks nothing like the sequential version. Because we've baked scheduling logic into the problem-solving logic, we've written code that is difficult to optimize. Perhaps even worse, it's difficult to extend&mdash;for example, how would we support <a href="sets.html">multiset operations</a> with this PRAM-style scheduling?</p>
-<div class="snip"><p> <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctasearch.cuh">include/device/ctasearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 92">template&lt;MgpuBounds Bounds, typename It1, typename It2, typename Comp>
+<div class="snip"><p> <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasearch.cuh">include/device/ctasearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 92">template&lt;MgpuBounds Bounds, typename It1, typename It2, typename Comp>
 MGPU_HOST_DEVICE int MergePath(It1 a, int aCount, It2 b, int bCount, int diag,
 	Comp comp) {
 
@@ -184,7 +184,7 @@ MGPU_HOST_DEVICE int MergePath(It1 a, int aCount, It2 b, int bCount, int diag,
 
 <p>MGPU focuses on a two-phase strategy for execution. In the first phase we address partitioning: this phase handles scheduling and decomposition. The goal is to map work onto each thread in a load-balanced and work-efficient manner. All the functions in this library are parameterized over a <em>grain size</em> (the parameter VT), which controls the amount of work scheduled per thread. Increasing the grain size amortizes partitioning costs, improving work-efficiency, while simultaneously reducing occupancy and potentially sacrificing execution efficiency. Because partitioning is not tied up with the problem-solving logic, we can reuse this code in many functions, and optimize it by searching the grain-size parameter space.</p>
 <p>Examples of partitioning functions used in MGPU are <a href="bulkinsert.html#mergepath">Merge Path</a>, <a href="sets.html#balancedpath">Balanced Path</a>, and <a href="loadbalance.html#algorithm">load-balancing search</a>. The <code>MergePath</code> implementation above decomposes merge-like problems, which includes <a href="mergesort.html">mergesort</a>, <a href="sortedsearch.html">vectorized sorted search</a>, and the <a href="loadbalance.html">load-balancing search</a> scheduling function. This function binary searches both input arrays simultaneously, producing a decomposition that maps a uniform amount of work to each thread.</p>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctamerge.cuh">include/device/ctamerge.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctamerge.cuh">include/device/ctamerge.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 46">template&lt;int VT, bool RangeCheck, typename T, typename Comp>
 MGPU_DEVICE void SerialMerge(const T* keys_shared, int aBegin, int aEnd,
 	int bBegin, int bEnd, T* results, int* indices, Comp comp) { 
@@ -362,7 +362,7 @@ kernel. The MGPU idiom is less composable than Thrust's: <em>users will need to 
 fasion. The implementation of <code>IntervalExpand</code> is a more direct solution to the expand problem: it loads input elements just once from global into shared memory and cooperatively fills the output arrays. The function makes only a single pass over the data and requires no auxiliary storage.</p>
 <p>As problems become less scan-like, a gather/scatter/scan solution becomes more difficult to understand and express, and the value of composability decreases.</p>
 <div class="snip">
-<p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/intervalmove.cuh">include/kernels/intervalmove.cuh</a></p>
+<p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/intervalmove.cuh">include/kernels/intervalmove.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 48">template&lt;typename Tuning, typename IndicesIt, typename ValuesIt,
 	typename OutputIt>
 MGPU_LAUNCH_BOUNDS void KernelIntervalExpand(int destCount, 

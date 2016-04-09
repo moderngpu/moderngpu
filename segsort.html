@@ -38,8 +38,8 @@
 
 <h2><a id="benchmark">Benchmark and usage</a></h2>
 <div class="figure"><a id="segsortbenchmark"><img src="benchmark_segsortkeys.png" width="703" height="420" alt="" /></a></div>
-<p class="cap">Segmented sort keys benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarksegsort.cu">tests/benchmarksegsort.cu</a></p>
-<div class="snip"><p>Segmented sort keys demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p>
+<p class="cap">Segmented sort keys benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarksegsort/benchmarksegsort.cu">benchmarksegsort/benchmarksegsort.cu</a></p>
+<div class="snip"><p>Segmented sort keys demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 242">void DemoSegSortKeys(CudaContext&amp; context) {
 	printf("\n\nSEG-SORT KEYS DEMONSTRATION:\n\n");
 
@@ -92,7 +92,7 @@ Sorted data (segment heads are marked by *):
    70:    67   67   69   72   75   94   95   96  * 6   25
    80:    90  *22   91   93  *22   30   34   44   51   66
    90:    67   78   79   84  * 0   23   60  *38   71   98</pre></div>
-<div class="figure"><img src="benchmark_segsortpairs.png" width="703" height="420" alt="" /></div><p class="cap">Segmented sort pairs benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarksegsort.cu">tests/benchmarksegsort.cu</a></p><div class="snip"><p>Segmented sort pairs demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 271">void DemoSegSortPairs(CudaContext&amp; context) {
+<div class="figure"><img src="benchmark_segsortpairs.png" width="703" height="420" alt="" /></div><p class="cap">Segmented sort pairs benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarksegsort/benchmarksegsort.cu">benchmarksegsort/benchmarksegsort.cu</a></p><div class="snip"><p>Segmented sort pairs demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 271">void DemoSegSortPairs(CudaContext&amp; context) {
 	printf("\n\nSEG-SORT PAIRS DEMONSTRATION:\n\n");
 
 	// Use CudaContext::GenRandom to generate 100 random integers between 0 and
@@ -163,7 +163,7 @@ Sorted indices (segment heads are marked by *):
    70:    76   64   71   62   70   65   61   66  *78   80
    80:    79  *81   82   83  *93   87   89   86   90   91
    90:    88   85   84   92  *95   96   94  *99   97   98</pre></div>
-<div class="figure"><a id="localitysortbenchmark"><img src="benchmark_localitysortkeys.png" width="703" height="420" alt="" /></a></div><p class="cap">Locality sort keys benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarklocalitysort.cu">tests/benchmarklocalitysort.cu</a></p><div class="snip"><p>Locality sort keys demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 307">void DemoLocalitySortKeys(CudaContext&amp; context) {
+<div class="figure"><a id="localitysortbenchmark"><img src="benchmark_localitysortkeys.png" width="703" height="420" alt="" /></a></div><p class="cap">Locality sort keys benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarklocalitysort/benchmarklocalitysort.cu">benchmarklocalitysort/benchmarklocalitysort.cu</a></p><div class="snip"><p>Locality sort keys demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 307">void DemoLocalitySortKeys(CudaContext&amp; context) {
 	printf("\n\nLOCALITY SORT KEYS DEMONSTRATION:\n\n");
 
 	// Generate keys that are roughly sorted but with added noise.
@@ -207,7 +207,7 @@ Sorted data:
    70:    84   84   85   89   89   90   91   91   92   92
    80:    94   94   95   95   95   96   98   99   99  100
    90:   102  103  105  105  107  109  111  113  114  119</pre></div>
-<div class="figure"><img src="benchmark_localitysortpairs.png" width="703" height="420" alt="" /></div><p class="cap">Locality sort pairs benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarklocalitysort.cu">tests/benchmarklocalitysort.cu</a></p><div class="snip"><p>Locality sort pairs demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 331">void DemoLocalitySortPairs(CudaContext&amp; context) {
+<div class="figure"><img src="benchmark_localitysortpairs.png" width="703" height="420" alt="" /></div><p class="cap">Locality sort pairs benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarklocalitysort/benchmarklocalitysort.cu">benchmarklocalitysort/benchmarklocalitysort.cu</a></p><div class="snip"><p>Locality sort pairs demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 331">void DemoLocalitySortPairs(CudaContext&amp; context) {
 	printf("\n\nLOCALITY SORT PAIRS DEMONSTRATION:\n\n");
 
 	// Generate keys that are roughly sorted but with added noise.
@@ -269,7 +269,7 @@ Sorted indices:
    90:    89   81   97   99   83   90   91   88   94   93</pre></div>
    <h2><a id="host">Host functions</a></h2>
 <div class="snip">
-  <p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
+  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 196">////////////////////////////////////////////////////////////////////////////////
 // kernels/segmentedsort.cuh
 
@@ -415,7 +415,7 @@ Merge list 0 (blocks 0 and 1) with list 1 (blocks 2 and 3):
 
 <h2><a id="blocksort">Segmented blocksort</a></h2>
 <div class="snip">
-<p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctasegsort.cuh">include/device/ctasegsort.cuh</a></p>
+<p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasegsort.cuh">include/device/ctasegsort.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 116">template&lt;int NT, int VT, bool Stable, bool HasValues, typename KeyType,
 	typename ValType, typename Comp>
 MGPU_DEVICE int2 CTASegsort(KeyType threadKeys[VT], ValType threadValues[VT], 
@@ -451,7 +451,7 @@ MGPU_DEVICE int2 CTASegsort(KeyType threadKeys[VT], ValType threadValues[VT],
 <p><code>CTASegsort</code> is a reusable segmented blocksort and a generalization of <code><a href="mergesort.html#blocksort">CTAMergesort</a></code>. The caller provides segment head flags packed into the bitfield <code>headFlags</code>. As shown in the section on <a href="mergesort.html#sortnetworks">sorting networks</a>, the odd-even transposition network includes logic to support segmentation. It only swaps elements i and i+1 if the i+1 flag in the bitfield is cleared, meaning both elements are in the same segment. After the sorting network, the keys are in sorted lists with length VT. </p>
 <p>For both segmented blocksort and the global merge passes, we build a binary tree of segment active ranges (the left- and right-most segment heads in a list). Only elements falling outside the active range can ever be modified by the sort. After the sorting network is run we calculate the active ranges (<code>blockStart</code> and <code>blockEnd</code>). We can now discard the head flags: the only necessary segment information for this sort is in the binary tree of ranges.</p>
 <p>Threads use the CUDA instructions <code>ffs</code> (find first set) and <code>clz</code> (count leading zeros) to find the left-most and right-most segment heads in the list. These are referenced in the coordinate system of the CTA: if thread <code>tid</code> has a left-most segment head at 3, <code>blockStart</code> is assigned VT * tid + 3. If the thread doesn't contain a segment head, the interval (NV, -1) is used. The ranges are packed into a 32-bit integer with <code>bfi</code> (bitfield insert) and stored in the auxiliary array <code>ranges_shared</code>.</p>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctasegsort.cuh">include/device/ctasegsort.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 135">template&lt;int NT, int VT, bool HasValues, typename KeyType, typename ValType,
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasegsort.cuh">include/device/ctasegsort.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 135">template&lt;int NT, int VT, bool HasValues, typename KeyType, typename ValType,
 	typename Comp>
 MGPU_DEVICE int2 CTASegsortLoop(KeyType threadKeys[VT], 
 	ValType threadValues[VT], KeyType* keys_shared, ValType* values_shared, 
@@ -478,7 +478,7 @@ MGPU_DEVICE int2 CTASegsortLoop(KeyType threadKeys[VT],
 }</pre></div>
 <p><code>CTASegsortLoop</code> is a copy of <code>CTABlocksortLoop</code> which forwards to <code>CTASegsortPass</code> instead of <code>CTABlocksortPass</code>. The segmented sort very closely follows the vanilla mergesort, both for ease-of-maintenance reasons and to help illustrate how enacting one small improvement can bring huge functionality and performance benefits to an old and simple algorithm.</p>
 <div class="snip">
-  <p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctasegsort.cuh">include/device/ctasegsort.cuh</a></p>
+  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasegsort.cuh">include/device/ctasegsort.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 94">template&lt;int NT, int VT, typename T, typename Comp>
 MGPU_DEVICE void CTASegsortPass(T* keys_shared, int* ranges_shared, int tid,
 	int pass, T results[VT], int indices[VT], int2&amp; activeRange, Comp comp) {
@@ -556,7 +556,7 @@ pass 2 (coop = 8):
 <div class="figure"><img src="mp4.png" width="416" height="300" alt=" " /></div>
 <p>In <code>CTASegsortPass</code>, <code>leftEnd</code> is the location of the right-most segment in the left input list (drawn across the top of the diagram) and <code>rightStart</code> the location of the left-most segment in the right list (drawn along the right side). These define the ends of the active segment. For the area outside of (leftEnd, rightStart), the Merge Path follows the x- or y-axis, as it simply copies elements from one of the inputs. The cross-diagonals are constrained to the active segment region&mdash;queries outside this region return immediately.</p>
 
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctasearch.cuh">include/device/ctasearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 117">template&lt;typename InputIt, typename Comp>
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasearch.cuh">include/device/ctasearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 117">template&lt;typename InputIt, typename Comp>
 MGPU_HOST_DEVICE int SegmentedMergePath(InputIt keys, int aOffset, int aCount,
 	int bOffset, int bCount, int leftEnd, int rightStart, int diag, Comp comp) {
 
@@ -584,7 +584,7 @@ MGPU_HOST_DEVICE int SegmentedMergePath(InputIt keys, int aOffset, int aCount,
 	return begin;
 }</pre></div>
      <p><code>SegmentedMergePath</code> is a straight-forward modification of the <code>MergePath</code> binary search that clamps the cross-diagonals to the area defined by the active range.</p>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctasegsort.cuh">include/device/ctasegsort.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasegsort.cuh">include/device/ctasegsort.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 59">template&lt;int VT, typename T, typename Comp>
 MGPU_DEVICE void SegmentedSerialMerge(const T* keys_shared, int aBegin,
 	int aEnd, int bBegin, int bEnd, T results[VT], int indices[VT],
@@ -680,7 +680,7 @@ total  :     40210 (566.10%)       11927 (167.91%)</pre></div>
 </ol>
 <p>Each global merge pass launches two kernels: the first performs global partitioning and schedules merge and copy tasks by pushing to two work queues; the second cooperatively executes all queued merge and copy tasks.</p>
 <h2><a id="filling">Filling the work queue</a></h2>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/segmentedsort.cuh">include/kernels/segmentedsort.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 273">
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/segmentedsort.cuh">include/kernels/segmentedsort.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 273">
 template&lt;int NT, bool Segments, typename KeyType, typename Comp>
 __global__ void KernelSegSortPartitionBase(const KeyType* keys_global,
 	SegSortSupport support, int count, int nv, int numPartitions, Comp comp) {
@@ -755,7 +755,7 @@ __global__ void KernelSegSortPartitionBase(const KeyType* keys_global,
 <p>After launching the segmented blocksort, the host launches <code>KernelSegSortPartitionBase</code> for the first global merge pass or <code>KernelSegSortPartitionDerived</code> for all subsequent passes. Each thread computes one partition, but since a tile needs both a starting and ending partition, a CTA of NT threads can enqueue only NT - 1 tiles.</p>
 <p>For the base-pass kernel above, the 16-bit active ranges for each blocksort tile are unpacked and transformed by addition from tile-local coordinates to global coordinates. Neighboring active ranges (covering the two sorted lists that serve as sources for the sort's first merge pass) are then stored as int2 types in <code>support.ranges2_global</code>, into which a binary tree of active ranges is constructed; this corresponds exactly to the active-range tree constructed by <code>CTASegsortPass</code> in the segmented blocksort.</p>
 <p><code>SegmentedMergePath</code> searches global data for the intersection of the Merge Path and the thread's cross-diagonal. If the cross-diagonal does not pass through the active segment (like any of the cross-diagonals that intersect the A- and B-axes as dotted lines in the segmented Merge Path figure above), the search returns immediately. As we progress in the mergesort, the percentage of cross-diagonals intersecting the active list vanishes, and we effectively benefit from early-exit of partitioning in addition to merging.</p>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/segmentedsort.cuh">include/kernels/segmentedsort.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 218">template&lt;int NT>
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/segmentedsort.cuh">include/kernels/segmentedsort.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 218">template&lt;int NT>
 MGPU_DEVICE void DeviceSegSortCreateJob(SegSortSupport support,
 	int count, bool active, int3 frame, int tid, int pass, int nv, int block,
 	int p0, int p1, int* shared) {
@@ -809,7 +809,7 @@ MGPU_DEVICE void DeviceSegSortCreateJob(SegSortSupport support,
 <p class="important"><span class="idiom">Important:</span> The early-exit heuristic examines only the mapping of the source lists into each tile. <strong>Early-exit does not require segmentation</strong>. Segmentation is a statement of sortedness in the input, but if keys were passed in the same relative order without providing segment indices, the early-exit behavior would be identical.</p>
 <p class="important"> <strong>Locality sort</strong> is a specialization of segmented sort that does not support (or bear the costs of) segmentation. It uses the same partitioning and queueing kernels as segmented sort, but takes a branch that uses the standard Merge Path search. Locality sort also uses the standard mergesort <a href="mergesort.html#blocksort">blocksort</a>. Use locality sort when inputs start near to their output locations. This is a qualititative characterization of a dataset. Programmers are encouraged to try both vanilla mergesort and locality sort and use the variant with the higher throughput.</p>
 <h2><a id="servicing">Servicing the work queue</a></h2>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/segmentedsort.cuh">include/kernels/segmentedsort.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 143">template&lt;typename Tuning, bool Segments, bool HasValues, typename KeyType,
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/segmentedsort.cuh">include/kernels/segmentedsort.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 143">template&lt;typename Tuning, bool Segments, bool HasValues, typename KeyType,
 	typename ValueType, typename Comp>
 MGPU_LAUNCH_BOUNDS void KernelSegSortMerge(const KeyType* keys_global, 
 	const ValueType* values_global, SegSortSupport support, int count, 

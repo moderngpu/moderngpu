@@ -39,9 +39,9 @@
 <h2><a id="benchmark">Benchmark and usage</a></h2>
 <div class="figure"><img src="benchmark_intervalexpand1.png" width="703" height="420" alt=" " /></div>
 <div class="figure"><img src="benchmark_intervalexpand2.png" width="703" height="420" alt=" " /></div>
-<p class="cap">IntervalExpand benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarkintervalmove.cu">tests/benchmarkintervalmove.cu</a></p>
+<p class="cap">IntervalExpand benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarkintervalmove/benchmarkintervalmove.cu">benchmarkintervalmove/benchmarkintervalmove.cu</a></p>
 <div class="snip">
-  <p>Interval expand demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p>
+  <p>Interval expand demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 438">void DemoIntervalExpand(CudaContext&amp; context) {
 	printf("\n\nINTERVAL-EXPAND DEMONSTRATION:\n\n");
 
@@ -95,8 +95,8 @@ Expanded data:
    90:  4181 4181 4181 4181 6765 6765 6765 6765 6765 6765</pre></div>
 <div class="figure"><img src="benchmark_intervalmove1.png" width="703" height="420" alt=" " /></div>
 <div class="figure"><img src="benchmark_intervalmove2.png" width="703" height="420" alt=" " /></div>
-<p class="cap">IntervalMove benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarkintervalmove.cu">tests/benchmarkintervalmove.cu</a></p>
-<div class="snip"><p>Interval move demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p>
+<p class="cap">IntervalMove benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarkintervalmove/benchmarkintervalmove.cu">benchmarkintervalmove/benchmarkintervalmove.cu</a></p>
+<div class="snip"><p>Interval move demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 472">void DemoIntervalMove(CudaContext&amp; context) {
 	printf("\n\nINTERVAL-MOVE DEMONSTRATION:\n\n");
 
@@ -164,7 +164,7 @@ Moved data:
    90:    53   54   55   56   57   58   59    0    1   17</pre></div>
    <h2><a id="host">Host functions</a></h2>
 <div class="snip">
-  <p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
+  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 403">////////////////////////////////////////////////////////////////////////////////
 // kernels/intervalmove.cuh
 
@@ -241,7 +241,7 @@ MGPU_HOST void IntervalScatter(int moveCount, ScatterIt scatter_global,
 <h2><a id="intervalexpand">IntervalExpand</a></h2>
 <p>IntervalExpand was discussed in the <a href="intro.html#expandloadbalance">introduction</a> and we revisit it here, now with a solid understanding of the load-balancing search pattern at the implementation's heart.</p>
 <div class="snip">
-<p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/intervalmove.cuh">include/kernels/intervalmove.cuh</a></p>
+<p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/intervalmove.cuh">include/kernels/intervalmove.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 48">template&lt;typename Tuning, typename IndicesIt, typename ValuesIt,
 	typename OutputIt>
 MGPU_LAUNCH_BOUNDS void KernelIntervalExpand(int destCount, 
@@ -290,7 +290,7 @@ MGPU_LAUNCH_BOUNDS void KernelIntervalExpand(int destCount,
 	DeviceRegToGlobal&lt;NT, VT>(destCount, values, tid, output_global + range.x);
 }</pre></div>
 <p>The load-balancing search maps output elements (<code>range.x</code>, <code>range.y</code>)  and input elements (<code>range.z</code>, <code>range.w</code>) into each tile. All earlier routines process items in<em> thread order</em>&mdash;thread tid loads elements VT * tid + i (0 &le; i &lt; VT) from shared memory into register and processes them in register in an unrolled loop. This pattern is used to implement the load-balancing search called at the top of <code>KernelIntervalExpand</code> as boilerplate, but it's not used to implement the specific behavior of IntervalExpand. </p>
-<p>The load-balancing search returns enough context in shared memory to allow the kernel to cooperatively process elements in<em> strided order</em> rather than the customary <em>thread order</em>&mdash;thread tid processes elements index = NT * i + tid, where index &lt; destCount. The change from strided to thread order means we can use the device functions in <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/loadstore.cuh">device/loadstore.cuh</a> to solve this problem.</p>
+<p>The load-balancing search returns enough context in shared memory to allow the kernel to cooperatively process elements in<em> strided order</em> rather than the customary <em>thread order</em>&mdash;thread tid processes elements index = NT * i + tid, where index &lt; destCount. The change from strided to thread order means we can use the device functions in <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/loadstore.cuh">device/loadstore.cuh</a> to solve this problem.</p>
 <p>After <code>CTALoadBalance</code> is run we cooperatively load  source indices from shared memory into register. These indices identify the &quot;generating objects&quot; for each output; that is, the search locates the index of the fill value for each of the outputs.</p>
 <div class="snip">
   <pre>Expand counts:
@@ -303,7 +303,7 @@ Scan of expand counts:
 Load-balancing search:
     0:     0    0    1    1    1    1    1    2    2    2<br />   10:     2    2    2    2    3    3    3    3    3    3<br />   20:     3    3    3    3    3    3    3    3    3    3<br />   30:     5    8    8    8    8    8    8    8    8    8<br />   40:     8    8    8    8    8    9    9    9    9    9<br />   50:     9    9    9    9    9   10   10   10   11   11<br />   60:    11   11   11   11   11   11   11   11   11   11<br />   70:    11   11   12   12   13   14   14   14   14   14<br />   80:    14   14   14   14   14   14   15   15   16   18<br />   90:    18   18   18   18   19   19   19   19   19   19</pre>
 </div>
-<p>Consider the example of IntervalExpand in <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">demo.cu</a>. We have 20 random expand counts that add up to 100. The client performs an exclusive scan over the counts and calls IntervalExpand. Our kernel runs <code>CTALoadBalance</code> to pair each of the 100 outputs with one of the 20 fill values. <code>DeviceMemToMemLoop</code> loads the interval of fill values (each associated with a &quot;generating object&quot;) referenced by the tile into shared memory. Because the load-balancing search maps in a constant number of <em>output plus input</em> items to each tile, there's no risk of not having enough shared memory capacity in the CTA to accommodate this load: a run of thousands of 0 counts would result in a CTA that is mapped to a full-tile of source objects (NV + 1, keeping in mind the <em>precedingB</em> index) and no output objects. Although this may seem like an inefficiency, this division of source and destination items lets the kernel handle any distribution of expand counts without any special-case code.</p>
+<p>Consider the example of IntervalExpand in <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">demo.cu</a>. We have 20 random expand counts that add up to 100. The client performs an exclusive scan over the counts and calls IntervalExpand. Our kernel runs <code>CTALoadBalance</code> to pair each of the 100 outputs with one of the 20 fill values. <code>DeviceMemToMemLoop</code> loads the interval of fill values (each associated with a &quot;generating object&quot;) referenced by the tile into shared memory. Because the load-balancing search maps in a constant number of <em>output plus input</em> items to each tile, there's no risk of not having enough shared memory capacity in the CTA to accommodate this load: a run of thousands of 0 counts would result in a CTA that is mapped to a full-tile of source objects (NV + 1, keeping in mind the <em>precedingB</em> index) and no output objects. Although this may seem like an inefficiency, this division of source and destination items lets the kernel handle any distribution of expand counts without any special-case code.</p>
 <div class="snip"><pre>Expand values:
     0:     1    1    2    3    5    8   13   21   34   55
    10:    89  144  233  377  610  987 1597 2584 4181 6765
@@ -334,7 +334,7 @@ Expanded data:
       <p>IntervalMove, <a href="segsort.html">segmented sort</a>, <a href="merge.html">merge</a>, and <a href="sortedsearch.html">vectorized sorted search</a> cooperate in joining and splitting bins to rebalance the data structure.</p></li>
 </ul>    
 <p>Operations could be scheduled on the CPU and executed en masse with MGPU's vectorized functions. It is hoped that the availability of these functions encourages users to experiment with parallel data structures, an area of computing that has gone almost totally unexamined.</p>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/intervalmove.cuh">include/kernels/intervalmove.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 126">template&lt;typename Tuning, bool Gather, bool Scatter, typename GatherIt,
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/intervalmove.cuh">include/kernels/intervalmove.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 126">template&lt;typename Tuning, bool Gather, bool Scatter, typename GatherIt,
 	typename ScatterIt, typename IndicesIt, typename InputIt, typename OutputIt>
 MGPU_LAUNCH_BOUNDS void KernelIntervalMove(int moveCount,
 	GatherIt gather_global, ScatterIt scatter_global, IndicesIt indices_global, 
@@ -377,7 +377,7 @@ MGPU_LAUNCH_BOUNDS void KernelIntervalMove(int moveCount,
 	__syncthreads();</pre></div>
 <p>The <code>IntervalMove</code> host function runs an upper-bound <code>MergePathPartitions</code> in preparation for the load-balancing search. <code>KernelIntervalMove</code> calls <code>CTALoadBalance</code> which computes source indices into shared memory. The interval index (i.e. the index of the request that generated the output) and rank (of the element within the interval) are cooperatively pulled from shared memory in strided order. Recall that the rank is the difference between the output index and the exclusive scan of the generating object&mdash;both of these terms are returned by <code>CTALoadBalance</code>.</p>
 <div class="snip">
-  <p>KernelIntervalMove (continued) from <a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/intervalmove.cuh">include/kernels/intervalmove.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 168">&nbsp;&nbsp;&nbsp;&nbsp;// Load and distribute the gather and scatter indices.
+  <p>KernelIntervalMove (continued) from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/intervalmove.cuh">include/kernels/intervalmove.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 168">&nbsp;&nbsp;&nbsp;&nbsp;// Load and distribute the gather and scatter indices.
 	int gather[VT], scatter[VT];
 	if(Gather) {
 		// Load the gather pointers into intervals_shared.
@@ -424,7 +424,7 @@ MGPU_LAUNCH_BOUNDS void KernelIntervalMove(int moveCount,
 }</pre></div>
 <p>If gather indices are needed (for IntervalGather and IntervalMove), they are cooperatively loaded into shared memory. This is just <em>one load per interval</em>. After synchronization the  gather indices (the source index for each copy request) are loaded from shared memory into register. We add the rank of the element into the gather index to produce a <em>load index</em>. For the i'th output, <code>gather</code> is the position to load the i'th input.</p>
 <p>Scatter indices are treated symmetrically. If scatter indices are needed (for IntervalScatter and IntervalMove), they are cooperatively loaded into shared memory. This is just <em>one load per interval</em>. Scatter indices are loaded from shared memory into register. The rank is added to produce a <em>store index</em>. <code>scatter</code> is the position to store the i'th output.</p>
-<p>As with IntervalExpand, the intra-CTA load-balancing search provides enough context so that each element can be processed independently. Rather than processing elements in <em>thread order</em>, where each thread processes elements VT * tid + i (0 &le; i &lt; VT), we cooperatively copy elements in <em>strided order</em>. The <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/loadstore.cuh">loadstore.cuh</a> support functions complete the vectorized cudaMemcpys.</p>
+<p>As with IntervalExpand, the intra-CTA load-balancing search provides enough context so that each element can be processed independently. Rather than processing elements in <em>thread order</em>, where each thread processes elements VT * tid + i (0 &le; i &lt; VT), we cooperatively copy elements in <em>strided order</em>. The <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/loadstore.cuh">loadstore.cuh</a> support functions complete the vectorized cudaMemcpys.</p>
 <br /><div class="toclist"><ul>
  	<li class="tocprev">&laquo; <a href="loadbalance.html">Load-Balancing Search</a></li>
 	<li class="tocmiddle"><a href="index.html">Contents</a></li>

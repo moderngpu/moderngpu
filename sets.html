@@ -38,9 +38,9 @@
 
 <h2><a id="benchmark">Benchmark and usage</a></h2>
 <div class="figure"><img src="benchmark_setskeysint.png" width="703" height="420" alt=" " /></div><div class="figure"><img src="benchmark_setskeysint64.png" width="703" height="420" alt=" " /></div>
-<p class="cap">Multisets-keys benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarksets.cu">tests/benchmarksets.cu</a></p>
+<p class="cap">Multisets-keys benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarksets/benchmarksets.cu">benchmarksets/benchmarksets.cu</a></p>
 <div class="snip">
-  <p>Multisets-keys demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p>
+  <p>Multisets-keys demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 570;">void DemoSets(CudaContext&amp; context) {
 	printf("\nMULTISET-KEYS DEMONSTRATION:\n\n");
 
@@ -115,8 +115,8 @@ Symmetric Difference:
    80:    82   83   84   85   85   85   86   87   89   90
    90:    91   91   91   92   93   93   95   96   98   98</pre></div>
 <div class="figure"><img src="benchmark_setspairsint.png" width="703" height="420" alt=" " /></div><div class="figure"><img src="benchmark_setspairsint64.png" width="703" height="420" alt=" " /></div>
-<p class="cap">Multisets-pairs benchmark from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/benchmarksets.cu">tests/benchmarksets.cu</a></p>
-<div class="snip"><p>Multisets-pairs demonstration from <a href="https://github.com/NVlabs/moderngpu/blob/master/tests/demo.cu">tests/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 602;">void DemoSetsPairs(CudaContext&amp; context) {
+<p class="cap">Multisets-pairs benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarksets/benchmarksets.cu">benchmarksets/benchmarksets.cu</a></p>
+<div class="snip"><p>Multisets-pairs demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 602;">void DemoSetsPairs(CudaContext&amp; context) {
 	printf("\nMULTISET-PAIRS DEMONSTRATION:\n\n");
 
 	// Use CudaContext::SortRandom to generate 100 random sorted integers 
@@ -220,7 +220,7 @@ Symmetric difference indices:
    90:    88   90   91  190  191  192   93   94   95  193
   100:   194  196  197  198   98   99</pre></div>
   <h2><a id="host">Host functions</a></h2>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 522;">////////////////////////////////////////////////////////////////////////////////
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 522;">////////////////////////////////////////////////////////////////////////////////
 // kernels/sets.cuh
 
 // SetOpKeys implements multiset operations with C++ set_* semantics.
@@ -609,7 +609,7 @@ MGPU_HOST int SetOpPairs(KeysIt1 aKeys_global, ValsIt1 aVals_global, int aCount,
 <li>
   <p>We can't advance the A and B cursors evenly if the run length is odd. If this projection would separate a key-rank match, putting the A match on the left and the B match on the right of the cross-diagonal, we star the cross-diagonal, instructing the left partition to steal the B match and the right partition to cede it.</p></li>
 </ol>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctasearch.cuh">include/device/ctasearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 148;">template&lt;bool Duplicates, typename IntT, typename InputIt1, typename InputIt2, 
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasearch.cuh">include/device/ctasearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 148;">template&lt;bool Duplicates, typename IntT, typename InputIt1, typename InputIt2, 
 	typename Comp>
 MGPU_HOST_DEVICE int2 BalancedPath(InputIt1 a, int aCount, InputIt2 b,
 	int bCount, int diag, int levels, Comp comp) {
@@ -671,7 +671,7 @@ MGPU_HOST_DEVICE int2 BalancedPath(InputIt1 a, int aCount, InputIt2 b,
 <p><code>BalancedPath</code> returns the intersection of the cross-diagonal <code>diag</code> and the Balanced Path for input arrays <code>a</code> and <code>b</code> in <code>.x</code>, and the star status of the intersection in <code>.y</code>. When <code>Duplicates</code> is true, we closely follow the five steps already listed. (<code>aIndex</code>, <code>bIndex</code>) is the coordinate of the cross-diagonal intersection with the Merge Path. Binary searches on A and B returns the point of divergence with the Balanced Path at (<code>aStart</code>, <code>bStart</code>). </p>
 <p>The function attemps to evenly distribute the total run length <code>xCount</code> over both inputs. However it can only distribute within duplicate runs of the sought-for key <code>x</code>. It runs a third binary search, an upper-bound, to find the last occurrence of the key in A. If the number of duplicates of <code>x</code> in A is less than half the distance from the divergence point to the cross-diagonal's intersection with the Merge Path, we project the Balanced Path only to the end of A's duplicate run and distribute the remainder of A's half to B. Graphically this keeps the red stair-step Balanced Path bounded on the top and to the right by the green Merge Path. In the figure, if we were to blindly project a stair-step path from the intersection of diag<sub>2</sub> with the Merge Path, we'd violate key-rank ordering where diag<sub>3</sub> happens to intersect the Merge Path: 5<sub>a</sub><sup>0</sup> would be consumed prior to 3<sub>b</sub><sup>3</sup>.</p>
 <p><code>FindSetPartition</code>, the multisets counterpart to <a href="mergesort.html#mergepathpartitions">MergePathPartitions</a>, moves the starred flag into the most-significant bit of the index when executing a global partitioning pass.</p>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/ctasearch.cuh">include/device/ctasearch.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasearch.cuh">include/device/ctasearch.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 422;">template&lt;MgpuBounds Bounds, typename IntT, typename It, typename T, 
 	typename Comp>
 MGPU_HOST_DEVICE void BinarySearchIt(It data, int&amp; begin, int&amp; end, T key, 
@@ -717,7 +717,7 @@ MGPU_HOST_DEVICE int BiasedBinarySearch(It data, int count, T key, int levels,
 <h2><a id="serialops">Serial multiset operations</a></h2>
 <p><code>BalancedPath</code> partitions global data into NV&plusmn;1-sized tiles. These intervals are loaded into CTA shared memory and further partitioned into VT&plusmn;1-sized chunks. Just as we have <code>SerialMerge</code> to merge short intervals from shared memory into register, we have four serial set functions to read key-rank pairs from shared memory and  produce results into register.</p>
 <div class="snip">
-  <p>CUDA serial set-intersection from <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/serialsets.cuh">include/device/serialsets.cuh</a></p>
+  <p>CUDA serial set-intersection from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/serialsets.cuh">include/device/serialsets.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 45;">template&lt;int VT, bool RangeCheck, typename T, typename Comp>
 MGPU_DEVICE int SerialSetIntersection(const T* data, int aBegin, int aEnd,
 	int bBegin, int bEnd, int end, T* results, int* indices, Comp comp) {
@@ -808,7 +808,7 @@ MGPU_DEVICE int SerialSetIntersection(const T* data, int aBegin, int aEnd,
   <p>If the set condition was satisfied, set bit i in <code>commit</code> to commit the result. In the case of set-intersection, both elements must make a key-rank match. We've already compared both keys against each other, and want to emit if they're equal. Predicates <code>pA and </code>pB can both be false (indicating equality), but they can't both be true (indicating A &lt; B and B &lt; A). For set-intersection we set the commit bit if <code>pA == pB</code>.</p></li>
 </ol>
 <div class="snip">
-  <p>CUDA serial set-union from <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/serialsets.cuh">include/device/serialsets.cuh</a></p>
+  <p>CUDA serial set-union from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/serialsets.cuh">include/device/serialsets.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 81;">template&lt;int VT, bool RangeCheck, typename T, typename Comp>
 MGPU_DEVICE int SerialSetUnion(const T* data, int aBegin, int aEnd,
 	int bBegin, int bEnd, int end, T* results, int* indices, Comp comp) {
@@ -893,7 +893,7 @@ MGPU_DEVICE int SerialSetUnion(const T* data, int aBegin, int aEnd,
 </table></div>
 <p>The range-checking logic is basically the same for all four serial set op functions. The material difference is how results are selected and committed. If both keys are in-range, <code>SerialSetUnion</code> compares them and sets the result to A, or B if B is smaller. One value from each key-rank slot is always emitted, so the <code>commit</code> flag is set unconditionally.</p>
 <div class="snip">
-  <p>CUDA serial set-difference from <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/serialsets.cuh">include/device/serialsets.cuh</a></p>
+  <p>CUDA serial set-difference from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/serialsets.cuh">include/device/serialsets.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 124;">template&lt;int VT, bool RangeCheck, typename T, typename Comp>
 MGPU_DEVICE int SerialSetDifference(const T* data, int aBegin, int aEnd, 
 	int bBegin, int bEnd, int end, T* results, int* indices, Comp comp) { 
@@ -978,7 +978,7 @@ MGPU_DEVICE int SerialSetDifference(const T* data, int aBegin, int aEnd,
 </div>
 <p>Set-difference is the complement of set-intersection. The result is unconditionally set to the A element and committed if <code>aKey &lt; bKey</code>.</p>
 <div class="snip">
-  <p>CUDA serial set-symmetric difference from <a href="https://github.com/NVlabs/moderngpu/blob/master/include/device/serialsets.cuh">include/device/serialsets.cuh</a></p>
+  <p>CUDA serial set-symmetric difference from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/serialsets.cuh">include/device/serialsets.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 165;">template&lt;int VT, bool RangeCheck, typename T, typename Comp>
 MGPU_DEVICE int SerialSetSymDiff(const T* data, int aBegin, int aEnd, 
 	int bBegin, int bEnd, int end, T* results, int* indices, Comp comp) { 
@@ -1062,7 +1062,7 @@ MGPU_DEVICE int SerialSetSymDiff(const T* data, int aBegin, int aEnd,
 </div>
 <p>Set-symmetric difference uses the identical range-checking expressions as set-difference. However instead of conditionally emitting A, it emits A or B, whichever is smaller. If the keys are equal, the function moves to the next key-rank frame.</p>
 <h2><a id="kernel">Multisets kernel</a></h2>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/sets.cuh">include/kernels/sets.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 49;">
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/sets.cuh">include/kernels/sets.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 49;">
 template&lt;int NT, int VT, MgpuSetOp Op, bool Duplicates, typename InputIt1,
 	typename InputIt2, typename T, typename Comp>
 MGPU_DEVICE int DeviceComputeSetAvailability(InputIt1 a_global, int aCount,
@@ -1140,7 +1140,7 @@ MGPU_DEVICE int DeviceComputeSetAvailability(InputIt1 a_global, int aCount,
   </ol></li>
 </ul>    
 <p>Compaction behavior is more efficient because the input arrays are processed only once, but it requires a lot of temporary storage. This is the default mode for <code>StreamOpKeys</code> (the keys-only multiset function). The compaction mode is not available for <code>StreamOpPairs</code>: we'd need two temporary buffers (for keys and values), and would have to copy values  twice, wasting both space and bandwidth. By using the count-scan-stream pattern, the first <code>KernelSetOp</code> launch only touches keys; the second <code>KernelSetOp</code> launch compacts keys and indices inside the CTA; it stores the keys then cooperatively gathers and stores values.</p>
-<div class="snip"><p><a href="https://github.com/NVlabs/moderngpu/blob/master/include/kernels/sets.cuh">include/kernels/sets.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 108;">
+<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/sets.cuh">include/kernels/sets.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 108;">
 template&lt;typename Tuning, MgpuSetOp Op, bool Duplicates, int Stage,
 	bool HasValues, typename KeysIt1, typename KeysIt2, typename KeysIt3,
 	typename ValsIt1, typename ValsIt2, typename ValsIt3, typename Comp>

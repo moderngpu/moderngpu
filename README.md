@@ -38,7 +38,6 @@ moderngpu is a productivity library for general-purpose computing on GPUs. It is
   1. [Tutorial 3 - launch box](KERNEL.md#tutorial-3---launch-box)
   1. [Tutorial 4 - custom launch parameters](KERNEL.md#tutorial-4---custom-launch-parameters)
   1. [Tutorial 5 - iterators](KERNEL.md#tutorial-5---iterators)
-  2. 
 1. [API Reference](API.md)
   1. [Low-level transforms](API.md#low-level-transforms)
   1. [High-level transforms](API.md#high-level-transforms)

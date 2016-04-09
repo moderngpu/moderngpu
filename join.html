@@ -39,8 +39,8 @@
 <h2><a id="benchmark">Benchmark and usage</a></h2>
 <div class="figure"><img src="benchmark_joinsint.png" width="703" height="420" alt=" " /></div>
 <div class="figure"><img src="benchmark_joinsint64.png" width="703" height="420" alt=" " /></div>
-<p class="cap">Relational joins benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarkjoin/benchmarkjoin.cu">benchmarkjoin/benchmarkjoin.cu</a></p>
-<div class="snip"><p>Relational joins demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
+<p class="cap">Relational joins benchmark from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarkjoin/benchmarkjoin.cu">benchmarkjoin/benchmarkjoin.cu</a></p>
+<div class="snip"><p>Relational joins demonstration from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 516">void DemoJoin(CudaContext&amp; context) {
 	printf("RELATIONAL JOINS DEMONSTRATION\n\n");
 
@@ -179,7 +179,7 @@ output   (aIndex, bIndex) : (aKey, bKey)
  49      (    -1,     29) : ( ---,  130)</pre></div>
  <h2><a id="host">Host functions</a></h2>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 478">////////////////////////////////////////////////////////////////////////////////
 // kernels/join.cuh
 
@@ -495,7 +495,7 @@ MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
 	  <p>For a right/outer-join, compact the indices of the rows in B that were <em>not</em> matched in <span class="idiom">1</span> to the end of the output array. <code>cudaMemset</code> -1s to the corresponding A indices.</p></li>
 </ol>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/join.cuh">include/kernels/join.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 192">
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/join.cuh">include/kernels/join.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 192">
 template&lt;MgpuJoinKind Kind, typename InputIt1, typename InputIt2,
 	typename Comp>
 MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
@@ -536,7 +536,7 @@ MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
 <p>When supporting left-join, matches of A into B are computed in addition to the lower-bound indices&mdash;matches are indicated by setting the high bit of the indices. </p>
 <p>When supporting right-join, matches of B into A are returned in bytes. All we really need are bits, but those aren't directly addressable. The total number of matches is returned in the last <code>SortedSearch</code> argument; it is subtracted from the size of the B array: this is the number of right-join rows to append to the end of the output.</p>            
 <div class="snip">
-<p>RelationalJoin (continued) from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/join.cuh">include/kernels/join.cuh</a></p>
+<p>RelationalJoin (continued) from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/join.cuh">include/kernels/join.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 229">&nbsp;&nbsp;&nbsp;&nbsp;// Use the lower bounds to compute the counts for each element.
 	MGPU_MEM(int) aCounts = context.Malloc&lt;int>(aCount);
 	if(SupportLeft) 
@@ -552,7 +552,7 @@ MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
 	int leftJoinTotal = Scan(aCounts->get(), aCount, context);</pre></div>
 <p>The second section calls <code><a href="sortedsearch.html#equalitycount">SortedEqualityCount</a></code>: an upper-bound of A into B is run and its different from the lower-bound in returned as a count. This is the count of B values created for <em>each</em> A value&mdash;the Cartesian product is implemented by generating a variable number of outputs for each individual element of A. To support left-join, we specialize with the <code>LeftJoinEqualityOp</code>; this returns a 1 count when there are no elements in B matching a key in A. Because the join kernel uses load-balancing search we scan the counts in-place. This creates a sorted array that can be pushed through the upper-bound <code>MergePathPartitions</code>.</p>
 <div class="snip">
-<p>RelationalJoin (continued) from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/join.cuh">include/kernels/join.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 243">&nbsp;&nbsp;&nbsp;&nbsp;// Allocate space for the join indices from the sum of left and right join
+<p>RelationalJoin (continued) from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/join.cuh">include/kernels/join.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 243">&nbsp;&nbsp;&nbsp;&nbsp;// Allocate space for the join indices from the sum of left and right join
 	// sizes.
 	int joinTotal = leftJoinTotal + rightJoinTotal;
 	MGPU_MEM(int) aIndicesDevice = context.Malloc&lt;int>(joinTotal);
@@ -577,7 +577,7 @@ MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
 		aIndicesDevice->get(), bIndicesDevice->get());</pre></div>
 <p>A <a href="performance.html#launchbox">LaunchBox</a> is created to support device-specific parameterizations. Although we launch a number of routines from <code>RelationalJoin</code>, we only control the tuning parameters for <code>KernelLeftJoin</code>&mdash;the other kernels are pre-packaged in host functions that define their own launch parameters. </p>
 <p>Index pairs are allocated, <code>MergePathPartitions</code> is called to prepare the load-balancing search, and <code>KernelLeftJoin</code> is launched. This kernel performs both the left- and inner-join parts. Right-join is a comparatively trivial operation involving a simple index compaction to the end of the index arrays. It is saved for the end.</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/join.cuh">include/kernels/join.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 45">template&lt;typename Tuning, bool LeftJoin>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/join.cuh">include/kernels/join.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 45">template&lt;typename Tuning, bool LeftJoin>
 MGPU_LAUNCH_BOUNDS void KernelLeftJoin(int total, const int* aLowerBound_global,
 	const int* aCountsScan_global, int aCount, const int* mp_global,
 	int* aIndices_global, int* bIndices_global) { 
@@ -638,7 +638,7 @@ MGPU_LAUNCH_BOUNDS void KernelLeftJoin(int total, const int* aLowerBound_global,
 <p class="important"><code>bIndex = lb + rank[i];</code>  Infer the B index from the lower-bound of A into B and the A-rank of the output row.</p><p> If the user has requested a left/outer-join we check the match bit of the lower-bound (the most significant bit), and emit the null index -1 to form a left-join output: </p>
 <p class="important"><code>bIndex = (0x80000000 &amp; lb) ? ((0x7fffffff &amp; lb) + rank[i]) : -1;</code> Return the B index only if this is an inner-type output, as indicated by a set match bit on the lower-bound term.</p>
 <div class="snip">
-<p>RelationalJoin (continued) from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/join.cuh">include/kernels/join.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 267">&nbsp;&nbsp;&nbsp;&nbsp;// Launch the right join kernel. Compact the non-matches from B into A.
+<p>RelationalJoin (continued) from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/join.cuh">include/kernels/join.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 267">&nbsp;&nbsp;&nbsp;&nbsp;// Launch the right join kernel. Compact the non-matches from B into A.
 	if(SupportRight) {
 		const int NT = 128;
 		int numBlocks = MGPU_DIV_UP(bCount, 8 * NT);

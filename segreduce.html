@@ -41,9 +41,9 @@
 <div class="figure"><img src="benchmark_segreduce_counts.png" width="703" height="420" alt="" /></div>
 
 <div class="figure"><img src="benchmark_segreduce_segsize.png" width="703" height="420" alt="" /></div>
-<p class="cap">Segmented reduce benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarksegreduce/benchmarksegreduce.cu">benchmarksegreduce/benchmarksegreduce.cu</a></p>
+<p class="cap">Segmented reduce benchmark from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarksegreduce/benchmarksegreduce.cu">benchmarksegreduce/benchmarksegreduce.cu</a></p>
 <div class="snip">
-  <p>Segmented reduce demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/demo/demo.cu">demo/demo.cu</a></p>
+  <p>Segmented reduce demonstration from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/demo/demo.cu">demo/demo.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 684">void DemoSegReduceCsr(CudaContext&amp; context) {
 	printf("\n\nSEGMENTED REDUCE-CSR DEMONSTRATION\n\n");
 
@@ -88,7 +88,7 @@ Values:
 Reduced values:
     0:    25   34   21  129   48   36   10</pre></div>
 <h3>Host functions</h3>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 571">// SegReducePreprocessData is defined in segreduce.cuh. It includes:
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 571">// SegReducePreprocessData is defined in segreduce.cuh. It includes:
 // -	limits for CSR->tiles
 // -	packed thread codes for each thread in the reduction
 // -	(optional) CSR2 array of filtered segment offsets
@@ -165,8 +165,8 @@ MGPU_HOST void SegReduceApply(const SegReducePreprocessData&amp; preprocess,
 <div class="figure"><img src="benchmark_reducebykey_segsize_float.png" width="701" height="421" alt="" /></div>
 <div class="figure"><img src="benchmark_reducebykey_counts_double.png" width="701" height="421" alt="" /></div>
 <div class="figure"><img src="benchmark_reducebykey_segsize_double.png" width="701" height="421" alt="" /></div>
-<p class="cap">Reduce-by-key benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarkreducebykey/benchmarkreducebykey.cu">benchmarkreducebykey/benchmarkreducebykey.cu</a></p>
-<div class="snip"><p>Segmented reduce demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/demo/demo.cu">demo/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 649">void DemoReduceByKey(CudaContext&amp; context) {
+<p class="cap">Reduce-by-key benchmark from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarkreducebykey/benchmarkreducebykey.cu">benchmarkreducebykey/benchmarkreducebykey.cu</a></p>
+<div class="snip"><p>Segmented reduce demonstration from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/demo/demo.cu">demo/demo.cu</a></p><pre class="brush: cpp; toolbar: false; first-line: 649">void DemoReduceByKey(CudaContext&amp; context) {
 	printf("\n\nREDUCE BY KEY DEMONSTRATION\n\n");
 
 	int count = 100;
@@ -228,7 +228,7 @@ Reduced keys:
 Reduced values:
     0:     8   10   82   23    9   33   36    2   94</pre></div>
 <h3>Host functions</h3>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 645">////////////////////////////////////////////////////////////////////////////////
 // kernels/reducebykey.csr
 
@@ -287,10 +287,10 @@ MGPU_HOST void ReduceByKeyApply(const ReduceByKeyPreprocessData&amp; preprocess,
 <h3>Benchmarks</h3>
 <div class="figure"><img src="benchmark_spmvcsr_float.png" width="703" height="429" alt="" /></div>
 <div class="figure"><img src="benchmark_spmvcsr_double.png" width="703" height="429" alt="" /></div>
-<p class="cap">Spmv benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarkspmvcsr/benchmarkspmvcsr.cu">benchmarkspmvcsr/benchmarkspmvcsr.cu</a></p>
+<p class="cap">Spmv benchmark from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarkspmvcsr/benchmarkspmvcsr.cu">benchmarkspmvcsr/benchmarkspmvcsr.cu</a></p>
 <p class="cap">Download test matrices <a href="http://www.nvidia.com/object/nvidia_research_pub_001.html">here</a>.</p>
 <h3>Host functions</h3>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 699">////////////////////////////////////////////////////////////////////////////////
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 699">////////////////////////////////////////////////////////////////////////////////
 // kernels/spmvcsr.cuh
 
 typedef SegReducePreprocessData SpmvPreprocessData;
@@ -528,7 +528,7 @@ carry-out   :                                                                   
         
 </div>
 <p>The segmented scan process has the identical logic as a basic, unsegmented scan, except instead of adding when <code>tid &gt;= offset</code> (so that <code>tid - offset</code> is in bounds) we add when <code>tidDelta &gt;= offset</code> (so that <code>tid - offset</code> holds a partial carry-out reduction of the desired segment). If all threads belong to the same segment, <code>tidDelta = tid</code> naturally, and we see the segmented scan flow matching that of the unsegmented scan.</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasegscan.cuh">include/device/ctasegscan.cuh</a></p><pre class="brush:cpp; toolbar: false; first-line: 45">template&lt;int NT>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctasegscan.cuh">include/device/ctasegscan.cuh</a></p><pre class="brush:cpp; toolbar: false; first-line: 45">template&lt;int NT>
 MGPU_DEVICE int DeviceFindSegScanDelta(int tid, bool flag, int* delta_shared) {
 	const int NumWarps = NT / 32;
 
@@ -566,7 +566,7 @@ MGPU_DEVICE int DeviceFindSegScanDelta(int tid, bool flag, int* delta_shared) {
 <p>Although the structure of this computation is very specific to GPU architecture, and uses a number of NVIDIA-specific intrinsics, it is at least isolated to a small section of code. The remainder of the segmented reduction code is mostly structural, and glues together concepts we've already treated.</p>
 <h2><a id="ctasegreduce">CTASegReduce</a></h2>
 <p>We provide a single class that computes intra-tile segmented reductions and stores both the reductions and the tile's carry-out to device memory. It requires values and CTA-local segment indices in thread order. The problem-specific front-ends (for segmented reduction CSR, reduce-by-key, and Spmv CSR) are responsible for loading data and (in the case of the CSR algorithms) flattening CSR to row indices.</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasegreduce.cuh">include/device/ctasegreduce.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctasegreduce.cuh">include/device/ctasegreduce.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 160">// Core segmented reduction code. Supports fast-path and slow-path for intra-CTA
 // segmented reduction. Stores partials to global memory.
 // Callers feed CTASegReduce::ReduceToGlobal values in thread order.
@@ -671,7 +671,7 @@ struct CTASegReduce {
 </ol>
 <h2><a id="reducebykeyfrontend">Reduce-by-key front-end</a></h2>
 <p>MGPU's reduce-by-key supports a similar interface to <code>thrust::reduce_by_key</code>. Segment identifiers are explicitly paired with each input, so resolving segment indices for each element is as simple as counting discontinuities in the identifier array. The MGPU implementation uses an intermediate format to separate segment index discovery from the reduction computation. The segment identifier array is traversed once, and discontinuity information is extracted, compressed, and stored to the intermediate structure using one word per thread.</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/reducebykey.cuh">include/kernels/reducebykey.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/reducebykey.cuh">include/kernels/reducebykey.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 41">// Stream through keys and find discontinuities. Compress these into a bitfield
 // for each thread in the reduction CTA. Emit a count of discontinuities.
 // These are scanned to provide limits.
@@ -764,7 +764,7 @@ MGPU_LAUNCH_BOUNDS void KernelReduceByKeyPreprocess(KeysIt keys_global,
 <p>Row indices for each element are quickly synthesized using these terms.</p>
 <h2><a id="preprocessapply">Preprocessed segmented reduction</a> - Apply</h2>
 <p>The reduction computation for reduce-by-key not only shares an intermediate format with the preprocessed format for segmented reduction CSR, but shares the kernel and host code as well.</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/segreducecsr.cuh">include/kernels/segreducecsr.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 401">template&lt;typename Tuning, typename InputIt, typename DestIt, typename T,
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/segreducecsr.cuh">include/kernels/segreducecsr.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 401">template&lt;typename Tuning, typename InputIt, typename DestIt, typename T,
 	typename Op>
 MGPU_LAUNCH_BOUNDS void KernelSegReduceApply(const int* threadCodes_global,
 	int count, const int* limits_global, InputIt data_global, T identity,
@@ -833,7 +833,7 @@ MGPU_LAUNCH_BOUNDS void KernelSegReduceApply(const int* threadCodes_global,
 <p>The kernel specializes <code>CTASegReduce</code> and unions its storage into the shared memory object. <code>CTASegReduce</code> contains encapsulates the logic of the intra-tile reduction, and is leveraged by all our front-ends.</p>
 <p><code>CTASegReduceLoad</code> encapsulates data-loading logic for segmented reduction CSR. It supports a superset of what reduce-by-key requires, including indirect segment sources. For the preprocessed kernel we support only the basic direct indexing.</p>
 <p>The kernel loads <code>limit0</code> and <code>limit1</code> from <code>limits_global</code>. For reduce-by-key this array provides the exclusive scan of per-tile segment counts. For segmented reduction CSR it's a compatible definition: the index of the first segment in each tile, with a continuation flag in the most significant bit.</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasegreduce.cuh">include/device/ctasegreduce.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 65">template&lt;int VT>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctasegreduce.cuh">include/device/ctasegreduce.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 65">template&lt;int VT>
 MGPU_DEVICE void DeviceExpandFlagsToRows(int first, int endFlags, 
 	int rows[VT + 1]) {
 
@@ -859,7 +859,7 @@ MGPU_DEVICE void DeviceExpandFlagsToRows(int first, int endFlags,
 <p>As with merge and merge-like streaming functions, we use a <a href="intro.html#twophase">two-phase decomposition</a> to evaluate the segmented reduction on CSR-encoded segments. During partitioning we use a  dynamic binary search to map row geometry into tiles: this is analogous to the <a href="bulkinsert.html#mergepath">Merge Path</a> search in our <a href="merge.html">merge</a> function. The segmented reduction kernel launches, loads disjoint intervals from the CSR array, and uses a sequential procedure to materialize segment indices for each input: this is analogous to the use of <code><a href="http://nvlabs.github.io/moderngpu/merge.html#algorithm">SerialMerge</a></code> in the merge implementation.</p>
 <p>Once we have segment indices for each input, the segmented reduction CSR, Spmv CSR, and reduce-by-key functions are all handled by the same intra-CTA backend code.</p>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/csrtools.cuh">include/kernels/csrtools.cuh</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/csrtools.cuh">include/kernels/csrtools.cuh</a></p>
 <pre class="brush: cpp; toolbar: false;first-line: 47">template&lt;int NT, typename CsrIt>
 __global__ void KernelPartitionCsrSegReduce(int nz, int nv, CsrIt csr_global,
 	int numRows, const int* numRows2, int numPartitions, int* limits_global) {
@@ -903,7 +903,7 @@ MGPU_HOST MGPU_MEM(int) PartitionCsrSegReduce(int count, int nv,
 <p><code>PartitionCsrSegReduce</code> maps the CSR segment descriptor array into uniform-length tiles. It finds disjoint partitions, assigning the descriptor for segments that span multiple tiles to the last tile in the span. If a segment does not start on a tile boundary, the most-significant bit of the limit is set to indicate that the left tile should read one additional segment offset. The partitioning search finds only the first and last segment indices for each tile; filling out per-element segment indices is reserved for the sequential flattening process in the reduction kernel. </p>
 <p>It's worth commenting on the use of upper-bound - 1, a frequently recurring partitioning pattern. Consider a CSR array { 0, 957, 1008, 2000, 2312 } and a tile size of 1000. If we lower-bound search the tile boundaries { 0, 1000, 2000 } we have limits { 0, 2, 3 }, corresponding to segment starts { 0, 1008, 2000 }. Segment 0 (offset 0) is correctly mapped as the first segment in tile 0. Segment 3 (offset 2000) is also correctly mapped as the first segment in tile 1. However, segment 2 (offset 1008) is incorrectly mapped as the first segment in tile 1: it should be segment 1  (offset 957).</p>
 <p>Now run a binary-search using upper-bound semantics and subtract one from each index: Searching for { 0, 1000, 2000 } in { 0, 957, 1008, 2000, 2312 } yields limits { 0, 1, 3 }. Now segment 1 (offset 957) is correctly identified as the starting segment for tile 1. The segment indices are returned in <code>limits_global</code>, which is passed to all reduction kernels operating on CSR-parameterized segment descriptors.</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasegreduce.cuh">include/device/ctasegreduce.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctasegreduce.cuh">include/device/ctasegreduce.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 48">struct SegReduceRange {
 	int begin;
 	int end;
@@ -922,7 +922,7 @@ MGPU_DEVICE SegReduceRange DeviceShiftRange(int limit0, int limit1) {
 }</pre></div>
 <p>After partitioning CSR descriptors into tiles, the seg-reduce-CSR and Spmv CSR kernel load the left and right segment indices for their tile. The left limit is the segment index of the left-most segment in the tile. The right limit is the segment index of the first segment in the next tile. If the most-significant bit of the right limit is set, that tile includes an additional segment which spans the tile boundary and ends in a subsequent tile. In the disjoint partitioning this tile belongs to the right-most tile which includes it. When the right limit's most-significant bit is set, we increment the right limit segment index to include the additional segment.</p>
 <p><code>DeviceShiftRange</code> also returns a <code>flushLast</code> value. This is set if the last segment that starts in the tile (the right segment index) also ends on that tile's right boundary. In this case we do not increment the right limit, but instead set <code>flushLast</code> to force a store of the partial reduction at the end of the tile. We can't simply load in the next segment offset, because one past the last segment descriptor may be out of range (when we're at the last segment).</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasegreduce.cuh">include/device/ctasegreduce.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctasegreduce.cuh">include/device/ctasegreduce.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 130">struct SegReduceTerms {
 	int endFlags;
 	int tidDelta;
@@ -948,7 +948,7 @@ MGPU_DEVICE SegReduceTerms DeviceSegReducePrepare(int* csr_shared, int numRows,
 }</pre></div>
 <p><code>DeviceSegReducePrepare</code> is a utility function called by all segmented reduction front-ends that require CSR-to-COO flattening. It expands compressed segment descriptors to tile-local segment indices, packs segment discontinuities into end flags (for preprocessing), and returns the <code>tidDelta</code> for cooperative segmented scan.</p>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasegreduce.cuh">include/device/ctasegreduce.cuh</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctasegreduce.cuh">include/device/ctasegreduce.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 84">template&lt;int NT, int VT>
 MGPU_DEVICE int DeviceExpandCsrRows(int tidOffset, int* csr_shared, 
 	int numRows, int end, int rows[VT + 1], int rowStarts[VT]) {
@@ -991,7 +991,7 @@ MGPU_DEVICE int DeviceExpandCsrRows(int tidOffset, int* csr_shared,
 <p>As with <a href="merge.html">MGPU Merge</a>, the compile-time argument VT serves as a tuning parameter. Increasing the parameter improves algorithmic efficiency by decreasing the number of costly binary searches over the entire input (linear searching for per-element flattening remains O(n)). Decreasing the parameter reduces state-per-thread for supporting more concurrent CTAs per SM, improving occupancy and helping the GPU hide latency.</p>
 <h2><a id="preprocessconstruct">Preprocessed segmented reduction - Construct</a></h2>
 <div class="snip">
-<p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/csrtools.cuh">include/kernels/csrtools.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 91">template&lt;typename Tuning, typename CsrIt>
+<p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/csrtools.cuh">include/kernels/csrtools.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 91">template&lt;typename Tuning, typename CsrIt>
 MGPU_LAUNCH_BOUNDS void KernelBuildCsrPlus(int count, CsrIt csr_global,
 	const int* limits_global, int* threadCodes_global) {
 
@@ -1037,7 +1037,7 @@ MGPU_LAUNCH_BOUNDS void KernelBuildCsrPlus(int count, CsrIt csr_global,
 }</pre></div>
 <p><code>KernelBuildCsrPlus</code> constructs the segmented reduction accelerator structure, which we call CSR+, for all front-ends taking CSR-format segment descriptors. Although this kernel makes no direct reference to the value data type or operator, it must generate CSR+ data that is compatible with <code>KernelSegReduceApply</code> and <code>KernelSpmvApply</code>. The host functions that launch the construction kernels require the user to provide the value's data type; the size of this type is required for retrieving the grain size VT used by the corresponding apply kernel. CSR+ is intended as a non-serializable intermediate format, generated specifically for one front-end and one value data type.</p>
 <h2><a id="segreducecsrfrontend">Segmented reduction (CSR)</a> front-end</h2>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/segreducecsr.cuh">include/kernels/segreducecsr.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/segreducecsr.cuh">include/kernels/segreducecsr.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 193">template&lt;typename Tuning, bool Indirect, typename CsrIt, typename SourcesIt,
 	typename InputIt, typename DestIt, typename T, typename Op>
 MGPU_LAUNCH_BOUNDS void KernelSegReduceCsr(CsrIt csr_global, 

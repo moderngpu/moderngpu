@@ -38,7 +38,7 @@
 <p>Bulk Remove and Bulk Insert are high-throughput functions for fine-grained parallel array surgery. Bulk Remove compacts an array by removing all elements specified by index. Bulk Insert merges two arrays in parallel by insertion index. Merge Path partitioning for load balancing is introduced here.</p>
 <h2><a id="benchmark">Benchmark and usage</a></h2>
 <div class="figure"><img src="benchmark_bulkremove.png" width="703" height="420" alt="" /></div>
-<p class="cap">Bulk Remove benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarkinsert/benchmarkinsert.cu">benchmarkinsert/benchmarkinsert.cu</a></p><div class="snip"><p>Bulk Remove demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
+<p class="cap">Bulk Remove benchmark from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarkinsert/benchmarkinsert.cu">benchmarkinsert/benchmarkinsert.cu</a></p><div class="snip"><p>Bulk Remove demonstration from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 89">void DemoBulkRemove(CudaContext&amp; context) {
 	printf("\n\nBULK REMOVE DEMONSTRATION:\n\n");
 
@@ -82,7 +82,7 @@ Removing every 3rd element:
    40:    61   62   64   65   67   68   70   71   73   74
    50:    76   77   79   80   82   83   85   86   88   89
    60:    91   92   94   95   97   98</pre></div>
-<div class="figure"><img src="benchmark_bulkinsert.png" width="703" height="420" alt="" /></div><p class="cap">Bulk Insert benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarkinsert/benchmarkinsert.cu">benchmarkinsert/benchmarkinsert.cu</a></p><div class="snip"><p>Bulk Insert demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
+<div class="figure"><img src="benchmark_bulkinsert.png" width="703" height="420" alt="" /></div><p class="cap">Bulk Insert benchmark from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarkinsert/benchmarkinsert.cu">benchmarkinsert/benchmarkinsert.cu</a></p><div class="snip"><p>Bulk Insert demonstration from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 115">void DemoBulkInsert(CudaContext&amp; context) {
 	printf("\n\nBULK INSERT DEMONSTRATION:\n\n");
 
@@ -134,7 +134,7 @@ Inserting before every 5th element starting at item 2:
   110:  1180   92   93   94   95   96 1190   97   98   99</pre></div>
   <h2><a id="host">Host functions</a></h2>
 <div class="snip">
-<p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 88">////////////////////////////////////////////////////////////////////////////////
+<p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 88">////////////////////////////////////////////////////////////////////////////////
 // kernels/bulkremove.cuh
 
 // Compact the elements in source_global by removing elements identified by
@@ -231,7 +231,7 @@ Reduced data:
     <li>
       <p>Destination offsets for each tile are inferred from the the tile's input offset (a multiple of the block size) and the removal index offset from <span class="idiom">1</span>. Because Bulk Remove requires indices both sorted and unique, a CTA knows where to stream given only its block ID and the location of the first remove index in its range. If NV = 1000, block 8 that loads removal indices (2113, 2423) streams exactly 690 values (1000 - (2423 - 2113)) starting at output position 5887 (8 * 1000 - 2113). </p></li>
 </ol>
-<div class="snip"><p> <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/search.cuh">include/kernels/search.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 45">template&lt;int NT, MgpuBounds Bounds, typename It, typename Comp>
+<div class="snip"><p> <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/search.cuh">include/kernels/search.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 45">template&lt;int NT, MgpuBounds Bounds, typename It, typename Comp>
 __global__ void KernelBinarySearch(int count, It data_global, int numItems,
 	int nv, int* partitions_global, int numSearches, Comp comp) {
 
@@ -261,7 +261,7 @@ MGPU_MEM(int) BinarySearchPartitions(int count, It1 data_global, int numItems,
 <p>Thrust includes a function <code><a href="http://thrust.github.io/doc/group__stream__compaction.html#ga5760a32d1a99d89732206f48b75138ea">remove_if</a></code> that compacts inputs given a corresponding array of predicates. This interface requires multiple trips through the input: the first trip simply counts the number of elements not to remove. Modern GPU functions usually accept sorted  arrays of indices (to remove, to insert, or to mark segment heads) because it eliminates a pass that would otherwise need to run just to calculate output locations and sizes.</p>
 <h2><a id="kernelbulkremove">KernelBulkRemove</a></h2>
 <div class="snip">
-  <p> <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/bulkremove.cuh">include/kernels/bulkremove.cuh</a></p>
+  <p> <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/bulkremove.cuh">include/kernels/bulkremove.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 47">template&lt;typename Tuning, typename InputIt, typename IndicesIt, 
 	typename OutputIt>
 MGPU_LAUNCH_BOUNDS void KernelBulkRemove(InputIt source_global, int sourceCount, 
@@ -347,7 +347,7 @@ MGPU_LAUNCH_BOUNDS void KernelBulkRemove(InputIt source_global, int sourceCount,
 <p>The solution is to generalize the partitioning code to search over two inputs simultaneously: we want to balance the source data with the insertion requests. For NV = 1000, loading 712 inputs implies we can load no more than 288 indices. This way both the new  and the old values get merged without overflowing the resources available for the block.</p>
 <p>Searching on two sorted arrays is fortunately very easy. For each tile index i, we look for splitters A<sub>i</sub> and B<sub>i</sub> such that A<sub>i</sub> + B<sub>i</sub> = NV * i. CTA i loads input from the interval (A<sub>i</sub>, A<sub>i+1</sub>) and insertion indices from the interval (NV * i - A<sub>i</sub>, NV * (i + 1) - A<sub>i+1</sub>). The total number of loaded items is clearly NV. If we can simply calculate the partitions A<sub>i</sub> we'll have solved Bulk Insert.</p>
 <h2><a id="mergepath">Merge Path</a></h2>
-<div class="snip"><p> <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasearch.cuh">include/device/ctasearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 92">template&lt;MgpuBounds Bounds, typename It1, typename It2, typename Comp>
+<div class="snip"><p> <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctasearch.cuh">include/device/ctasearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 92">template&lt;MgpuBounds Bounds, typename It1, typename It2, typename Comp>
 MGPU_HOST_DEVICE int MergePath(It1 a, int aCount, It2 b, int bCount, int diag,
 	Comp comp) {
 
@@ -434,10 +434,10 @@ Gather indices:
    90:    92   93   94   95 <span class="green">  20 </span>  96 <span class="green">  21 </span>  97   98   99
 </pre></div>
 <p>As with Bulk Remove, an exclusive scan is computed across the flags. If the flag was set (indicating an insertion at this position) then we'll gather at that scan offset. If the flag was cleared we subtract the scan from the output rank and add aCount (the number of inserted vertices). This segregates the gather into two forms: inserted values (in green) are referenced by their ranks; source values (in black) are referenced by their ranks plus the number of inserted values. </p>
-<p>The <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/loadstore.cuh">loadstore.cuh</a> function <code>DeviceTransferMergeValues</code> interprets gather indices in this format and performs the data transfer. This mechanism is used by other merge-like functions (merge, mergesort, segmented sort, multisets) to move the values in key/value pair operations.</p>
+<p>The <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/loadstore.cuh">loadstore.cuh</a> function <code>DeviceTransferMergeValues</code> interprets gather indices in this format and performs the data transfer. This mechanism is used by other merge-like functions (merge, mergesort, segmented sort, multisets) to move the values in key/value pair operations.</p>
 <h2><a id="kernelbulkinsert">Bulk insert host function and kernel</a></h2>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/bulkinsert.cuh">include/kernels/bulkinsert.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 129">template&lt;typename InputIt1, typename IndicesIt, typename InputIt2,
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/bulkinsert.cuh">include/kernels/bulkinsert.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 129">template&lt;typename InputIt1, typename IndicesIt, typename InputIt2,
 	typename OutputIt>
 MGPU_HOST void BulkInsert(InputIt1 a_global, IndicesIt indices_global, 
 	int aCount, InputIt2 b_global, int bCount, OutputIt dest_global,
@@ -462,7 +462,7 @@ MGPU_HOST void BulkInsert(InputIt1 a_global, IndicesIt indices_global,
 <p>The host function creates a <a href="performance.html#launchbox">LaunchBoxVT</a> type to provide tuning parameters to the kernel. We choose a configuration with 128 threads and 7 values per thread as a default, but users who want performance are encouraged to customize this type for their own architectures, data types, and array sizes.</p>
 <p>The call to <code><a href="mergesort.html#mergepathpartitions">MergePathPartitions</a></code> runs a <code>MergePath</code> binary search to assign intervals of insert indices and intervals of source data to each CTA. You can imagine the insert indices written along the top of the Merge Path diagram and the natural numbers (corresponding to the positions of the source data) written along the right. A cross-diagonal every NV elements finds an equal partitioning of insert and source elements for each CTA. The intersections of the cross-diagonals with the Merge Path are stored in <code>partitionsDevice</code>, which is passed to the kernel as <code>mp_global</code>.</p>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/bulkinsert.cuh">include/kernels/bulkinsert.cuh</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/bulkinsert.cuh">include/kernels/bulkinsert.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 45">// Insert the values from a_global into the positions marked by indices_global.
 template&lt;typename Tuning, typename InputIt1, typename IndicesIt, 
 	typename InputIt2, typename OutputIt>

@@ -35,8 +35,8 @@
 </div><br/>
 <h1>The Library</h1>
 <h2><a id="framework">Framework</a></h2>
-<p>To ease development MGPU includes a sample framework, defined in <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/util/mgpucontext.h">util/mgpucontext.h</a>. At the start of your program create a <code>CudaContext</code> object. This encapsulates an event, a timer, a stream, and an allocator. Allocations made through this context are recycled after being freed, reducing calls to <code>cudaMalloc</code>.</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/util/mgpucontext.h">include/util/mgpucontext.h</a></p><pre class="brush: cpp; toolbar: false; first-line: 275">ContextPtr CreateCudaDevice(int ordinal);
+<p>To ease development MGPU includes a sample framework, defined in <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/util/mgpucontext.h">util/mgpucontext.h</a>. At the start of your program create a <code>CudaContext</code> object. This encapsulates an event, a timer, a stream, and an allocator. Allocations made through this context are recycled after being freed, reducing calls to <code>cudaMalloc</code>.</p>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/util/mgpucontext.h">include/util/mgpucontext.h</a></p><pre class="brush: cpp; toolbar: false; first-line: 275">ContextPtr CreateCudaDevice(int ordinal);
 ContextPtr CreateCudaDevice(int argc, char** argv, bool printInfo = false);
 
 ContextPtr CreateCudaDeviceStream(int ordinal);
@@ -98,7 +98,7 @@ C:
 <p>When <code>MGPU_MEM</code>-wrapped objects fall out of scope, the underlying device memory is inserted into a weighted <a href="http://en.wikipedia.org/wiki/Cache_algorithms#Least_Recently_Used">least-recently-used cache</a>. Subsequent queries check the pool and reuse allocations of a similar size before calling <code>cudaMalloc</code>. Once a program gets hot, the client can make small requests from <code>CudaContext</code> with high confidence that the call will return immediately.</p>
 <p>Users can opt-out of the default caching allocator by deriving <code>CudaAlloc</code> and providing their own implementation, or simply by using <code>CudaAllocSimple</code>, which calls <code>cudaFree</code> immediately on device memory falling out of scope.</p>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/util/mgpucontext.h">include/util/mgpucontext.h</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/util/mgpucontext.h">include/util/mgpucontext.h</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 116">class CudaAlloc : public CudaBase {
 public:
 	virtual cudaError_t Malloc(size_t size, void** p) = 0;
@@ -128,7 +128,7 @@ protected:
 	// Set the capacity of the LRU cache to 500MB.
 	buckets->SetCapacity(500000000);</pre></div>
 <p>You can set the capacity of the LRU cache dynamically. <code>CudaContext::GetAllocator</code> returns a <code>CudaContext*</code> pointer to the currently-selected allocator. Because we know it's a caching allocator, we use RTTI's <code>dynamic_cast</code> to retrieve a <code>CudaAllocBuckets*</code> pointer. We call <code>SetCapacity</code> with a request of 500MB to set the cache size. If the size of an allocation request plus the size of items allocated in the cache exceeds 500MB, the caching allocator frees the least-recently-used requests to make space for the new memory.</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/bulkremove.cuh">include/kernels/bulkremove.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 143">&nbsp;&nbsp;&nbsp;&nbsp;KernelBulkRemove&lt;Tuning>&lt;&lt;&lt;numBlocks, launch.x, 0, context.Stream()>>>(
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/bulkremove.cuh">include/kernels/bulkremove.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 143">&nbsp;&nbsp;&nbsp;&nbsp;KernelBulkRemove&lt;Tuning>&lt;&lt;&lt;numBlocks, launch.x, 0, context.Stream()>>>(
 		source_global, sourceCount, indices_global, indicesCount, 
 		partitionsDevice->get(), dest_global);</pre></div>
 <p>The context object attempts to support CUDA streams in as non-obtrusive a manner as possible. All MGPU host functions take a <code>CudaContext</code> object by reference and pass the stream handle to the launch chevrons. This enqueues the kernel 
@@ -137,14 +137,14 @@ launch into the stream that attached to the context.</p>
 creates scheduling inefficiences, the programmer can split apart the host function, use <code>cudaMemcpyAsync</code> 
 to asynchronously move data into CPU-pinned memory, and overlap scheduling of operations on other threads. This is an invasive and application-specific way to program, so it is not directly support by the MGPU library.</p>
 <h2><a id="loadstore">Load/store functions</a></h2>
-<p>MGPU functions are aggressively register-blocked. Register blocking amortizes per-CTA and per-thread costs by increasing the number of items processed per thread. To improve clarity and reduce errors, common routines for moving portions of data between memory spaces (global memory, shared memory, and register) have been factored into functions in the <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/loadstore.cuh">include/device/loadstore.cuh</a> header.</p>
+<p>MGPU functions are aggressively register-blocked. Register blocking amortizes per-CTA and per-thread costs by increasing the number of items processed per thread. To improve clarity and reduce errors, common routines for moving portions of data between memory spaces (global memory, shared memory, and register) have been factored into functions in the <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/loadstore.cuh">include/device/loadstore.cuh</a> header.</p>
 <p>The common template argument VT is the kernel's grain size; it specifies the number of values processed per thread. The argument NT is the number of threads in the CTA.</p>
 <p>Most of these functions operate in <strong>strided order</strong>, in which elements are assigned to threads according to NT * i + tid, where i is the index of the element in the register and tid is the thread ID. Data should be loaded and stored in strided order, as this organizes warp transfers into cache lines, which maximizes data throughput.</p>
 <p>Many MGPU algorithms work with data in <strong>thread order</strong>, in which elements are assigned to threads according to VT * tid + i. Each thread has access to VT consecutive elements which makes performing sequential operations like scan and merge very easy. However data should not be loaded or stored to global memory in thread order, as warp transfers would touch VT different cache lines, wasting 
 memory bandwidth.</p>
 <p>By choosing an odd number for VT we avoid bank conflicts that would otherwise be incurred when re-ordering data between strided and thread orders. Within a warp, all banks (VT * tid + i) % 32 are accessed exactly once for each step i when VT is odd. If VT is a power-of-two, you can expect VT-way conflicts at each step.</p>
 <p>Load/store function prototypes are found in mgpudevice.cuh. Most functions have names matching the pattern <code>Device</code>[Source]<code>To</code>[Dest]:</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpudevice.cuh">include/mgpudevice.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 76">// For 0 &lt;= i &lt; VT: 
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/mgpudevice.cuh">include/mgpudevice.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 76">// For 0 &lt;= i &lt; VT: 
 //		index = NT * i + tid;
 //		if(index &lt; count) reg[i] = data[index];
 // Synchronize after load.

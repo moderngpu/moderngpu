@@ -36,8 +36,8 @@
 <h1>Reduce and Scan</h1>
 <p>Reduce and scan are core primitives of parallel computing. These simple implementations are compact for maximum legibility, but also support user-defined types and operators.</p>
 <h2><a id="benchmark">Benchmark and usage</a></h2>
-<div class="figure"><img src="benchmark_scan.png" width="703" height="420" alt="" /></div><p class="cap">Scan benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarkscan/benchmarkscan.cu">benchmarkscan/benchmarkscan.cu</a></p>
-<div class="snip"><p>Scan demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/demo/demo.cu">demo/demo.cu</a></p>
+<div class="figure"><img src="benchmark_scan.png" width="703" height="420" alt="" /></div><p class="cap">Scan benchmark from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarkscan/benchmarkscan.cu">benchmarkscan/benchmarkscan.cu</a></p>
+<div class="snip"><p>Scan demonstration from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/demo/demo.cu">demo/demo.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 42">void DemoScan(CudaContext&amp; context) {
 	printf("\n\nREDUCTION AND SCAN DEMONSTRATION:\n\n");
 
@@ -84,9 +84,9 @@ Exclusive scan:
    90:   432  436  440  444  448  454  461  468  477  484
 Scan total: 492</pre></div>
 <div class="figure"><img src="benchmark_reduce.png" width="703" height="420" alt="" /></div>
-<p class="cap">Max-reduce benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarkscan/benchmarkscan.cu">benchmarkscan/benchmarkscan.cu</a></p>
+<p class="cap">Max-reduce benchmark from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarkscan/benchmarkscan.cu">benchmarkscan/benchmarkscan.cu</a></p>
 <div class="snip">
-  <p>Max scan and reduce demonstration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/demo/demo.cu">demo/demo.cu</a></p>
+  <p>Max scan and reduce demonstration from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/demo/demo.cu">demo/demo.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 65">void DemoMaxReduce(CudaContext&amp; context) {
 	printf("\n\nMAX-REDUCE DEMONSTRATION:\n\n");
 
@@ -137,7 +137,7 @@ Inclusive max scan:
 Max reduction: 988.</pre></div>
 <h2><a id="host">Host functions</a></h2>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 42">////////////////////////////////////////////////////////////////////////////////
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 42">////////////////////////////////////////////////////////////////////////////////
 // kernels/reduce.cuh
 
 // Reduce input and return variable in device memory or host memory, or both.
@@ -312,7 +312,7 @@ MGPU_DEVICE void DeviceGlobalToSharedDefault(int count, InputIt source, int tid,
 <h2><a id="ctareduce">CTAReduce</a></h2>
 <p>Both MGPU and <a href="http://nvlabs.github.io/cub/">CUB</a> encapsulate the storage requirements of a function with the function logic. While encapsulating data and methods (object-oriented programming) is generally not good practice for high-throughput parallel computing, binding <em>storage</em> with methods helps fully utilize on-chip storage.</p>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 46">template&lt;int NT, typename Op = mgpu::plus&lt;int> >
 struct CTAReduce {
 	typedef typename Op::first_argument_type T;
@@ -324,7 +324,7 @@ struct CTAReduce {
 <p>...</p></div>
 <p>Cooperative functions like reduction communicate their shared memory storage requirements by defining a <code>Storage</code> type in the enclosing class. <code>Storage</code> provisions space for storing one value per thread. The caller unions this into its own shared memory struct.</p>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/sets.cuh">include/kernels/sets.cuh</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/sets.cuh">include/kernels/sets.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line:123">&nbsp;&nbsp;&nbsp;&nbsp;typedef CTAReduce&lt;NT> R;
 	typedef CTAScan&lt;NT> S;
 
@@ -338,7 +338,7 @@ struct CTAReduce {
 <p>Shared memory is a critical resource and many kernels are performance-limited by shared memory capacity. We try to make the most-efficient use of shared memory by unioning together the encapsulated storage objects of each subroutine in the kernel.</p>
 <p> As a rule of thumb, don't use shared memory to store data between calls. Use it for dynamic indexing and for inter-thread communication. The device subroutines in this library do not save or restore the contents of shared memory; they simply act as if they have exclusive access to the resource. Calls should not place data into shared memory expecting it to remain unmodified after invoking a device function that takes an encapsulated <code>Storage</code> parameter.</p> 
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 46">template&lt;int NT, typename Op = mgpu::plus&lt;int> >
 struct CTAReduce {
 	typedef typename Op::first_argument_type T;
@@ -369,7 +369,7 @@ struct CTAReduce {
 <h3>Shfl reduce</h3>
 <p> To  reduce latency we utilize the <code>shfl</code> (&quot;shuffle&quot;) instruction available on Kepler. This feature implements inter-lane communication inside a warp with higher bandwidth than LD/ST pairs to shared memory.  Although CUDA C++ includes a <code>__shfl</code> intrinsic, we choose to access the instruction using inline PTX to save the returned predicate flag. The current CUDA backend copies predicate flags into registers when they are returned as <code>bool</code> types, resulting in wasted instructions if we were to build a shuffle intrinsic that returned both value and predicate. The best performance is achieved by executing both the shfl and the add in inline PTX.</p>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/intrinsics.cuh">include/device/intrinsics.cuh</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/intrinsics.cuh">include/device/intrinsics.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 100">MGPU_DEVICE int shfl_add(int x, int offset, int width = WARP_SIZE) {
 	int result = 0;
 #if __CUDA_ARCH__ &gt;= 300
@@ -386,7 +386,7 @@ struct CTAReduce {
 }</pre>
 </div>
 <p>The <code>mov</code> instruction is elided by the compiler, creating a warp scan in a tight sequence of five <code>shfl</code> and five predicated <code>add</code> instructions. The <code>shfl_add</code> function scans multiple segments within a warp, where <code>width</code> is a power-of-two segment size. The third argument of <code>shfl_add</code> guards against carry-in from a preceding segment&mdash;only values in the same segment are added in each pass.</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 72">#if __CUDA_ARCH__ >= 300
 
 template&lt;int NT>
@@ -438,7 +438,7 @@ struct CTAReduce&lt;NT, mgpu::plus&lt;int> > {
 <p>We specialize <code>CTAReduce</code> on the <code>mgpu::plus&lt;int&gt;</code> operator to accelerate this very common operation. An upsweep is implemented by reducing <code>NumSections = WARP_SIZE</code> sections, each of width <code>SecSize = NT / WARP_SIZE</code>. For an eight warp CTA (256 threads), there are NumWarps * log(SecSize) = 24 <code>shfl_add</code> invocations in the upsweep. The spine scan consists of 5 <code>shfl_add</code> calls, for 29 in all.</p>
 <p>The shfl specialization runs faster than the general case in latency-limited kernels. A CTA with 256 threads requires eight folding passes in the general case, and similarly has a depth of eight <code>shfl_add</code> calls on warp 0 of the specialization. But in the specialization we replace costly load-store-synchronize sequences with faster shuffles, reducing the time to completion for warp 0.</p>
 <h2><a id="reducekernel">Reduce kernel</a></h2>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/reduce.cuh">include/device/ctascan.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/reduce.cuh">include/device/ctascan.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 44">template&lt;typename Tuning, typename InputIt, typename T, typename Op>
 MGPU_LAUNCH_BOUNDS void KernelReduce(InputIt data_global, int count, 
 	T identity, Op op, T* reduction_global) {
@@ -484,7 +484,7 @@ MGPU_LAUNCH_BOUNDS void KernelReduce(InputIt data_global, int count,
 <p>After loading a tile of data, each thread folds its VT values into a scalar. Note that adjacent values in the input are not folded together in order; we require the operator be <em>commutative</em>. (i.e. a * b = b * a.) Inputs may be transposed and folded in thread order to support non-commutative operators, although we feel this is rarely, if ever, necessary in practice.</p>
 <p>After each thread has reduced its values into <code>x</code>, the cooperative device subroutine <code>CTAReduce::Reduce</code> folds values across threads into a tile reduction. The first thread in each CTA stores the reduction to global memory.</p>
 <div class="snip">
-<p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/reduce.cuh">include/kernels/reduce.cuh</a></p>
+<p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/reduce.cuh">include/kernels/reduce.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 87">template&lt;typename InputIt, typename T, typename Op>
 MGPU_HOST void Reduce(InputIt data_global, int count, T identity, Op op,
 	T* reduce_global, T* reduce_host, CudaContext&amp; context) {
@@ -535,7 +535,7 @@ MGPU_HOST void Reduce(InputIt data_global, int count, T identity, Op op,
 <p>The <code>Reduce</code> host function is invoked recursively until all inputs fit in a single tile. It returns the reduction in device memory, host memory, or both. Inputs of 256 or fewer elements are processed by a single tile with 256 threads and a grain-size of 1. Inputs of 768 or fewer elements are processed by a single tile with a grain-size of 3. Larger inputs are processed by larger tiles, which register block to increase sequential work per thread and amortize the work-inefficient cooperative CTA reduction.</p>
 <p>If multiple CTAs are launched, the tile reductions are stored to the temporary array <code>reduceDevice</code>, which is fed back into the host <code>Reduce</code> function. This recursive definition realizes high performance without having to involve &quot;persistent CTAs,&quot; a  pattern in which a fixed number of CTAs are launched which progressively loop through inputs. Persistant CTAs require occupancy calculation and device knowledge to launch an optimal grid sizes, as well as a fudge factor in the form of oversubscription to smooth out variability in CTA times. Sizing grids to data sizes rather than the number of device SMs keeps code simple: each CTA processes one tile and then exits; the hardware grid scheduler is responsible for load balancing.</p>
 <h2><a id="ctascan">CTAScan</a></h2>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 161">template&lt;int NT, typename Op = mgpu::plus&lt;int> >
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctascan.cuh">include/device/ctascan.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 161">template&lt;int NT, typename Op = mgpu::plus&lt;int> >
 struct CTAScan {
 	typedef typename Op::result_type T;
 	enum { Size = NT, Capacity = 2 * NT + 1 };
@@ -638,7 +638,7 @@ struct CTAScan&lt;NT, mgpu::plus&lt;int> > {
 <p>The choice to scan small segments in the upsweep (8 threads/segment) and scan large segments in the spane (32 threads/segment) has significant consequence for work efficiency: in the 256-thread example, each of the eight warps makes three calls to <code>shfl_add</code> in the upsweep, and the spine warp makes five calls, for 29 shuffles in all. By contrast, setting the segment size to 32 performs a five-pass warp scan in the upsweep and a three-pass scan over the eight partials in the spine, calling <code>shfl_add</code> 43 times. Changing the fan-out of scan networks can have implications for both the latency and efficiency.</p>
 <h2><a id="scankernel">Scan kernel</a></h2>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/scan.cuh">include/kernels/scan.cuh</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/scan.cuh">include/kernels/scan.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 159">template&lt;MgpuScanType Type, typename DataIt, typename T, typename Op,
 	typename DestIt&gt;
 MGPU_HOST void Scan(DataIt data_global, int count, T identity, Op op,

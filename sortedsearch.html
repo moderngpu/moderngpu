@@ -38,9 +38,9 @@
 
 <h2><a id="benchmark">Benchmark and usage</a></h2>
 <div class="figure"><img src="benchmark_sortedsearch1.png" width="703" height="420" alt="" /></div>
-<p class="cap">Vectorized sorted search (lower_bound A into B) benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarksortedsearch/benchmarksortedsearch.cu">benchmarksortedsearch/benchmarksortedsearch.cu</a></p>
+<p class="cap">Vectorized sorted search (lower_bound A into B) benchmark from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarksortedsearch/benchmarksortedsearch.cu">benchmarksortedsearch/benchmarksortedsearch.cu</a></p>
 <div class="snip">
-  <p>Vectorized sorted search demostration from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/demo/demo.cu">tests/demo.cu</a></p>
+  <p>Vectorized sorted search demostration from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/demo/demo.cu">tests/demo.cu</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 359">void DemoSortedSearch(CudaContext&amp; context) {
 	printf("\n\nSORTED SEARCH DEMONSTRATION:\n\n");
 
@@ -112,8 +112,8 @@ Lower bound array:
 
 
 <div class="figure"><img src="benchmark_sortedsearch2.png" width="703" height="420" alt="" /></div>
-<p class="cap">Vectorized sorted search (complete search) benchmark from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarksortedsearch/benchmarksortedsearch.cu">benchmarksortedsearch/benchmarksortedsearch.cu</a></p>
-<div class="snip">  <p>Vectorized sorted search demostration (2) from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
+<p class="cap">Vectorized sorted search (complete search) benchmark from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarksortedsearch/benchmarksortedsearch.cu">benchmarksortedsearch/benchmarksortedsearch.cu</a></p>
+<div class="snip">  <p>Vectorized sorted search demostration (2) from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/tests/demo.cu">tests/demo.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 382">void DemoSortedSearch2(CudaContext&amp; context) {
 	printf("\n\nSORTED SEARCH DEMONSTRATION (2):\n\n");
 
@@ -189,7 +189,7 @@ Upper bound of B into A (* for match):
    90:    89   89   94 * 95   95   98   98   98   98 * 99</pre></div>
    <h2><a id="host">Host functions</a></h2>
 <div class="snip">
-  <p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
+  <p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/mgpuhost.cuh">include/mgpuhost.cuh</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 293">////////////////////////////////////////////////////////////////////////////////
 // kernels/sortedsearch.cuh
 
@@ -287,7 +287,7 @@ MGPU_HOST void SortedEqualityCount(InputIt1 a_global, int aCount,
 	  <p>Otherwise, the B pointer is the result for the A query. Set results[A] = B and advance to the next query in A.</p></li>
 </ul>
 <div class="snip">
-  <p>Sorted search for CPU from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarksortedsearch/benchmarksortedsearch.cu">benchmarksortedsearch/benchmarksortedsearch.cu</a></p>
+  <p>Sorted search for CPU from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarksortedsearch/benchmarksortedsearch.cu">benchmarksortedsearch/benchmarksortedsearch.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 39">// Return lower-bound of A into B.
 template&lt;MgpuBounds Bounds, typename T, typename Comp>
 void CPUSortedSearch(const T* a, int aCount, const T* b, int bCount, 
@@ -309,7 +309,7 @@ void CPUSortedSearch(const T* a, int aCount, const T* b, int bCount,
 }</pre></div>
    <p>This code is obviously more efficient than processing each needle as a binary search. But what we've gained in work-efficiency we may have lost in parallelism: binary searches are embarassingly parallel while this linear search code processes queries sequentially.</p>
 <p>It's instructive to compare <code>CPUSortedSearch</code> with <code>SerialMerge</code>, the GPU function that powers MGPU's merge and mergesort:</p>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctamerge.cuh">include/device/ctamerge.cuh</a></p>
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctamerge.cuh">include/device/ctamerge.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 46">template&lt;int VT, bool RangeCheck, typename T, typename Comp>
 MGPU_DEVICE void SerialMerge(const T* keys_shared, int aBegin, int aEnd,
 	int bBegin, int bEnd, T* results, int* indices, Comp comp) { 
@@ -337,7 +337,7 @@ MGPU_DEVICE void SerialMerge(const T* keys_shared, int aBegin, int aEnd,
 <p>We parallelize the vectorized sorted search just like we do the merge. Coarse- and fine-grained scheduling and partitioning code is reused from MGPU Merge. However because we stream over A and B data but only emit A elements, we need an additional in-CTA pass to compact results.</p>
 <p>There is a surprising and welcomed benefit from using a linear search, beyond just the improved work-efficiency: If we search for the lower-bound of A into B, we can also recover the upper-bound of B into A in the same pass. This is possible with linear search because we encounter every element from B; it does not hold with binary search.</p>
 <div class="snip">
-  <p>Sorted search (2) for CPU from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarksortedsearch/benchmarksortedsearch.cu">benchmarksortedsearch/benchmarksortedsearch.cu</a></p>
+  <p>Sorted search (2) for CPU from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarksortedsearch/benchmarksortedsearch.cu">benchmarksortedsearch/benchmarksortedsearch.cu</a></p>
   <pre class="brush: cpp; toolbar: false; first-line: 59">// Return lower-bound of A into B and upper-bound of B into A.
 template&lt;typename T, typename Comp>
 void CPUSortedSearch2(const T* a, int aCount, const T* b, int bCount, 
@@ -356,7 +356,7 @@ void CPUSortedSearch2(const T* a, int aCount, const T* b, int bCount,
 }</pre></div>
 <p>The inputs are traversed in the same order as in <code>CPUSortedSearch</code> (and in merge), but there is now an output on every iteration. This function looks very much like merge. We even lose the sense of 'needles' and 'haystack,' as the arrays are treated symmetrically. Scheduling and partioning the parallel version will be handled the same as merge. This is further evidence for the argument presented in the introduction and reiterated through these pages: we gain flexibility, clarity, and performance by separating partitioning/scheduling and work logic.</p>
 <div class="snip">
-<p>Sorted search (3) for CPU from <a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/benchmarksortedsearch/benchmarksortedsearch.cu">benchmarksortedsearch/benchmarksortedsearch.cu</a></p>
+<p>Sorted search (3) for CPU from <a href="https://github.com/moderngpu/moderngpu/blob/V1.1/benchmarksortedsearch/benchmarksortedsearch.cu">benchmarksortedsearch/benchmarksortedsearch.cu</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 76">// Return lower-bound of A into B and set the high bit if A has a match in B.
 // Return upper-bound of B into A and set the high bit if B has a match in A.
 template&lt;typename T, typename Comp>
@@ -389,7 +389,7 @@ void CPUSortedSearch3(const T* a, int aCount, const T* b, int bCount,
 <p>Vectorized sorted search is a detailed and information-heavy function. That it runs nearly as fast as merge encourages its use in many situations. It has a pleasing symmetry with merge, and in fact we can re-implement merge using  vectorized sorted search to produce indices and <a href="bulkinsert.html">Bulk Insert</a> to insert data at these indices.</p>
 <p><a href="loadbalance.html">Load-balancing search</a>, an amazingly useful intra-CTA utility, is a straight-forward specialization of vectorized sorted search. We demonstate pairing vectorized sorted search with load-balancing search to implement <a href="join.html">relational joins</a> in a later page.</p>
 <h2><a id="parallel">Parallel sorted search</a></h2>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/sortedsearch.cuh">include/kernels/sortedsearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 48">template&lt;int NT, int VT, MgpuBounds Bounds, bool IndexA, bool MatchA, 
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/sortedsearch.cuh">include/kernels/sortedsearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 48">template&lt;int NT, int VT, MgpuBounds Bounds, bool IndexA, bool MatchA, 
 	bool IndexB, bool MatchB, typename InputIt1, typename InputIt2, typename T,
 	typename Comp>
 MGPU_DEVICE int2 DeviceLoadSortedSearch(int4 range, InputIt1 a_global, 
@@ -457,7 +457,7 @@ MGPU_DEVICE int2 DeviceLoadSortedSearch(int4 range, InputIt1 a_global,
 <p>If a &quot;halo&quot; element has been loaded after the last A and B inputs, the <code>extended</code> flag is set and we omit range checks in the serial search code. <code>CTASortedSearch</code> computes search indices and matches into shared memory and returns match counts (of both A into B and B into A) to the caller. The calling function, <code>KernelSortedSearch</code>, copies the indices and match flags out of shared memory and into their respective output arrays.</p>
 <h2><a id="ctasortedsearch">CTASortedSearch</a></h2>
 <div class="snip">
-<p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasortedsearch.cuh">include/device/ctasortedsearch.cuh</a></p>
+<p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctasortedsearch.cuh">include/device/ctasortedsearch.cuh</a></p>
 <pre class="brush: cpp; toolbar: false; first-line: 165">template&lt;int NT, int VT, MgpuBounds Bounds, bool IndexA, bool MatchA, 
 	bool IndexB, bool MatchB, typename T, typename Comp>
 MGPU_DEVICE int2 CTASortedSearch(T* keys_shared, int aStart, int aCount,
@@ -515,7 +515,7 @@ MGPU_DEVICE int2 CTASortedSearch(T* keys_shared, int aStart, int aCount,
   	<li>
   	  <p>The number of A matches in B and B matches in A are returned to the caller, which may then use <code>CTAReduce</code> to find a total within the tile, and atomically increment the global match counters.</p></li>
 </ol>    
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/device/ctasortedsearch.cuh">include/device/ctasortedsearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 47">template&lt;int VT, MgpuBounds Bounds, bool RangeCheck, bool IndexA, bool MatchA,
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/device/ctasortedsearch.cuh">include/device/ctasortedsearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 47">template&lt;int VT, MgpuBounds Bounds, bool RangeCheck, bool IndexA, bool MatchA,
 	bool IndexB, bool MatchB, typename T, typename Comp>
 MGPU_DEVICE int3 DeviceSerialSearch(const T* keys_shared, int aBegin, 
 	int aEnd, int bBegin, int bEnd, int aOffset, int bOffset, int* indices,
@@ -619,7 +619,7 @@ MGPU_DEVICE int3 DeviceSerialSearch(const T* keys_shared, int aBegin,
 </ul>
 <p>Vectorized sorted search is a powerful merge-like function. It's put to good use when implementing <a href="join.html">relational joins</a>. More importantly, it motivates the useful and elegant <a href="loadbalance.html">load-balancing search</a>, the subject of the next page.</p>
 <h2><a id="equalitycount">SortedEqualityCount</a></h2>
-<div class="snip"><p><a href="https://github.com/seanbaxter/moderngpu/blob/V1.1/include/kernels/sortedsearch.cuh">include/kernels/sortedsearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 258">struct SortedEqualityOp {
+<div class="snip"><p><a href="https://github.com/moderngpu/moderngpu/blob/V1.1/include/kernels/sortedsearch.cuh">include/kernels/sortedsearch.cuh</a></p><pre class="brush: cpp; toolbar: false; first-line: 258">struct SortedEqualityOp {
 	MGPU_HOST_DEVICE int operator()(int lb, int ub) const {
 		return ub - lb;
 	}

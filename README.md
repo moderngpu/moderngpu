@@ -85,6 +85,22 @@ Users familiar with CUDA programming wishing to cut to the chase should start at
   1. [Tutorial 4 - custom launch parameters](#tutorial-4---custom-launch-parameters)
   1. [Tutorial 5 - iterators](#tutorial-5---iterators)
 1. [Usage tips](#usage-tips)
+1. ModernGPU 1.0 algorithms
+  1. [FAQ](https://seanbaxter.github.io/moderngpu/faq.html)
+  1. [Introduction](https://seanbaxter.github.io/moderngpu/intro.html)
+  1. [Performance](https://seanbaxter.github.io/moderngpu/performance.html)
+  1. [The Library](https://seanbaxter.github.io/moderngpu/library.html)
+  1. [Reduce and Scan](https://seanbaxter.github.io/moderngpu/scan.html)
+  1. [Bulk Remove and Bulk Insert](https://seanbaxter.github.io/moderngpu/bulkinsert.html)
+  1. [Merge](https://seanbaxter.github.io/moderngpu/merge.html)
+  1. [Mergesort](https://seanbaxter.github.io/moderngpu/mergesort.html)
+  1. [Segmented Sort and Locality Sort](https://seanbaxter.github.io/moderngpu/segsort.html)
+  1. [Vectorized Sorted Search](https://seanbaxter.github.io/moderngpu/sortedsearch.html)
+  1. [Load-Balancing Search](https://seanbaxter.github.io/moderngpu/loadbalance.html)
+  1. [IntervalExpand and IntervalMove](https://seanbaxter.github.io/moderngpu/intervalmove.html)
+  1. [Relational Joins](https://seanbaxter.github.io/moderngpu/join.html)
+  1. [Multisets](https://seanbaxter.github.io/moderngpu/sets.html)
+  1. [Segmented Reduction](https://seanbaxter.github.io/moderngpu/segreduce.html)
 
 ## Release notes
 ```

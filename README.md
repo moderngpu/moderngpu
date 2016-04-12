@@ -7,14 +7,10 @@
 
 **Latest update**:
 ```
-Broke README.md into multiple files for easier browsing.
-Added bfs3.cu demo showing bit-compressed breadth-first search.
-
-2.05 2016 Apr 3 -
-  Restructured segmented sort and added segmented_sort_indices.
-  Wrote more robust test_segsort.cu test.
-  Modified cities demo to use segmented_sort_indices.
-  TODO: Segmented sort with bitfield for segmented headers.
+2.06 2016 Apr 12 - 
+  Fixed critical kernel versioning bug. Now uses cudaFuncGetAttributes
+  ptxVersion instead of binaryVersion to select launch box parameters.
+  Thanks @antonmks.
 ```
 ---
 moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. 
@@ -62,6 +58,11 @@ moderngpu is a productivity library for general-purpose computing on GPUs. It is
 
 ## Release notes
 ```
+2.06 2016 Apr 12 - 
+  Fixed critical kernel versioning bug. Now uses cudaFuncGetAttributes
+  ptxVersion instead of binaryVersion to select launch box parameters.
+  Thanks @antonmks.
+  
 2.05 2016 Apr 3 -
   Restructured segmented sort and added segmented_sort_indices.
   Wrote more robust test_segsort.cu test.

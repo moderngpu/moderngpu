@@ -62,7 +62,7 @@ public:
   standard_context_t() : context_t(), _stream(0) {
     cudaFuncAttributes attr;
     cudaError_t error = cudaFuncGetAttributes(&attr, &dummy_k<0>);
-    _ptx_version = attr.ptxVersion;
+    _ptx_version = attr.binaryVersion;
     
     cudaEventCreate(&_timer[0]);
     cudaEventCreate(&_timer[1]);

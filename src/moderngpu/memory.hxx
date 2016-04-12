@@ -62,7 +62,7 @@ template<typename type_t>
 mem_t<type_t> to_mem(const std::vector<type_t>& data, context_t& context) {
   mem_t<type_t> mem(data.size(), context);
   cudaError_t result = htod(mem.data(), data);
-  if(cudaSuccess != result) throw cuda_exception_t { result };
+  if(cudaSuccess != result) throw cuda_exception_t(result);
   return mem;
 }
 
@@ -70,7 +70,7 @@ template<typename type_t>
 std::vector<type_t> from_mem(const mem_t<type_t>& mem) {
   std::vector<type_t> host;
   cudaError_t result = dtoh(host, mem.data(), mem.size());
-  if(cudaSuccess != result) throw cuda_exception_t { result };
+  if(cudaSuccess != result) throw cuda_exception_t(result);
   return host;
 }
 

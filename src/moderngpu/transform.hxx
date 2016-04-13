@@ -37,7 +37,6 @@ void cta_launch(func_t f, int num_ctas, context_t& context) {
   cta_dim_t cta = launch_box::cta_dim(context.ptx_version());
   launch_box_cta_k<launch_box, func_t>
     <<<num_ctas, cta.nt, 0, context.stream()>>>(f);
-  context.synchronize();
 }
 
 template<int nt, typename func_t>

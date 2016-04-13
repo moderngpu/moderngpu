@@ -70,7 +70,6 @@ public:
       if(!tid) cta_offsets_data[cta] = total_stream;
     };
     cta_launch<launch_t>(upsweep_k, num_ctas, context);
-    context.synchronize();
 
     // Scan reductions.
     mem_t<int> counts_host(1, context, memory_space_host);

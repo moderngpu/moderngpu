@@ -139,7 +139,7 @@ struct iterator_t : public std::iterator_traits<const value_type*> {
   }
   MGPU_HOST_DEVICE outer_t operator-(int_t diff) const {
     outer_t next = *static_cast<const outer_t*>(this);
-    next += diff;
+    next -= diff;
     return next;
   }
   MGPU_HOST_DEVICE outer_t& operator+=(int_t diff) {

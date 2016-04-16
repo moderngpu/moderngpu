@@ -4,7 +4,18 @@
 #include "meta.hxx"
 #include "operators.hxx"
 
+
 BEGIN_MGPU_NAMESPACE
+
+struct cuda_exception_t : std::exception {
+  cudaError_t result;
+
+  cuda_exception_t(cudaError_t result_) : result(result_) { }
+  virtual const char* what() const noexcept { 
+    return cudaGetErrorString(result); 
+  }
+};
+
 
 template<typename type_t, int size>
 struct array_t {

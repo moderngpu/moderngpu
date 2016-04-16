@@ -42,7 +42,7 @@ void reduce(input_it input, int count, output_it reduction, op_t op,
 
     // Reduce to a scalar per CTA.
     scalar = reduce_t().reduce(tid, scalar, shared_reduce, 
-      min(tile.count(), (int)nt), op);
+      min(tile.count(), (int)nt), op, false);
 
     if(!tid) {
       if(1 == num_ctas) *reduction = scalar;

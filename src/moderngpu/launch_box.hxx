@@ -64,4 +64,19 @@ struct launch_box_t : inherit_t<params_v..., launch_box_default_t> {
   }
 };
 
+
+template<typename launch_box, typename func_t>
+int occupancy(func_t f, const context_t& context) {
+  int num_blocks;
+  int nt = launch_box::cta_dim(context).nt;
+  cudaError_t result = cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+    &num_blocks, 
+    &launch_box_cta_k<launch_box, func_t>, 
+    nt,
+    (size_t)0
+  );
+  if(cudaSuccess != result) throw cuda_exception_t(result);
+  return context.props().multiProcessorCount * num_blocks;
+}
+
 END_MGPU_NAMESPACE

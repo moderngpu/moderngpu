@@ -4,23 +4,41 @@
 #include <memory>
 #include <cassert>
 #include <exception>
+#include "util.hxx"
 #include "launch_params.hxx"
 
 BEGIN_MGPU_NAMESPACE
-
-struct cuda_exception_t : std::exception {
-  cudaError_t result;
-
-  cuda_exception_t(cudaError_t result_) : result(result_) { }
-  virtual const char* what() const noexcept { 
-    return cudaGetErrorString(result); 
-  }
-};
 
 enum memory_space_t { 
   memory_space_device = 0, 
   memory_space_host = 1 
 };
+
+
+inline std::string device_prop_string(cudaDeviceProp prop) {
+  int ordinal;
+  cudaGetDevice(&ordinal);
+
+  size_t freeMem, totalMem;
+  cudaError_t result = cudaMemGetInfo(&freeMem, &totalMem);
+  if(cudaSuccess != result) throw cuda_exception_t(result);  
+
+  double memBandwidth = (prop.memoryClockRate * 1000.0) *
+    (prop.memoryBusWidth / 8 * 2) / 1.0e9;
+
+  std::string s = detail::stringprintf(
+    "%s : %8.3lf Mhz   (Ordinal %d)\n"
+    "%d SMs enabled. Compute Capability sm_%d%d\n"
+    "FreeMem: %6dMB   TotalMem: %6dMB   %2d-bit pointers.\n"
+    "Mem Clock: %8.3lf Mhz x %d bits   (%5.1lf GB/s)\n"
+    "ECC %s\n\n",
+    prop.name, prop.clockRate / 1000.0, ordinal,
+    prop.multiProcessorCount, prop.major, prop.minor,
+    (int)(freeMem / (1<< 20)), (int)(totalMem / (1<< 20)), 8 * sizeof(int*),
+    prop.memoryClockRate / 1000.0, prop.memoryBusWidth, memBandwidth,
+    prop.ECCEnabled ? "Enabled" : "Disabled");
+  return s;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // context_t
@@ -34,6 +52,7 @@ struct context_t {
   context_t(const context_t& rhs) = delete;
   context_t& operator=(const context_t& rhs) = delete;
 
+  virtual const cudaDeviceProp& props() const = 0; 
   virtual int ptx_version() const = 0;
   virtual cudaStream_t stream() = 0;
 
@@ -55,6 +74,7 @@ struct context_t {
 
 class standard_context_t : public context_t {
 protected:
+  cudaDeviceProp _props;
   int _ptx_version;
   cudaStream_t _stream;
 
@@ -65,15 +85,23 @@ public:
   // Making this a template argument means we won't generate an instance
   // of dummy_k for each translation unit. 
   template<int dummy_arg = 0>
-  standard_context_t() : context_t(), _stream(0) {
+  standard_context_t(bool print_prop = true) : context_t(), _stream(0) {
     cudaFuncAttributes attr;
     cudaError_t result = cudaFuncGetAttributes(&attr, dummy_k<0>);
     if(cudaSuccess != result) throw cuda_exception_t(result);
     _ptx_version = attr.ptxVersion;
+
+    int ord;
+    cudaGetDevice(&ord);
+    cudaGetDeviceProperties(&_props, ord);
     
     cudaEventCreate(&_timer[0]);
     cudaEventCreate(&_timer[1]);
     cudaEventCreate(&_event);
+
+    if(print_prop) {
+      printf("%s\n", device_prop_string(_props).c_str());
+    }
   }
   ~standard_context_t() {
     cudaEventDestroy(_timer[0]);
@@ -81,6 +109,7 @@ public:
     cudaEventDestroy(_event);
   }
 
+  virtual const cudaDeviceProp& props() const { return _props; }
   virtual int ptx_version() const { return _ptx_version; }
   virtual cudaStream_t stream() { return _stream; }
 

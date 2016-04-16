@@ -24,7 +24,7 @@ struct cta_reduce_t {
 
   template<typename op_t = plus_t<type_t> >
   MGPU_DEVICE type_t reduce(int tid, type_t x, storage_t& storage, 
-    int count = nt, op_t op = op_t()) const {
+    int count = nt, op_t op = op_t(), bool all_return = true) const {
 
     int lane = (section_size - 1) & tid;
     int section = tid / section_size;
@@ -49,7 +49,7 @@ struct cta_reduce_t {
         iterate<s_log2(num_sections)>([&](int pass) {
           x = shfl_down_op(x, 1<< pass, op, num_sections);
         });
-        if(!tid) storage.reduction = x;
+        if(!tid && all_return) storage.reduction = x;
       }
       __syncthreads();
       
@@ -74,15 +74,17 @@ struct cta_reduce_t {
           type_t y = shfl_down(x, offset, num_sections);
           if(tid < spine_pop - offset) x = op(x, y);
         });
-        if(!tid) storage.reduction = x;
+        if(!tid && all_return) storage.reduction = x;
       }
       __syncthreads();
     }
 
-    type_t reduction = storage.reduction;
-    __syncthreads();
+    if(all_return) {
+      x = storage.reduction;
+      __syncthreads();
+    }
 
-    return reduction;
+    return x;
   }
 
 #else
@@ -93,7 +95,7 @@ struct cta_reduce_t {
   
   template<typename op_t = plus_t<type_t> >
   MGPU_DEVICE type_t reduce(int tid, type_t x, storage_t& storage, 
-    int count = nt, op_t op = op_t()) const {
+    int count = nt, op_t op = op_t(), bool all_return = true) const {
 
     storage.data[tid] = x;
     __syncthreads();
@@ -108,10 +110,13 @@ struct cta_reduce_t {
       }
       __syncthreads();
     });
-    type_t reduction = storage.data[0];
-    __syncthreads();
 
-    return reduction;
+    if(all_return) {
+      x = storage.data[0];
+      __syncthreads();
+    }
+
+    return x;
   }
 
 #endif  

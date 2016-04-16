@@ -125,7 +125,7 @@ public:
       // Scan the segment and work-item counts.
       int2 reduction = reduce_t().reduce(tid, 
         make_int2(popc(segment_bits), work_items), shared.reduce,
-        nt, add_int2_t());
+        nt, add_int2_t(), false);
       if(!tid) counts_data[cta] = reduction;
     };
     cta_launch<launch_t>(upsweep_k, num_ctas, context);

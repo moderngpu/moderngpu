@@ -3,7 +3,14 @@
 #   This will cover that entire major architecture.
 # Generate SASS for important minor versions.
 # Generate PTX for the last named architecture for future support.
-ARCH=-arch sm_35
+ARCH=\
+  -gencode arch=compute_20,code=sm_20 \
+  -gencode arch=compute_30,code=sm_30 \
+  -gencode arch=compute_35,code=sm_35 \
+ 	-gencode arch=compute_50,code=sm_50 \
+	-gencode arch=compute_52,code=sm_52 \
+	-gencode arch=compute_52,code=compute_52
+
 OPTIONS=-std=c++11 -O2 -g -Xcompiler="-Werror" -lineinfo  --expt-extended-lambda -use_fast_math -Xptxas="-v" -I src
 
 all: \
@@ -27,7 +34,6 @@ tests: \
 	test_join \
 	test_segreduce \
 	test_compact
-#	test_fastscan
 
 test_reduce: tests/test_reduce.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
@@ -69,9 +75,6 @@ test_segreduce: tests/test_segreduce.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
 
 test_compact: tests/test_compact.cu src/moderngpu/*.hxx
-	nvcc $(ARCH) $(OPTIONS) -o $@ $<
-
-test_fastscan: tests/test_fastscan.cu src/moderngpu/*.hxx
 	nvcc $(ARCH) $(OPTIONS) -o $@ $<
 
 # simple tutorials

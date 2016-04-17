@@ -7,10 +7,9 @@
 
 **Latest update**:
 ```
-2.06 2016 Apr 12 - 
-  Fixed critical kernel versioning bug. Now uses cudaFuncGetAttributes
-  ptxVersion instead of binaryVersion to select launch box parameters.
-  Thanks @antonmks.
+2.07 2016 Apr 17 -
+  Added mechanism for passing kernel arguments through variadic parameter pack.
+  Added occupancy calculator in launch_box.hxx.
 ```
 ---
 moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. 
@@ -58,6 +57,10 @@ moderngpu is a productivity library for general-purpose computing on GPUs. It is
 
 ## Release notes
 ```
+2.07 2016 Apr 17 -
+  Added mechanism for passing kernel arguments through variadic parameter pack.
+  Added occupancy calculator in launch_box.hxx.
+  
 2.06 2016 Apr 12 - 
   Fixed critical kernel versioning bug. Now uses cudaFuncGetAttributes
   ptxVersion instead of binaryVersion to select launch box parameters.

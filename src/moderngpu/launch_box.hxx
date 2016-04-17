@@ -65,13 +65,13 @@ struct launch_box_t : inherit_t<params_v..., launch_box_default_t> {
 };
 
 
-template<typename launch_box, typename func_t>
-int occupancy(func_t f, const context_t& context) {
+template<typename launch_box, typename func_t, typename... args_t>
+int occupancy(func_t f, const context_t& context, args_t... args) {
   int num_blocks;
   int nt = launch_box::cta_dim(context).nt;
   cudaError_t result = cudaOccupancyMaxActiveBlocksPerMultiprocessor(
     &num_blocks, 
-    &launch_box_cta_k<launch_box, func_t>, 
+    &launch_box_cta_k<launch_box, func_t, args_t...>, 
     nt,
     (size_t)0
   );

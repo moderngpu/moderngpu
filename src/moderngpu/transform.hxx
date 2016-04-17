@@ -32,65 +32,78 @@ struct device_size_t {
 ////////////////////////////////////////////////////////////////////////////////
 // Launch a grid given a number of CTAs.
 
-template<typename launch_box, typename func_t>
-void cta_launch(func_t f, int num_ctas, context_t& context) { 
+template<typename launch_box, typename func_t, typename... args_t>
+void cta_launch(func_t f, int num_ctas, context_t& context, args_t... args) { 
   cta_dim_t cta = launch_box::cta_dim(context.ptx_version());
   launch_box_cta_k<launch_box, func_t>
-    <<<num_ctas, cta.nt, 0, context.stream()>>>(f);
+    <<<num_ctas, cta.nt, 0, context.stream()>>>(f, args...);
 }
 
-template<int nt, typename func_t>
-void cta_launch(func_t f, int num_ctas, context_t& context) {
-  cta_launch<launch_params_t<nt, 1> >(f, num_ctas, context);
-}
-
-template<typename launch_box, typename func_t>
-void cta_launch(func_t f, const int* num_ctas, context_t& context) {
-
-  // TODO: Get number of CTAs that can be scheduled on the device.
-  auto k = [=] MGPU_DEVICE(int tid, int cta) {
-    const int* __restrict__ p_count = num_ctas;
-    int count = *p_count;
-    cta = blockIdx.x;
-    while(cta < count) {
-      f(tid, cta);
-      cta += gridDim.x;
-    }
-  };
-  cta_launch<launch_box>(k, 512, context);
+template<int nt, typename func_t, typename... args_t>
+void cta_launch(func_t f, int num_ctas, context_t& context, args_t... args) {
+  cta_launch<launch_params_t<nt, 1> >(f, num_ctas, context, args...);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Launch a grid given a number of work-items.
 
-template<typename launch_box, typename func_t>
-void cta_transform(func_t f, int count, context_t& context) {
+template<typename launch_box, typename func_t, typename... args_t>
+void cta_transform(func_t f, int count, context_t& context, args_t... args) {
   cta_dim_t cta = launch_box::cta_dim(context.ptx_version());
   int num_ctas = div_up(count, cta.nv());
-  cta_launch<launch_box>(f, num_ctas, context);
+  cta_launch<launch_box>(f, num_ctas, context, args...);
 }
 
-template<int nt, int vt = 1, typename func_t>
-void cta_transform(func_t f, int count, context_t& context) {
-  cta_transform<launch_params_t<nt, vt> >(f, count, context);
+template<int nt, int vt = 1, typename func_t, typename... args_t>
+void cta_transform(func_t f, int count, context_t& context, args_t... args) {
+  cta_transform<launch_params_t<nt, vt> >(f, count, context, args...);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Ordinary transform launch. It is preferable to make transform_k its own
-// kernel rather than defining a lambda to convert (tid, cta) to index and 
-// using cta_transform, because that approach results in extremely long
-// mangled function names.
+// Launch persistent CTAs and loop through num_ctas values.
 
-template<int nt, typename func_t>
-__global__ void transform_k(func_t f, size_t count) {
-  size_t index = nt * blockIdx.x + threadIdx.x;
-  if(index < count) f(index);
+template<typename launch_box, typename func_t, typename... args_t>
+void cta_launch(func_t f, const int* num_tiles, context_t& context, 
+  args_t... args) {
+
+  // Over-subscribe the device by a factor of 8.
+  // This reduces the penalty if we can't schedule all the CTAs to run 
+  // concurrently.
+  int num_ctas = 8 * occupancy<launch_box>(f, context);
+
+  auto k = [=] MGPU_DEVICE(int tid, int cta, args_t... args) {
+    int count = *num_tiles;
+    while(cta < count) {
+      f(tid, cta, args...);
+      cta += num_ctas;
+    }
+  };
+  cta_launch<launch_box>(k, num_ctas, context, args...);
 }
 
-template<size_t nt = 128, typename func_t>
-void transform(func_t f, size_t count, context_t& context) {
-  int num_ctas = (int)div_up(count, nt);
-  transform_k<nt><<<num_ctas, nt, 0, context.stream()>>>(f, count);
+////////////////////////////////////////////////////////////////////////////////
+// Ordinary transform launch. This uses the standard launch box mechanism 
+// so we can query its occupancy and other things.
+
+template<typename launch_t, typename func_t, typename... args_t>
+void transform(func_t f, size_t count, context_t& context, args_t... args) {
+
+  cta_transform<launch_t>([=]MGPU_DEVICE(int tid, int cta, args_t... args) {
+    typedef typename launch_t::sm_ptx params_t;
+    enum { nt = params_t::nt, vt = params_t::vt, vt0 = params_t::vt0 };
+
+   range_t range = get_tile(cta, nt * vt, count);
+
+    strided_iterate<nt, vt, vt0>([=](int i, int j) {
+      f(range.begin + j, args...);
+    }, tid, range.count());
+
+  }, count, context, args...);
+}
+
+template<size_t nt = 128, typename func_t, typename... args_t>
+void transform(func_t f, size_t count, context_t& context, args_t... args) {
+  transform<launch_params_t<nt, 1, 0> >(f, count, context, args...);
 }
 
 END_MGPU_NAMESPACE

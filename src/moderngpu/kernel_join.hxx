@@ -13,7 +13,7 @@ mem_t<int2> inner_join(a_it a, int a_count, b_it b, int b_count,
 
   // Compute lower and upper bounds of a into b.
   mem_t<int> lower(a_count, context);
-  mem_t<int> upper(b_count, context);
+  mem_t<int> upper(a_count, context);
   sorted_search<bounds_lower, launch_arg_t>(a, a_count, b, b_count, 
     lower.data(), comp, context);
   sorted_search<bounds_upper, launch_arg_t>(a, a_count, b, b_count, 

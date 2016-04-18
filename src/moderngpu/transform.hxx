@@ -3,6 +3,7 @@
 
 #include <random>
 #include <algorithm>
+#include <cuda.h>
 #include "launch_box.hxx"
 
 BEGIN_MGPU_NAMESPACE
@@ -35,8 +36,12 @@ struct device_size_t {
 template<typename launch_box, typename func_t, typename... args_t>
 void cta_launch(func_t f, int num_ctas, context_t& context, args_t... args) { 
   cta_dim_t cta = launch_box::cta_dim(context.ptx_version());
+  dim3 grid_dim(num_ctas);
+  if(context.ptx_version() < 30 && num_ctas > 65535)
+    grid_dim = dim3(256, div_up(num_ctas, 256));
+  
   launch_box_cta_k<launch_box, func_t>
-    <<<num_ctas, cta.nt, 0, context.stream()>>>(f, args...);
+    <<<grid_dim, cta.nt, 0, context.stream()>>>(f, num_ctas, args...);
 }
 
 template<int nt, typename func_t, typename... args_t>

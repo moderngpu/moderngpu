@@ -45,13 +45,19 @@ struct MGPU_ALIGN(8) cta_dim_t {
 // Generic thread cta kernel.
 template<typename launch_box, typename func_t, typename... args_t>
 __global__ MGPU_LAUNCH_BOUNDS(launch_box)
-void launch_box_cta_k(func_t f, args_t... args) {
+void launch_box_cta_k(func_t f, int num_ctas, args_t... args) {
   // Masking threadIdx.x by (nt - 1) may help strength reduction because the
   // compiler now knows the range of tid: (0, nt).
   typedef typename launch_box::sm_ptx params_t;
   int tid = (params_t::nt - 1) & threadIdx.x;
   int cta = blockIdx.x;
+#if __CUDA_ARCH__ < 300
+  cta += gridDim.x * blockIdx.y;
+  if(cta < num_ctas)
+    f(tid, cta, args...);
+#else
   f(tid, cta, args...);
+#endif  
 }
 
 // Dummy kernel for retrieving PTX version.

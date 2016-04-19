@@ -47,7 +47,7 @@ void merge(a_keys_it a_keys, a_vals_it a_vals, int a_count,
       mp0, mp1);
 
     merge_pair_t<type_t, vt> merge = cta_merge_from_mem<bounds_lower, nt, vt>(
-      a_keys, b_keys, range, tid, mgpu::less_t<type_t>(), shared.keys);
+      a_keys, b_keys, range, tid, comp, shared.keys);
 
     int dest_offset = nv * cta;
     reg_to_mem_thread<nt>(merge.keys, tid, range.total(), c_keys + dest_offset,

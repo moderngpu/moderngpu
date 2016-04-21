@@ -15,11 +15,13 @@ struct tuple;
 template<> struct tuple<> { 
 };
 template<typename arg_t, typename... args_t>
-struct tuple<arg_t, args_t...> : tuple<args_t...> {
+struct tuple<arg_t, args_t...> {
   arg_t x;
+  tuple<args_t...> inner;
+
   tuple() = default;
   MGPU_HOST_DEVICE tuple(arg_t arg, args_t... args) : 
-    x(arg), tuple<args_t...>(args...) { }
+    x(arg), inner(args...) { }
 };
 template<typename arg_t>
 struct tuple<arg_t> {
@@ -66,12 +68,10 @@ struct get_tuple_t<i, tuple<arg_t, args_t...> > {
   typedef tuple<args_t...> inner_tuple_t;
 
   MGPU_HOST_DEVICE static type_t& get(tuple<arg_t, args_t...>& t) {
-    return get_tuple_t<i - 1, inner_tuple_t>::get(
-      static_cast<inner_tuple_t&>(t));
+    return get_tuple_t<i - 1, inner_tuple_t>::get(t.inner);
   }
   MGPU_HOST_DEVICE static type_t get(const tuple<arg_t, args_t...>& t) {
-    return get_tuple_t<i - 1, inner_tuple_t>::get(
-      static_cast<inner_tuple_t&>(t));
+    return get_tuple_t<i - 1, inner_tuple_t>::get(t.inner);
   }
 };
 template<typename arg_t, typename... args_t>

@@ -3,6 +3,10 @@
 
 #include "operators.hxx"
 
+#ifndef __CUDACC__
+#error "You must compile this file with nvcc. You must."
+#endif
+
 BEGIN_MGPU_NAMESPACE
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -165,10 +165,10 @@ struct const_iterator_t : public iterator_t<outer_t, int_t, value_type> {
   // compatibility with lambda capture in CUDA 7.5, which does not support
   // marking a lambda as __host__ __device__.
   // We hope to relax this when a future CUDA fixes this problem.
-  MGPU_DEVICE value_type operator[](int_t diff) const {
+  MGPU_HOST_DEVICE value_type operator[](int_t diff) const {
     return static_cast<const outer_t&>(*this)(base_t::index + diff);
   }
-  MGPU_DEVICE value_type operator*() const {
+  MGPU_HOST_DEVICE value_type operator*() const {
     return (*this)[0];
   }
 };
@@ -228,7 +228,7 @@ struct strided_iterator_t :
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// constaint_iterator_t returns the value it was initialized with.
+// constant_iterator_t returns the value it was initialized with.
 
 template<typename type_t>
 struct constant_iterator_t : 
@@ -242,6 +242,11 @@ struct constant_iterator_t :
     return value;
   }
 };
+
+// These types only supported with nvcc until CUDA 8.0 allows host-device
+// lambdas and MGPU_LAMBDA is redefined to MGPU_HOST_DEVICE
+
+#ifdef __CUDACC__
 
 ////////////////////////////////////////////////////////////////////////////////
 // lambda_iterator_t
@@ -336,5 +341,7 @@ lambda_iterator_t<empty_t, store_t, value_type, int_t>
 make_store_iterator(store_t store, int_t base = 0) {
   return make_load_store_iterator<value_type>(empty_t(), store, base);
 }
+
+#endif // #ifdef __CUDACC__
 
 END_MGPU_NAMESPACE

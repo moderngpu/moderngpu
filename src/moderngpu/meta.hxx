@@ -8,6 +8,8 @@
 #include <cfloat>
 #include <cstdint>
 
+#ifdef __CUDACC__
+
 #ifndef MGPU_HOST_DEVICE
   #define MGPU_HOST_DEVICE __forceinline__ __device__ __host__
 #endif
@@ -27,6 +29,13 @@
   #define MGPU_LAMBDA __device__
 #endif
 
+#else // #ifndef __CUDACC__
+
+#define MGPU_HOST_DEVICE
+
+#endif // #ifdef __CUDACC__
+
+
 #ifndef PRAGMA_UNROLL
 #ifdef __CUDA_ARCH__
   #define PRAGMA_UNROLL #pragma PRAGMA_UNROLL
@@ -34,6 +43,7 @@
   #define PRAGMA_UNROLL
 #endif
 #endif
+
 
 #define BEGIN_MGPU_NAMESPACE namespace mgpu {
 #define END_MGPU_NAMESPACE }
@@ -171,8 +181,9 @@ MGPU_HOST_DEVICE void fill(type_t(&x)[count], type_t val) {
   iterate<count>([&](int i) { x[i] = val; });
 }
 
+#ifdef __CUDACC__
+
 // Invoke unconditionally.
-#pragma nv_exec_check_disable
 template<int nt, int vt, typename func_t>
 MGPU_DEVICE void strided_iterate(func_t f, int tid) {
   iterate<vt>([=](int i) { f(i, nt * i + tid); });
@@ -200,5 +211,7 @@ template<int vt, typename func_t>
 MGPU_DEVICE void thread_iterate(func_t f, int tid) {
   iterate<vt>([=](int i) { f(i, vt * tid + i); });
 }
+
+#endif // ifdef __CUDACC__
 
 END_MGPU_NAMESPACE

@@ -210,7 +210,7 @@ struct cta_scan_t<nt, bool> {
       // Cooperative warp scan of partial reductions.
       int scan = storage.warps[tid];
       iterate<s_log2(num_warps)>([&](int i) {
-        scan = shfl_up_opp(scan, 1<< i, plus_t<int>(), num_warps);
+        scan = shfl_up_op(scan, 1<< i, plus_t<int>(), num_warps);
       });
       storage.warps[tid] = scan;
     }

@@ -11,22 +11,37 @@ BEGIN_MGPU_NAMESPACE
 template<typename... args_t>
 struct tuple;
 
-template<> struct tuple<> { 
-};
+template<> struct tuple<> { };
+
 template<typename arg_t, typename... args_t>
-struct tuple<arg_t, args_t...> {
+struct tuple<arg_t, args_t...> : tuple<args_t...> {
   arg_t x;
-  tuple<args_t...> inner;
 
   tuple() = default;
   MGPU_HOST_DEVICE tuple(arg_t arg, args_t... args) : 
-    x(arg), inner(args...) { }
+    x(arg), tuple<args_t...>(args...) { }
+
+  MGPU_HOST_DEVICE tuple<args_t...>& inner() { 
+    return static_cast<tuple<args_t...>&>(*this); 
+  }
+  MGPU_HOST_DEVICE const tuple<args_t...>& inner() const { 
+    return static_cast<const tuple<args_t...>&>(*this);
+  }
 };
+
 template<typename arg_t>
-struct tuple<arg_t> {
+struct tuple<arg_t> : tuple<> {
   arg_t x;
+
   tuple() = default;
   MGPU_HOST_DEVICE tuple(arg_t arg) : x(arg) { }
+
+  MGPU_HOST_DEVICE tuple<>& inner() { 
+    return static_cast<tuple<>&>(*this); 
+  }
+  MGPU_HOST_DEVICE const tuple<>& inner() const { 
+    return static_cast<const tuple<>&>(*this);
+  }
 };
 
 // tuple_size
@@ -67,10 +82,10 @@ struct get_tuple_t<i, tuple<arg_t, args_t...> > {
   typedef tuple<args_t...> inner_tuple_t;
 
   MGPU_HOST_DEVICE static type_t& get(tuple<arg_t, args_t...>& t) {
-    return get_tuple_t<i - 1, inner_tuple_t>::get(t.inner);
+    return get_tuple_t<i - 1, inner_tuple_t>::get(t.inner());
   }
   MGPU_HOST_DEVICE static type_t get(const tuple<arg_t, args_t...>& t) {
-    return get_tuple_t<i - 1, inner_tuple_t>::get(t.inner);
+    return get_tuple_t<i - 1, inner_tuple_t>::get(t.inner());
   }
 };
 template<typename arg_t, typename... args_t>
@@ -305,7 +320,7 @@ template<typename... args_t>
 MGPU_HOST_DEVICE bool operator<(tuple<args_t...> a, tuple<args_t...> b) {
   if(get<0>(a) < get<0>(b)) return true;
   if(get<0>(b) < get<0>(a)) return false;
-  return a.inner < b.inner;
+  return a.inner() < b.inner();
 }
 template<typename... args_t>
 MGPU_HOST_DEVICE bool operator<=(tuple<args_t...> a, tuple<args_t...> b) {
@@ -321,7 +336,7 @@ MGPU_HOST_DEVICE bool operator>=(tuple<args_t...> a, tuple<args_t...> b) {
 }
 template<typename... args_t>
 MGPU_HOST_DEVICE bool operator==(tuple<args_t...> a, tuple<args_t...> b) {
-  return (get<0>(a) == get<0>(b)) && (a.inner == b.inner);
+  return (get<0>(a) == get<0>(b)) && (a.inner() == b.inner());
 }
 template<typename... args_t>
 MGPU_HOST_DEVICE bool operator!=(tuple<args_t...> a, tuple<args_t...> b) {

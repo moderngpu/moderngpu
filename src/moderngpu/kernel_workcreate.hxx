@@ -4,7 +4,6 @@
 #include "search.hxx"
 #include "cta_load_balance.hxx"
 #include "kernel_scan.hxx"
-
 #include "tuple.hxx"
 
 BEGIN_MGPU_NAMESPACE
@@ -225,7 +224,7 @@ public:
           int rank = index - seg_begin;
 
           // Invoke the callback and the get the work-item count.
-          value_t cached = load_tuple<tpl_t>(caching_iterators, seg);
+          value_t cached = load_tuple(caching_iterators, seg);
           work_count = f(dest_seg, index, seg, rank, cached);
         }
 

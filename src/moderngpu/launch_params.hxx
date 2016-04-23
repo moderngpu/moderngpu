@@ -54,6 +54,17 @@ MGPU_DEVICE void fermi_forward(func_t f, int tid, int cta, int num_ctas,
    f(tid, cta, args...);
 }
 
+template<typename func_t, typename... args_t, int... seq_i>
+MGPU_HOST_DEVICE void restruct_expand(func_t f, tuple<args_t...> tpl, 
+  seq_t<seq_i...>) {
+  f(make_restrict(get<seq_i>(tpl))...);
+}
+
+template<typename func_t, typename... args_t>
+MGPU_HOST_DEVICE void restrict_expand(func_t f, tuple<args_t...> tpl) {
+  restruct_expand(f, tpl, typename genseq_t<sizeof...(args_t)>::type_t());
+}
+
 // Generic thread cta kernel.
 template<typename launch_box, typename func_t, typename... args_t>
 __global__ MGPU_LAUNCH_BOUNDS(launch_box)
@@ -67,6 +78,7 @@ void launch_box_cta_k(func_t f, int num_ctas, args_t... args) {
 #if __CUDA_ARCH__ < 300
   cta += gridDim.x * blockIdx.y;
 #endif
+
   fermi_forward(f, tid, cta, num_ctas, make_restrict(args)...);
 }
 

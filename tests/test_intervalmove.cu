@@ -15,6 +15,8 @@ int main(int argc, char** argv) {
   interval_move((const int*)0, a_count, segs.data(), b_count, 
     (const int*)0, (const int*)0, (int*)0, context);
 
+  interval_move2((const int*)0, a_count, segs.data(), b_count, 
+    (const int*)0, (const int*)0, (int*)0, context);
   cudaDeviceSynchronize();
 
   return 0;

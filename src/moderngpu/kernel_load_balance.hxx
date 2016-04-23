@@ -6,9 +6,10 @@
 BEGIN_MGPU_NAMESPACE
 
 template<typename launch_arg_t = empty_t, typename func_t, 
-  typename segments_it, typename tpl_t>
+  typename segments_it, typename tpl_t, typename... args_t>
 void transform_lbs(func_t f, int count, segments_it segments, 
-  int num_segments, tpl_t caching_iterators, context_t& context) {
+  int num_segments, tpl_t caching_iterators, context_t& context,
+  args_t... args) {
 
   typedef typename conditional_typedef_t<launch_arg_t, 
     launch_box_t<
@@ -25,7 +26,8 @@ void transform_lbs(func_t f, int count, segments_it segments,
     launch_t::nv(context), context);
   const int_t* mp_data = mp.data();
 
-  auto k = [=]MGPU_DEVICE(int tid, int cta) {
+  auto k = [=]MGPU_DEVICE(int tid, int cta, args_t... args) {
+
     typedef typename launch_t::sm_ptx params_t;
     enum { nt = params_t::nt, vt = params_t::vt, vt0 = params_t::vt0 };
     typedef cta_load_balance_t<nt, vt> load_balance_t;
@@ -53,23 +55,23 @@ void transform_lbs(func_t f, int count, segments_it segments,
       int seg = lbs.segments[i];
       int rank = lbs.ranks[i];
 
-      f(index, seg, rank, cached_values[i]);
+      f(index, seg, rank, cached_values[i], args...);
     }, tid, lbs.merge_range.a_count());
   };
-  cta_transform<launch_t>(k, count + num_segments, context);
+  cta_transform<launch_t>(k, count + num_segments, context, args...);
 }
 
 // load-balancing search without caching.
 template<typename launch_arg_t = empty_t, typename func_t, 
-  typename segments_it>
+  typename segments_it, typename... args_t>
 void transform_lbs(func_t f, int count, segments_it segments, 
-  int num_segments, context_t& context) {
+  int num_segments, context_t& context, args_t... args) {
 
   transform_lbs<launch_arg_t>(
-    [=]MGPU_DEVICE(int index, int seg, int rank, tuple<>) {
-      f(index, seg, rank);    // drop the cached values.
+    [=]MGPU_DEVICE(int index, int seg, int rank, tuple<>, args_t... args) {
+      f(index, seg, rank, args...);    // drop the cached values.
     },
-    count, segments, num_segments, tuple<>(), context
+    count, segments, num_segments, tuple<>(), context, args...
   );
 }
 

@@ -44,9 +44,9 @@ void cta_launch(func_t f, int num_ctas, context_t& context, args_t... args) {
     <<<grid_dim, cta.nt, 0, context.stream()>>>(f, num_ctas, args...);
 }
 
-template<int nt, typename func_t, typename... args_t>
+template<int nt, int vt = 1, typename func_t, typename... args_t>
 void cta_launch(func_t f, int num_ctas, context_t& context, args_t... args) {
-  cta_launch<launch_params_t<nt, 1> >(f, num_ctas, context, args...);
+  cta_launch<launch_params_t<nt, vt> >(f, num_ctas, context, args...);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,6 +89,29 @@ void cta_launch(func_t f, const int* num_tiles, context_t& context,
 ////////////////////////////////////////////////////////////////////////////////
 // Ordinary transform launch. This uses the standard launch box mechanism 
 // so we can query its occupancy and other things.
+/*
+
+namespace detail {
+
+template<typename launch_t, typename func_t>
+struct transform_k {
+  func_t f;
+  size_t count;
+
+  template<typename... args_t>
+  MGPU_DEVICE void operator()(int tid, int cta, args_t... args) {
+    typedef typename launch_t::sm_ptx params_t;
+    enum { nt = params_t::nt, vt = params_t::vt, vt0 = params_t::vt0 };
+
+    range_t range = get_tile(cta, nt * vt, count);
+
+    strided_iterate<nt, vt, vt0>([=](int i, int j) {
+      f(range.begin + j, args...);
+    }, tid, range.count());
+  }
+};
+
+}*/
 
 template<typename launch_t, typename func_t, typename... args_t>
 void transform(func_t f, size_t count, context_t& context, args_t... args) {
@@ -106,9 +129,9 @@ void transform(func_t f, size_t count, context_t& context, args_t... args) {
   }, count, context, args...);
 }
 
-template<size_t nt = 128, typename func_t, typename... args_t>
+template<int nt = 128, int vt = 1, typename func_t, typename... args_t>
 void transform(func_t f, size_t count, context_t& context, args_t... args) {
-  transform<launch_params_t<nt, 1, 0> >(f, count, context, args...);
+  transform<launch_params_t<nt, vt> >(f, count, context, args...);
 }
 
 END_MGPU_NAMESPACE

@@ -4,12 +4,15 @@
 # Generate SASS for important minor versions.
 # Generate PTX for the last named architecture for future support.
 ARCH=\
-  -gencode arch=compute_20,code=sm_52
+  -gencode arch=compute_20,code=sm_20
 
-OPTIONS=-std=c++11 -O2 -g -Xcompiler="-Werror" -lineinfo  --expt-extended-lambda -use_fast_math -Xptxas="-v" -I src
+OPTIONS=-std=c++11 -O0 -g -Xcompiler="-Werror" -lineinfo  --expt-extended-lambda -use_fast_math -Xptxas="-v" -I src
 
 params: params.cxx
 	g++ -std=c++11 -I src -g -O0 -o $@ $<
+
+transform: transform.cu src/moderngpu/*.hxx
+	nvcc $(ARCH) $(OPTIONS) -o $@ $<
 
 
 all: \

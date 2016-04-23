@@ -2,6 +2,7 @@
 #pragma once
 
 #include "meta.hxx"
+#include "tuple.hxx"
 
 #if   __CUDA_ARCH__ == 530
   #define MGPU_SM_TAG sm_53
@@ -51,13 +52,15 @@ void launch_box_cta_k(func_t f, int num_ctas, args_t... args) {
   typedef typename launch_box::sm_ptx params_t;
   int tid = (params_t::nt - 1) & threadIdx.x;
   int cta = blockIdx.x;
+
+  // Convert the arguments to restricted pointer types.
+  auto restricted_args = restrict_tuple(tuple<args_t...>(args...));
+
 #if __CUDA_ARCH__ < 300
   cta += gridDim.x * blockIdx.y;
   if(cta < num_ctas)
-    f(tid, cta, args...);
-#else
-  f(tid, cta, args...);
-#endif  
+#endif
+    tuple_expand(f, tuple_cat(make_tuple(tid, cta), restricted_args));
 }
 
 // Dummy kernel for retrieving PTX version.

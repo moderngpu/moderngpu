@@ -35,7 +35,6 @@
 
 #endif // #ifdef __CUDACC__
 
-
 #ifndef PRAGMA_UNROLL
 #ifdef __CUDA_ARCH__
   #define PRAGMA_UNROLL #pragma PRAGMA_UNROLL
@@ -44,7 +43,6 @@
 #endif
 #endif
 
-
 #define BEGIN_MGPU_NAMESPACE namespace mgpu {
 #define END_MGPU_NAMESPACE }
 
@@ -52,6 +50,16 @@ BEGIN_MGPU_NAMESPACE
 
 template< bool B, class T = void >
 using enable_if_t = typename std::enable_if<B,T>::type;
+
+// Provide perfect forwarding.
+template<typename T>
+struct identity {
+    typedef T type;
+};
+template<typename T>
+T&& forward(typename identity<T>::type&& param) { 
+  return static_cast<typename identity<T>::type&&>(param); 
+}
 
 enum { warp_size = 32 };
 
@@ -123,17 +131,8 @@ struct inherit_t<base_t, base_v...> :
 template<typename base_t>
 struct inherit_t<base_t> : base_t { };
 
-// Typedef type_a if type_a is not empty_t.
-// Otherwise typedef type_b.
-template<typename type_a, typename type_b,
-  bool is_empty = std::is_same<type_a, empty_t>::value>
-struct conditional_typedef_t {
-  typedef type_a type_t;
-};
-template<typename type_a, typename type_b>
-struct conditional_typedef_t<type_a, type_b, true> {
-  typedef type_b type_t;
-};
+////////////////////////////////////////////////////////////////////////////////
+// Ternary and conditional typedefs. 
 
 // If cond, type_t is type_a. Else type_t is type_b.
 template<bool cond, typename type_a, typename type_b>
@@ -145,6 +144,58 @@ struct ternary_typedef_t<false, type_a, type_b> {
   typedef type_b type_t;
 };
 
+// Typedef type_a if type_a is not empty_t.
+// Otherwise typedef type_b.
+template<typename type_a, typename type_b>
+using conditional_typedef_t = ternary_typedef_t<
+  !std::is_same<type_a, empty_t>::value, type_a, type_b>;
+
+////////////////////////////////////////////////////////////////////////////////
+// Generate a sequence parameters pack. Useful for tuple_expand.
+
+template<int... seq_i> struct seq_t { };
+
+template<int count, int... seq_i> 
+struct genseq_t : genseq_t<count - 1, count - 1, seq_i...> { };
+
+template<int... seq_i>
+struct genseq_t<0, seq_i...> {
+  typedef seq_t<seq_i...> type_t;
+};
+
+////////////////////////////////////////////////////////////////////////////////\
+// Code to treat __restrict__ as a CV qualifier.
+
+template<typename arg_t>
+struct is_restrict {
+  enum { value = false };
+};
+template<typename arg_t>
+struct is_restrict<arg_t __restrict__> {
+  enum { value = true };
+};
+
+// Add __restrict__ only to pointers.
+template<typename arg_t>
+struct add_restrict {
+  typedef arg_t type;
+};
+template<typename arg_t>
+struct add_restrict<arg_t*> {
+  typedef arg_t* __restrict__ type;
+};
+
+template<typename arg_t>
+struct remove_restrict {
+  typedef arg_t type;
+};
+template<typename arg_t>
+struct remove_restrict<arg_t __restrict__> {
+  typedef arg_t type;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Template unrolled looping construct.
 
 template<int i, int count, bool valid = (i < count)>
 struct iterate_t {
@@ -193,7 +244,7 @@ MGPU_DEVICE void strided_iterate(func_t f, int tid) {
 template<int nt, int vt, int vt0 = vt, typename func_t>
 MGPU_DEVICE void strided_iterate(func_t f, int tid, int count) {
   // Unroll the first vt0 elements of each thread.
-  if(count >= nt * vt0) {
+  if(vt0 > 1 && count >= nt * vt0) {
     strided_iterate<nt, vt0>(f, tid);    // No checking
   } else {
     iterate<vt0>([=](int i) {

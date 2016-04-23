@@ -13,7 +13,11 @@ int main(int argc, char** argv) {
     get<2>(foo),
     get<3>(foo));
 
-  auto restricted = restrict_tuple(foo);
+  auto&& restricted = restrict_tuple(foo);
+  auto&& x0 = get<0>(foo);
+
+  printf("%d\n", is_restrict<decltype(x0)>::value);
+  
   printf("%d %d %d %d\n",
     is_restrict<decltype(get<0>(restricted))>::value,
     is_restrict<decltype(get<1>(restricted))>::value,

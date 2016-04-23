@@ -43,6 +43,17 @@ struct MGPU_ALIGN(8) cta_dim_t {
   }
 };
 
+// Due to a bug in the compiler we need to expand make_restrict() before
+// branching on cta < num_ctas.
+template<typename func_t, typename... args_t>
+MGPU_DEVICE void fermi_forward(func_t f, int tid, int cta, int num_ctas,
+  args_t... args) {
+#if __CUDA_ARCH__ < 300
+  if(cta < num_ctas) 
+#endif 
+   f(tid, cta, args...);
+}
+
 // Generic thread cta kernel.
 template<typename launch_box, typename func_t, typename... args_t>
 __global__ MGPU_LAUNCH_BOUNDS(launch_box)
@@ -53,14 +64,10 @@ void launch_box_cta_k(func_t f, int num_ctas, args_t... args) {
   int tid = (params_t::nt - 1) & threadIdx.x;
   int cta = blockIdx.x;
 
-  // Convert the arguments to restricted pointer types.
-  auto restricted_args = restrict_tuple(tuple<args_t...>(args...));
-
 #if __CUDA_ARCH__ < 300
   cta += gridDim.x * blockIdx.y;
-  if(cta < num_ctas)
 #endif
-    tuple_expand(f, tuple_cat(make_tuple(tid, cta), restricted_args));
+  fermi_forward(f, tid, cta, num_ctas, make_restrict(args)...);
 }
 
 // Dummy kernel for retrieving PTX version.

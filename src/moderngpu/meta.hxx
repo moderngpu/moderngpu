@@ -194,6 +194,12 @@ struct remove_restrict<arg_t __restrict__> {
   typedef arg_t type;
 };
 
+template<typename arg_t>
+MGPU_HOST_DEVICE typename add_restrict<arg_t>::type make_restrict(arg_t x) {
+  typename add_restrict<arg_t>::type y = x;
+  return y;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Template unrolled looping construct.
 

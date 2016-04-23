@@ -180,7 +180,7 @@ struct tuple_iterate_assign_t {
   MGPU_HOST_DEVICE static void assign(assign_t a, input_t input, 
     output_t& output, args_t... args) {
     typename tuple_element<i, input_t>::type lhs = get<i>(input);
-    typename tuple_element<i, output_t>::type& rhs = get<j>(output);
+    typename tuple_element<j, output_t>::type& rhs = get<j>(output);
     a(lhs, rhs, args...);
     tuple_iterate_assign_t<i + 1, j + 1, count - 1>::assign(a, input, output,
       args...);

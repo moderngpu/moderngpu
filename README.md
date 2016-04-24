@@ -4,7 +4,7 @@
 
 **You can drop me a line [here](mailto:moderngpu@gmail.com)**
 
-Full documentation with gitbook [here](moderngpu.github.io/moderngpu). Under heavy construction.
+Full documentation with gitbook coming. Under heavy construction.
 
 **Latest update**:
 ```

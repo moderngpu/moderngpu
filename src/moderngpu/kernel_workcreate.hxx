@@ -152,8 +152,8 @@ public:
 
   // f(int dest_seg, int index, int source_seg, int rank, tuple<...> desc)
   // returns the number of work-items to create.
-  template<typename func_t, typename tpl_t>
-  mem_t<int> downsweep(func_t f, tpl_t caching_iterators) {
+  template<typename func_t, typename tpl_t, typename... args_t>
+  mem_t<int> downsweep(func_t f, tpl_t caching_iterators, args_t... args) {
     // Input
     const int* mp_data = mp.data();
     const short* bits_data = bits.data();
@@ -168,7 +168,7 @@ public:
     int* segments_output = segments_result.data();
 
     typedef typename tuple_iterator_value_t<tpl_t>::type_t value_t;
-    auto downsweep_k = [=]MGPU_DEVICE(int tid, int cta) {
+    auto downsweep_k = [=]MGPU_DEVICE(int tid, int cta, args_t... args) {
       typedef typename launch_t::sm_ptx params_t;
       enum { nt = params_t::nt, vt = params_t::vt, nv = nt * vt };
       typedef cta_scan_t<nt, int> scan_t;
@@ -225,7 +225,7 @@ public:
 
           // Invoke the callback and the get the work-item count.
           value_t cached = load_tuple(caching_iterators, seg);
-          work_count = f(dest_seg, index, seg, rank, cached);
+          work_count = f(dest_seg, index, seg, rank, cached, args...);
         }
 
         // Scan the work-counts.
@@ -238,18 +238,19 @@ public:
         work_item_dest += work_scan.reduction;
       }
     };
-    cta_launch<launch_t>(downsweep_k, num_ctas, context);
+    cta_launch<launch_t>(downsweep_k, num_ctas, context, args...);
 
     return segments_result;     
   }
 
-  template<typename func_t>
-  mem_t<int> downsweep(func_t f) {
+  template<typename func_t, typename... args_t>
+  mem_t<int> downsweep(func_t f, args_t... args) {
     return downsweep(
-      [=]MGPU_DEVICE(int dest_seg, int index, int seg, int rank, tuple<>) {
-        return f(dest_seg, index, seg, rank);
+      [=]MGPU_DEVICE(int dest_seg, int index, int seg, int rank, tuple<>,
+        args_t... args) {
+        return f(dest_seg, index, seg, rank, args...);
       },
-      tuple<>()
+      tuple<>(), args...
     );
   }
 };

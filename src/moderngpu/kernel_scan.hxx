@@ -55,7 +55,7 @@ void scan_event(input_it input, int count, output_it output, op_t op,
 
       // Reduce across all threads.
       type_t all_reduce = reduce_t().reduce(tid, scalar, shared.reduce, 
-        tile.count(), op, false);
+        tile.count(), op);
 
       // Store the final reduction to the partials.
       if(!tid)

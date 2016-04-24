@@ -13,9 +13,9 @@ void transform_lbs(func_t f, int count, segments_it segments,
 
   typedef typename conditional_typedef_t<launch_arg_t, 
     launch_box_t<
-      arch_20_cta<128, 11, 8>,
+      arch_20_cta<128, 11, 9>,
       arch_35_cta<128,  7, 5>,
-      arch_52_cta<128, 11, 8>
+      arch_52_cta<128, 11, 9>
     >
   >::type_t launch_t;
 

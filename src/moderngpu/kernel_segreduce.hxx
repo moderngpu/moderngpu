@@ -302,10 +302,10 @@ void spmv(matrix_it matrix, columns_it columns, vector_it vector,
 
 template<typename launch_arg_t = empty_t, 
   typename func_t, typename segments_it, typename tpl_t, typename output_it, 
-  typename op_t, typename type_t>
+  typename op_t, typename type_t, typename... args_t>
 void lbs_segreduce(func_t f, int count, segments_it segments,
   int num_segments, tpl_t caching_iterators, output_it output, op_t op,
-  type_t init, context_t& context) {
+  type_t init, context_t& context, args_t... args) {
 
   typedef typename conditional_typedef_t<launch_arg_t, 
     launch_box_t<
@@ -329,7 +329,7 @@ void lbs_segreduce(func_t f, int count, segments_it segments,
     cta_dim.nv(), context);
   const int* mp_data = mp.data();
 
-  auto k_reduce = [=]MGPU_DEVICE(int tid, int cta) {
+  auto k_reduce = [=]MGPU_DEVICE(int tid, int cta, args_t... args) {
     typedef typename launch_t::sm_ptx params_t;
     enum { nt = params_t::nt, vt = params_t::vt, vt0 = params_t::vt0 };
     typedef cta_load_balance_t<nt, vt> load_balance_t;
@@ -362,7 +362,7 @@ void lbs_segreduce(func_t f, int count, segments_it segments,
       int seg = lbs.segments[i];
       int rank = lbs.ranks[i];
 
-      strided_values[i] = f(index, seg, rank, cached_values[i]);
+      strided_values[i] = f(index, seg, rank, cached_values[i], args...);
     }, tid, lbs.merge_range.a_count());
 
     // Store the values back to shared memory for segmented reduction.
@@ -380,8 +380,7 @@ void lbs_segreduce(func_t f, int count, segments_it segments,
       tid, cta, init, op, output, carry_out_data, codes_data, 
       shared.segreduce);
   };
-
-  cta_launch<launch_t>(k_reduce, num_ctas, context);
+  cta_launch<launch_t>(k_reduce, num_ctas, context, args...);
 
   if(num_ctas > 1)
     detail::segreduce_fixup(output, carry_out_data, codes_data, num_ctas,
@@ -391,16 +390,17 @@ void lbs_segreduce(func_t f, int count, segments_it segments,
 // lbs_segreduce with no caching iterators.
 template<typename launch_arg_t = empty_t, 
   typename func_t, typename segments_it, typename output_it, typename op_t,
-  typename type_t>
+  typename type_t, typename... args_t>
 void lbs_segreduce(func_t f, int count, segments_it segments,
   int num_segments, output_it output, op_t op, type_t init, 
-  context_t& context) {
+  context_t& context, args_t... args) {
 
   lbs_segreduce<launch_arg_t>(
-    [=]MGPU_DEVICE(int index, int seg, int rank, tuple<>) {
-      return f(index, seg, rank);
+    [=]MGPU_DEVICE(int index, int seg, int rank, tuple<>, args_t... args) {
+      return f(index, seg, rank, args...);
     },
-    count, segments, num_segments, tuple<>(), output, op, init, context
+    count, segments, num_segments, tuple<>(), output, op, init, context,
+    args...
   );
 }
 

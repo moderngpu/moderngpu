@@ -43,26 +43,19 @@ struct MGPU_ALIGN(8) cta_dim_t {
   }
 };
 
+namespace detail {
+
 // Due to a bug in the compiler we need to expand make_restrict() before
 // branching on cta < num_ctas.
 template<typename func_t, typename... args_t>
-MGPU_DEVICE void fermi_forward(func_t f, int tid, int cta, int num_ctas,
+MGPU_DEVICE void restrict_forward(func_t f, int tid, int cta, int num_ctas,
   args_t... args) {
 #if __CUDA_ARCH__ < 300
   if(cta < num_ctas) 
 #endif 
-   f(tid, cta, args...);
+    f(tid, cta, args...);
 }
 
-template<typename func_t, typename... args_t, int... seq_i>
-MGPU_HOST_DEVICE void restruct_expand(func_t f, tuple<args_t...> tpl, 
-  seq_t<seq_i...>) {
-  f(make_restrict(get<seq_i>(tpl))...);
-}
-
-template<typename func_t, typename... args_t>
-MGPU_HOST_DEVICE void restrict_expand(func_t f, tuple<args_t...> tpl) {
-  restruct_expand(f, tpl, typename genseq_t<sizeof...(args_t)>::type_t());
 }
 
 // Generic thread cta kernel.
@@ -79,7 +72,7 @@ void launch_box_cta_k(func_t f, int num_ctas, args_t... args) {
   cta += gridDim.x * blockIdx.y;
 #endif
 
-  fermi_forward(f, tid, cta, num_ctas, make_restrict(args)...);
+  detail::restrict_forward(f, tid, cta, num_ctas, make_restrict(args)...);
 }
 
 // Dummy kernel for retrieving PTX version.
@@ -91,16 +84,16 @@ struct launch_cta_t {
   enum { nt = nt_, vt = vt_, vt0 = vt0_, occ = occ_ };
 };
 
-#define DEF_ARCH_STRUCT(ver) \
-  template<typename params_t, typename base_t = empty_t> \
-  struct arch_##ver : base_t { \
-    typedef params_t sm_##ver; \
- \
-    template<typename new_base_t> \
-    using rebind = arch_##ver<params_t, new_base_t>; \
-  }; \
-  \
-  template<int nt, int vt = 1, int vt0 = vt, int occ = 0> \
+#define DEF_ARCH_STRUCT(ver)                                                  \
+  template<typename params_t, typename base_t = empty_t>                      \
+  struct arch_##ver : base_t {                                                \
+    typedef params_t sm_##ver;                                                \
+                                                                              \
+    template<typename new_base_t>                                             \
+    using rebind = arch_##ver<params_t, new_base_t>;                          \
+  };                                                                          \
+                                                                              \
+  template<int nt, int vt = 1, int vt0 = vt, int occ = 0>                     \
   using arch_##ver##_cta = arch_##ver<launch_cta_t<nt, vt, vt0, occ> >;
 
 DEF_ARCH_STRUCT(20)

@@ -7,9 +7,9 @@
 
 **Latest update**:
 ```
-2.07 2016 Apr 17 -
-  Added mechanism for passing kernel arguments through variadic parameter pack.
-  Added occupancy calculator in launch_box.hxx.
+2.08 2016 Apr 24 -
+  Restricted pointer promotion on transform functions using variadic arguments.
+  Fixed reduction bug in stream compaction.
 ```
 ---
 moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. 
@@ -57,6 +57,10 @@ moderngpu is a productivity library for general-purpose computing on GPUs. It is
 
 ## Release notes
 ```
+2.08 2016 Apr 24 -
+  Restricted pointer promotion on transform functions using variadic arguments.
+  Fixed reduction bug in stream compaction.
+
 2.07 2016 Apr 17 -
   Added mechanism for passing kernel arguments through variadic parameter pack.
   Added occupancy calculator in launch_box.hxx.
@@ -94,7 +98,7 @@ moderngpu is a productivity library for general-purpose computing on GPUs. It is
   
   Use -std=c++11 and --expt-extended-lambda to build.
   
-  Developed and tested with CUDA 7.5.17, g++ 4.8.4 on 64-bit linux.
+  Developed and tested with CUDA 7.5.17, g++ 4.9.3 on 64-bit linux.
 
   Tests and samples build on OSX clang-700-1.81.
   

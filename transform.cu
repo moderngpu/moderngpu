@@ -1,4 +1,5 @@
 #include <moderngpu/transform.hxx>
+#include <moderngpu/kernel_segreduce.hxx>
 
 using namespace mgpu;
 
@@ -20,37 +21,13 @@ int main(int argc, const char**) {
   const int* input = nullptr;
   int* output = nullptr;
   int count = 100000;
-
-  auto f = [=]MGPU_DEVICE(int tid, int cta, const int* input, int* output) {
-    if(input && output) {
-      output[128 * 0 + tid] = 2 * input[128 * 0 + tid];
-      output[128 * 1 + tid] = 2 * input[128 * 1 + tid];
-      output[128 * 2 + tid] = 2 * input[128 * 2 + tid];
-      output[128 * 3 + tid] = 2 * input[128 * 3 + tid];
-      output[128 * 4 + tid] = 2 * input[128 * 4 + tid];
-      output[128 * 5 + tid] = 2 * input[128 * 5 + tid];
-      output[128 * 6 + tid] = 2 * input[128 * 6 + tid];
-      output[128 * 7 + tid] = 2 * input[128 * 7 + tid];
-    }
-  };
-  simple_transform(f, input, output);
-
-  cta_launch<128, 8>([=]MGPU_DEVICE(int tid, int cta, const int* input, int* output) {
-    if(input && output) {
-      output[128 * 0 + tid] = 2 * input[128 * 0 + tid];
-      output[128 * 1 + tid] = 2 * input[128 * 1 + tid];
-      output[128 * 2 + tid] = 2 * input[128 * 2 + tid];
-      output[128 * 3 + tid] = 2 * input[128 * 3 + tid];
-      output[128 * 4 + tid] = 2 * input[128 * 4 + tid];
-      output[128 * 5 + tid] = 2 * input[128 * 5 + tid];
-      output[128 * 6 + tid] = 2 * input[128 * 6 + tid];
-      output[128 * 7 + tid] = 2 * input[128 * 7 + tid];
-    }
-  }, 1, context, input, output);
-
+  
   transform<128, 8>([=]MGPU_DEVICE(int index, const int* input, int* output) {
     output[index] = 2 * input[index];
   }, count, context, input, output);
+
+  spmv((const double*)nullptr, (const int*)nullptr, (const double*)nullptr, 
+    0, (const int*)nullptr, 0, (double*)nullptr, context);
 
   context.synchronize();
 

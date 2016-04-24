@@ -1,0 +1,12 @@
+# Introduction
+moderngpu 2.0 is a complete rewrite of the utilities and algorithms in moderngpu. It's also the first update to that library since shortly after its release in 2013.
+
+This new version takes the algorithms from moderngpu 1.0 and combines them with new composition models to push usability to the front. moderngpu 2.0 is parsimonious in its implementation. The initial commit checks in at 5,000 lines of code. Compare to other popular CUDA libraries: [cub](http://nvlabs.github.io/cub) is 45,000 lines; [CUDPP](http://cudpp.github.io) is 26,000 lines; and [thrust](http://thrust.github.io) is north of 160,000 lines. In fact, moderngpu 0.5 might be a more fitting version number, as it's half the size of moderngpu 1.0. 
+
+CUDA 7.5's solid C++11 support made a big impact on the design of this new version. Major language bullet points like lambda functions have naturally found their way into the implementation, but even minor improvements like default arguments for function templates have helped make for a tremendously cleaner design.
+
+I hope this library will be an asset for both novice and old-school GPU programmers. The practical value of the code is in the many data-parallel _transform functions_. The transforms can all accept user-defined lambda functions (lambdas can be attached to almost anything in the library) to specialize behavior. Many of the more advanced kernels of moderngpu 1.0, including load-balancing search; interval expand, move, gather and scatter; and sparse matrix-vector multiply are now implemented as single function calls. Relational inner join, which was a complicated multi-kernel design in moderngpu 1.0, is now a short sequence of calls to canned routines capped by a use of the load-balancing search.
+
+This library also carries a certain philosophical message: Software is an asset, code a liability. On good days I'd add 200 or 300 lines to this repository. On great days I'd subtract 500. Keeping your code small means you'll be more ready to discard it when better ideas come along. Computers are meant to serve ideas, but the exigencies of programming, especially in the arcane field of HPC, make code a sunk cost that can prevent an individual or an organization from sloughing off what it doesn't need and moving nimbly to the next great new thing. I built moderngpu 2.0 as the ideal toolkit for my own needs: it's expressive, it's light weight, and if you can break a problem into simple pieces, it'll help you realize your own solution.
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_Sean Baxter_

@@ -1,0 +1,7 @@
+* [Introduction](doc/intro.md)
+* [Patterns and specializers](doc/patterns.md)
+* [`transform` and the argument model](doc/arguments.md)
+* [Load-balancing search](doc/lbs.md)
+* [API reference](doc/api.md)
+* [Usage notes](doc/usage.md)
+* [License](LICENSE.md)

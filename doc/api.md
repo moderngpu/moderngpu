@@ -1,31 +1,3 @@
-1. [moderngpu 2.0...](README.md)
-1. API Reference
-  1. [Low-level transforms](#low-level-transforms)
-    1. [transform](#transform)
-    1. [cta_launch](#cta_launch)
-    1. [cta_transform](#cta_transform)
-  1. [High-level transforms](#high-level-transforms)
-    1. [transform_reduce](#transform_reduce)
-    1. [transform_scan](#transform_scan)
-    1. [transform_segreduce](#transform_segreduce)
-    1. [transform_lbs](#transform_lbs)
-    1. [lbs_segreduce](#lbs_segreduce)
-    1. [transform_compact](#transform_compact)
-    1. [lbs_workcreate](#lbs_workcreate)
-  1. [Array functions](#array-functions)
-    1. [reduce](#reduce)
-    1. [scan](#scan)
-    1. [merge](#merge)
-    1. [sorted_search](#sorted_search)
-    1. [bulk_insert](#bulk_insert)
-    1. [bulk_remove](#bulk_remove)
-    1. [mergesort](#mergesort)
-    1. [segmented_sort](#segmented_sort)
-    1. [load_balance_search](#load_balance_search)
-    1. [interval_move](#interval_move)
-    1. [inner_join](#inner_join)
-    1. [segreduce](#segreduce)
-
 # API Reference
 
 moderngpu includes functions that operate on iterators and functions that operate on user-provided lambdas. Often these are just two sides of the same coin--you can adapt an iterator to a lambda-accepting function by dereferencing the iterator, and you can adapt a lambda to an iterator-accepting function by using the library's `make_load_iterator` and `make_store_iterator` functions to wrap the lambda. 

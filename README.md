@@ -4,6 +4,7 @@
 
 **You can drop me a line [here](mailto:moderngpu@gmail.com)**
 
+Full documentation with gitbook [here](moderngpu.github.io/moderngpu). Under heavy construction.
 
 **Latest update**:
 ```
@@ -13,47 +14,6 @@
 ```
 ---
 moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. 
-
-## Contents
-1. [Release notes](#release-notes)
-  1. [License](LICENSE.md)
-1. [Introduction](LOADBALANCE.md#introduction)
-1. [Examples of automatic load-balancing](LOADBALANCE.md#examples-of-automatic-load-balancing)
-  1. [Sparse matrix*vector](LOADBALANCE.md#sparse-matrix--vector)
-  1. [Interval move and interval expand](LOADBALANCE.md#interval-move-and-interval-expand)
-  1. [Relational join](LOADBALANCE.md#relational-join)
-  1. [Breadth-first search](LOADBALANCE.md#breadth-first-search)
-  1. [Attu Station, AK](LOADBALANCE.md#attu-station-ak)
-1. [Examples of dynamic work creation](LOADBALANCE.md#examples-of-dynamic-work-creation)
-  1. [Improved breadth-first search](LOADBALANCE.md#improved-breadth-first-search)
-  1. [Bit-compressed breadth-first search](LOADBALANCE.md#bit-compressed-breadth-first-search)
-1. [Kernel programming](KERNEL.md#kernel-programming)
-  1. [Tutorial 1 - parallel transforms](KERNEL.md#tutorial-1---parallel-transforms)
-  1. [Tutorial 2 - cooperative thread arrays](KERNEL.md#tutorial-2---cooperative-thread-arrays)
-  1. [Tutorial 3 - launch box](KERNEL.md#tutorial-3---launch-box)
-  1. [Tutorial 4 - custom launch parameters](KERNEL.md#tutorial-4---custom-launch-parameters)
-  1. [Tutorial 5 - iterators](KERNEL.md#tutorial-5---iterators)
-1. [API Reference](API.md)
-  1. [Low-level transforms](API.md#low-level-transforms)
-  1. [High-level transforms](API.md#high-level-transforms)
-  1. [Array functions](API.md#array-functions)
-1. [Usage tips](USAGE.md#usage-tips)
-1. [ModernGPU 1.0](https://github.com/moderngpu/moderngpu/tree/V1.1)
-  1. [FAQ](https://moderngpu.github.io/moderngpu/faq.html)
-  1. [Introduction](https://moderngpu.github.io/moderngpu/intro.html)
-  1. [Performance](https://moderngpu.github.io/moderngpu/performance.html)
-  1. [The Library](https://moderngpu.github.io/moderngpu/library.html)
-  1. [Reduce and Scan](https://moderngpu.github.io/moderngpu/scan.html)
-  1. [Bulk Remove and Bulk Insert](https://moderngpu.github.io/moderngpu/bulkinsert.html)
-  1. [Merge](https://moderngpu.github.io/moderngpu/merge.html)
-  1. [Mergesort](https://moderngpu.github.io/moderngpu/mergesort.html)
-  1. [Segmented Sort and Locality Sort](https://moderngpu.github.io/moderngpu/segsort.html)
-  1. [Vectorized Sorted Search](https://moderngpu.github.io/moderngpu/sortedsearch.html)
-  1. [Load-Balancing Search](https://moderngpu.github.io/moderngpu/loadbalance.html)
-  1. [IntervalExpand and IntervalMove](https://moderngpu.github.io/moderngpu/intervalmove.html)
-  1. [Relational Joins](https://moderngpu.github.io/moderngpu/join.html)
-  1. [Multisets](https://moderngpu.github.io/moderngpu/sets.html)
-  1. [Segmented Reduction](https://moderngpu.github.io/moderngpu/segreduce.html)
 
 ## Release notes
 ```

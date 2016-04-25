@@ -1,0 +1,503 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Patterns and specializers | moderngpu</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.6.7">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="../gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="../gitbook/style.css">
+    
+        
+        <link rel="stylesheet" href="../gitbook/plugins/gitbook-plugin-highlight/website.css">
+        
+    
+        
+        <link rel="stylesheet" href="../gitbook/plugins/gitbook-plugin-search/search.css">
+        
+    
+        
+        <link rel="stylesheet" href="../gitbook/plugins/gitbook-plugin-fontsettings/website.css">
+        
+    
+    
+        <link rel="stylesheet" href="../styles/website.css">
+    
+
+        
+    
+    
+    <link rel="next" href="../doc/lbs.html" />
+    
+    
+    <link rel="prev" href="../doc/kernels.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book"
+        data-level="4"
+        data-chapter-title="Patterns and specializers"
+        data-filepath="doc/patterns.md"
+        data-basepath=".."
+        data-revision="Sun Apr 24 2016 21:36:48 GMT-0400 (EDT)"
+        data-innerlanguage="">
+    
+
+<div class="book-summary">
+    <nav role="navigation">
+        <ul class="summary">
+            
+            
+            
+            
+
+            
+
+            
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="../index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="1" data-path="doc/intro.html">
+            
+                
+                    <a href="../doc/intro.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2" data-path="doc/gettingstarted.html">
+            
+                
+                    <a href="../doc/gettingstarted.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.</b>
+                        
+                        Getting started
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="3" data-path="doc/kernels.html">
+            
+                
+                    <a href="../doc/kernels.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.</b>
+                        
+                        Kernels and arguments
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter active" data-level="4" data-path="doc/patterns.html">
+            
+                
+                    <a href="../doc/patterns.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.</b>
+                        
+                        Patterns and specializers
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5" data-path="doc/lbs.html">
+            
+                
+                    <a href="../doc/lbs.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.</b>
+                        
+                        Load-balancing search
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="6" data-path="doc/api.html">
+            
+                
+                    <a href="../doc/api.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>6.</b>
+                        
+                        API reference
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="7" data-path="doc/usage.html">
+            
+                
+                    <a href="../doc/usage.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>7.</b>
+                        
+                        Usage notes
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="8" data-path="LICENSE.html">
+            
+                
+                    <a href="../LICENSE.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>8.</b>
+                        
+                        License
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="9" data-path="doc/moderngpu_1.0.html">
+            
+                
+                    <a href="../doc/moderngpu_1.0.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>9.</b>
+                        
+                        moderngpu 1.0
+                    </a>
+            
+            
+        </li>
+    
+
+
+            
+            <li class="divider"></li>
+            <li>
+                <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                    Published with GitBook
+                </a>
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header" role="navigation">
+    <!-- Actions Left -->
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="../" >moderngpu</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1" role="main">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="patterns-and-behaviors">Patterns and behaviors</h1>
+<p>moderngpu exposes functionality through templated <em>pattern</em> functions. The user specializes these patterns with concrete <em>behavior</em> functions, typically written as C++ lambdas. The pattern launches a kernel, computes a <em>context</em> for each work-item, and invokes the behavior on each work-item, providing the corresponding context.</p>
+<p>Each pattern works with its arguments to define a deterministic <em>network</em> of operations. A simple pattern like <a href="#transform"><code>transform</code></a> has a simple network: it maps the global ID of each thread to the <code>index</code> argument of the provided behavior. </p>
+<h2 id="highlevel-patterns">High-level patterns</h2>
+<p><a href="#transform_reduce"><code>transform_reduce</code></a> defines a more complicated network, calling the user&apos;s reduction operator recursively on the results of reduced tiles of inputs. The structure of the network is determined by the count of the reduction but is independent of the user-supplied behaviors.</p>
+<p><a href="#transform_lbs"><code>transform_lbs</code></a> is an advanced pattern. By using dynamic searches it provides the behavior function with critical context (the segment and rank of the work-item within the segment) for each work-item while load-balancing work-items across the GPU. This network, while still deterministic, changes structure with the user&apos;s choice of segmentation.</p>
+<h2 id="defining-behaviors">Defining behaviors</h2>
+<p>The simplest pattern is <code>mgpu::transform</code>.</p>
+<p><strong><code>transform.hxx</code></strong></p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;
+  <span class="hljs-keyword">int</span> nt = <span class="hljs-number">128</span>,         <span class="hljs-comment">// Number of threads in the thread block.</span>
+  <span class="hljs-keyword">int</span> vt = <span class="hljs-number">1</span>,           <span class="hljs-comment">// Grain size for each thread.</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">func_t</span>,      <span class="hljs-comment">// Function called for each work-item.</span>
+  <span class="hljs-keyword">typename</span>... <span class="hljs-keyword">args_t</span>    <span class="hljs-comment">// Auxiliary arguments.</span>
+&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">transform</span><span class="hljs-params">(func_t f, size_t count, context_t&amp; context, args_t... args)</span></span>;
+</code></pre>
+<p>The user provides a behavior functor or lambda implementing <code>void operator()(int index)</code>. This behavior is invoked once per work-item, which range from 0 to <code>count</code>. This is a standard <em>map</em> pattern, and is included in every general--purpose CUDA library. </p>
+<h4 id="example">Example</h4>
+<p>The behavior uses C++ lambda closure to capture the arguments it needs from the surrounding scope. Lambdas must be tagged with <code>MGPU_DEVICE</code> (a macro for <code>__device__</code>) when they are created in host code and invoked on device code.</p>
+<pre><code class="lang-cpp"><span class="hljs-comment">// Square each element in x and store it into y.</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">square_all</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* x, <span class="hljs-keyword">int</span> count, <span class="hljs-keyword">float</span>* y, context_t&amp; context)</span> </span>{
+  <span class="hljs-keyword">auto</span> k = [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index) {
+    y[index] = x[index] * x[index];
+  };
+  transform(k, count, context);
+}
+</code></pre>
+<p>For compactness we can also define the behavior lambda without assigning it to a variable.</p>
+<pre><code class="lang-cpp"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">square_all</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* x, <span class="hljs-keyword">int</span> count, <span class="hljs-keyword">float</span>* y, context_t&amp; context)</span> </span>{
+  transform([=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index) {
+    y[index] = x[index] * x[index];
+  }, count, context);
+}
+</code></pre>
+<p><code>transform</code> has a trivial implementation but is nonetheless helpful. It simply launches one thread per work-item and passes </p>
+<pre><code class="lang-cpp">index = threadIdx.x + blockDim.x * blockIdx.x
+</code></pre>
+<p>to the behavior function. </p>
+<h4 id="example">Example</h4>
+<p>Consider a conversion from AOS (array of struct) to SOA (struct of array). We use the <em>transform</em> pattern to invoke the <em>behavior</em> for each element. The behavior simply constructs a struct on the four array elements and stores it to the result array.</p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">struct</span> <span class="hljs-keyword">vec_t</span> {
+  <span class="hljs-keyword">float</span> x, y, z, w;
+};
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">arrays_to_struct</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* x, <span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* y, <span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* z, 
+  <span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* w, <span class="hljs-keyword">int</span> count, vec_t* v, context_t&amp; context)</span> </span>{
+  transform([=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index) {
+    v[index] = <span class="hljs-keyword">vec_t</span> { x[index], y[index], z[index], w[index] };
+  }, count, context);
+}
+</code></pre>
+<p>This behavior seems straight-forward, but we can use it with almost every pattern, providing an ability to specialize very complicated kernels with little effort and perfect clarity.</p>
+<h2 id="transformreduce">transform_reduce</h2>
+<p><em>Reduction</em> is the next pattern that all CUDA libraries implement. This one contains some logic--a network that adds together all inputs in parallel. <code>mgpu::reduce</code> is specialized on two behaviors: a function that, given an index, returns the value of the item to be reduced; and a function that reduces two argument values into one.</p>
+<p><strong><code>kernel_reduce.hxx</code></strong></p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>,  <span class="hljs-comment">// optional launch_box overrides default.</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">func_t</span>,         <span class="hljs-comment">// implements type_t operator()(int index).</span>
+  <span class="hljs-keyword">typename</span> output_it,      <span class="hljs-comment">// iterator to output. one output element.</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">op_t</span>            <span class="hljs-comment">// reduction operator implements</span>
+                           <span class="hljs-comment">//   type_t operator()(type_t left, type_t right).</span>
+&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">transform_reduce</span><span class="hljs-params">(func_t f, <span class="hljs-keyword">int</span> count, output_it reduction, op_t op, 
+  context_t&amp; context)</span></span>;
+</code></pre>
+<h4 id="example">Example</h4>
+<p>This sample shows both behaviors for reduce. The <em>transform</em> behavior returns the value to be reduced given an index. In this case, the product of an element from <code>a</code> with an element from <code>b</code>. The <em>reducer</em> behavior folds together two argument values. In this case it returns the sum. The final scalar reduction is stored into <code>c</code>.</p>
+<pre><code class="lang-cpp"><span class="hljs-comment">// Add up the element-wise products of a and b and store into c.</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">dot_product</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* a, <span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* b, <span class="hljs-keyword">float</span>* c, <span class="hljs-keyword">int</span> count,
+  context_t&amp; context)</span> </span>{
+  <span class="hljs-keyword">auto</span> transformer = [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index) {
+    <span class="hljs-keyword">return</span> a[index] * b[index];
+  };
+  <span class="hljs-keyword">auto</span> reducer = []MGPU_DEVICE(<span class="hljs-keyword">float</span> lhs, <span class="hljs-keyword">float</span> rhs) -&gt; <span class="hljs-keyword">float</span> {
+    <span class="hljs-keyword">return</span> lhs + rhs;
+  };
+  reduce(transformer, count, c, reducer, context);
+}
+</code></pre>
+<p>Addition is a very common reducer, so a <em>functor</em> type <code>mgpu::plus_t&lt;&gt;</code> is defined as a convenience. <code>multiplies_t&lt;&gt;</code>, <code>maximum_t&lt;&gt;</code> and <code>minimum_t&lt;&gt;</code> are also provided in <strong><code>operators.hxx</code></strong> for use with <code>reduce</code>. </p>
+<pre><code class="lang-cpp"><span class="hljs-comment">// Add up the element-wise products of a and b and store into c.</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">dot_product</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* a, <span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* b, <span class="hljs-keyword">float</span>* c, <span class="hljs-keyword">int</span> count,
+  context_t&amp; context)</span> </span>{
+  reduce([=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index) {
+    <span class="hljs-keyword">return</span> a[index] * b[index];
+  }, count, c, <span class="hljs-keyword">plus_t</span>&lt;<span class="hljs-keyword">float</span>&gt;(), context);
+}
+</code></pre>
+<h2 id="transformscan">transform_scan</h2>
+<h2 id="transformsegreduce">transform_segreduce</h2>
+<p>Many libraries have a form of segmented reduction pattern, but nothing else provides as much for general segmented algorithms as moderngpu. </p>
+<p><strong><code>kernel_segreduce.hxx</code></strong></p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, <span class="hljs-comment">// provides constants (nt, vt, vt0).</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">func_t</span>,         <span class="hljs-comment">// implements type_t operator()(int index).</span>
+  <span class="hljs-keyword">typename</span> segments_it,    <span class="hljs-comment">// segments-descriptor array.</span>
+                           <span class="hljs-comment">//   specificies starting offset of each segment.</span>
+  <span class="hljs-keyword">typename</span> output_it,      <span class="hljs-comment">// output iterator. one output per segment.</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">op_t</span>,           <span class="hljs-comment">// reduction operator implements</span>
+                           <span class="hljs-comment">//   type_t operator()(type_t a, type_t b)</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">type_t</span>
+&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">transform_segreduce</span><span class="hljs-params">(func_t f, <span class="hljs-keyword">int</span> count, segments_it segments, 
+  <span class="hljs-keyword">int</span> num_segments, output_it output, op_t op, type_t init, 
+  context_t&amp; context)</span></span>;
+</code></pre>
+<h2 id="transformlbs">transform_lbs</h2>
+<p><strong><code>kernel_load_balance.hxx</code></strong></p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, <span class="hljs-comment">// provides (nt, vt, vt0)</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">func_t</span>,         <span class="hljs-comment">// load-balancing search callback implements</span>
+                           <span class="hljs-comment">//   void operator()(int index,   // work-item</span>
+                           <span class="hljs-comment">//                   int seg,     // segment ID</span>
+                           <span class="hljs-comment">//                   int rank,    // rank within seg</span>
+                           <span class="hljs-comment">//                   tuple&lt;...&gt; cached_values).</span>
+  <span class="hljs-keyword">typename</span> segments_it,    <span class="hljs-comment">// segments-descriptor array.</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">tpl_t</span>           <span class="hljs-comment">// tuple&lt;&gt; of iterators for caching loads.</span>
+&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">transform_lbs</span><span class="hljs-params">(func_t f, <span class="hljs-keyword">int</span> count, segments_it segments, 
+  <span class="hljs-keyword">int</span> num_segments, tpl_t caching_iterators, context_t&amp; context)</span></span>;
+
+<span class="hljs-comment">// version of transform_lbs without caching iterators</span>
+<span class="hljs-keyword">template</span>&lt;
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, 
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">func_t</span>,         <span class="hljs-comment">// load-balancing search callback implements</span>
+                           <span class="hljs-comment">//   void operator()(int index, int seg, int rank).</span>
+  <span class="hljs-keyword">typename</span> segments_it
+&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">transform_lbs</span><span class="hljs-params">(func_t f, <span class="hljs-keyword">int</span> count, segments_it segments, 
+  <span class="hljs-keyword">int</span> num_segments, context_t&amp; context)</span></span>;
+</code></pre>
+<h2 id="lbssegreduce">lbs_segreduce</h2>
+<p><strong><code>kernel_segreduce.hxx</code></strong></p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, <span class="hljs-comment">// provides (nt, vt, vt0)</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">func_t</span>,         <span class="hljs-comment">// load-balancing search callback implements</span>
+                           <span class="hljs-comment">//   type_t operator()(int index,   // work-item</span>
+                           <span class="hljs-comment">//                     int seg,     // segment ID</span>
+                           <span class="hljs-comment">//                     int rank,    // rank within seg</span>
+                           <span class="hljs-comment">//                     tuple&lt;...&gt; cached_values).</span>
+  <span class="hljs-keyword">typename</span> segments_it,    <span class="hljs-comment">// segments-descriptor array.</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">tpl_t</span>,          <span class="hljs-comment">// tuple&lt;&gt; of iterators for caching loads.</span>
+  <span class="hljs-keyword">typename</span> output_it,      <span class="hljs-comment">// output iterator. one output per segment.</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">op_t</span>,           <span class="hljs-comment">// reduction operator implements</span>
+                           <span class="hljs-comment">//   type_t operator()(type_t a, type_t b).</span>
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">type_t</span>
+&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">lbs_segreduce</span><span class="hljs-params">(func_t f, <span class="hljs-keyword">int</span> count, segments_it segments,
+  <span class="hljs-keyword">int</span> num_segments, tpl_t caching_iterators, output_it output, op_t op,
+  type_t init, context_t&amp; context)</span></span>;
+
+<span class="hljs-comment">// version of lbs_segreduce without caching iterators.</span>
+<span class="hljs-keyword">template</span>&lt;
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, 
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">func_t</span>,         <span class="hljs-comment">// load-balancing search callback implements</span>
+                           <span class="hljs-comment">//   type_t operator()(int index, int seg, int rank).</span>
+  <span class="hljs-keyword">typename</span> segments_it, 
+  <span class="hljs-keyword">typename</span> output_it, 
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">op_t</span>,
+  <span class="hljs-keyword">typename</span> <span class="hljs-keyword">type_t</span>
+&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">lbs_segreduce</span><span class="hljs-params">(func_t f, <span class="hljs-keyword">int</span> count, segments_it segments,
+  <span class="hljs-keyword">int</span> num_segments, output_it output, op_t op, type_t init, 
+  context_t&amp; context)</span></span>;
+</code></pre>
+<pre><code class="lang-cpp"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">segmented_stddev</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">float</span>* x, <span class="hljs-keyword">int</span> count, <span class="hljs-keyword">const</span> <span class="hljs-keyword">int</span>* segments,
+  <span class="hljs-keyword">int</span> num_segments, <span class="hljs-keyword">float</span>* c, context_t&amp; context)</span> </span>{
+
+  <span class="hljs-comment">// Find the total value of each segment.</span>
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">float</span>&gt; totals(num_segments, context);
+  segreduce(x, count, segments, num_segments, totals.data(), <span class="hljs-keyword">plus_t</span>&lt;<span class="hljs-keyword">float</span>&gt;(),
+    <span class="hljs-number">0.0f</span>, context);
+
+  <span class="hljs-comment">// Define an iterator that turns the segment total into the segment mean.</span>
+  <span class="hljs-keyword">float</span>* totals_data = totals.data();
+  <span class="hljs-keyword">auto</span> mean = make_load_iterator&lt;<span class="hljs-keyword">float</span>&gt;([=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index) -&gt; <span class="hljs-keyword">float</span> {
+    <span class="hljs-keyword">float</span> total = totals_data[index];
+    <span class="hljs-keyword">int</span> size = segments[index + <span class="hljs-number">1</span>] - segments[index];
+    <span class="hljs-keyword">if</span>(size &gt; <span class="hljs-number">0</span>) total /= size;
+    <span class="hljs-keyword">return</span> total;
+  });
+
+  <span class="hljs-comment">// Find the sum of squared differences in each segment.</span>
+  <span class="hljs-comment">// We use a caching iterator to apply the segment size normalization once</span>
+  <span class="hljs-comment">// per CTA and to broadcast the result to each thread that needs the </span>
+  <span class="hljs-comment">// mean.</span>
+  lbs_segreduce([=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> seg, <span class="hljs-keyword">int</span> rank, tuple&lt;<span class="hljs-keyword">float</span>&gt; u) {
+    <span class="hljs-comment">// u is a tuple holding the mean of the segment.</span>
+    <span class="hljs-keyword">return</span> sq(x[index] - get&lt;<span class="hljs-number">0</span>&gt;(u));
+  }, count, segments, num_segments, make_tuple(mean), y, 
+    <span class="hljs-keyword">plus_t</span>&lt;<span class="hljs-keyword">float</span>&gt;(), <span class="hljs-number">0.0f</span>, context);
+
+  <span class="hljs-comment">// Divide the sum of squared differences by the size of each segment</span>
+  <span class="hljs-comment">// and sqrt for the standard deviation.</span>
+  transform([=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index) {
+    <span class="hljs-keyword">int</span> size = segments[index + <span class="hljs-number">1</span>] - segments[index];
+    <span class="hljs-keyword">if</span>(size &gt; <span class="hljs-number">0</span>) y[index] = <span class="hljs-built_in">sqrt</span>(y[index] / size);
+  }, count, context);
+}
+</code></pre>
+<h2 id="debugging-kernels">Debugging kernels</h2>
+
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="../doc/kernels.html" class="navigation navigation-prev " aria-label="Previous page: Kernels and arguments"><i class="fa fa-angle-left"></i></a>
+        
+        
+        <a href="../doc/lbs.html" class="navigation navigation-next " aria-label="Next page: Load-balancing search"><i class="fa fa-angle-right"></i></a>
+        
+    </div>
+</div>
+
+        
+<script src="../gitbook/app.js"></script>
+
+    
+    <script src="../gitbook/plugins/gitbook-plugin-search/lunr.min.js"></script>
+    
+
+    
+    <script src="../gitbook/plugins/gitbook-plugin-search/search.js"></script>
+    
+
+    
+    <script src="../gitbook/plugins/gitbook-plugin-sharing/buttons.js"></script>
+    
+
+    
+    <script src="../gitbook/plugins/gitbook-plugin-fontsettings/buttons.js"></script>
+    
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"highlight":{},"search":{"maxIndexSize":1000000},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>

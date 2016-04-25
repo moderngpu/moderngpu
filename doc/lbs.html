@@ -1,0 +1,1123 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Load-balancing search | moderngpu</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.6.7">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="../gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="../gitbook/style.css">
+    
+        
+        <link rel="stylesheet" href="../gitbook/plugins/gitbook-plugin-highlight/website.css">
+        
+    
+        
+        <link rel="stylesheet" href="../gitbook/plugins/gitbook-plugin-search/search.css">
+        
+    
+        
+        <link rel="stylesheet" href="../gitbook/plugins/gitbook-plugin-fontsettings/website.css">
+        
+    
+    
+        <link rel="stylesheet" href="../styles/website.css">
+    
+
+        
+    
+    
+    <link rel="next" href="../doc/api.html" />
+    
+    
+    <link rel="prev" href="../doc/patterns.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book"
+        data-level="5"
+        data-chapter-title="Load-balancing search"
+        data-filepath="doc/lbs.md"
+        data-basepath=".."
+        data-revision="Sun Apr 24 2016 21:36:48 GMT-0400 (EDT)"
+        data-innerlanguage="">
+    
+
+<div class="book-summary">
+    <nav role="navigation">
+        <ul class="summary">
+            
+            
+            
+            
+
+            
+
+            
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="../index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="1" data-path="doc/intro.html">
+            
+                
+                    <a href="../doc/intro.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2" data-path="doc/gettingstarted.html">
+            
+                
+                    <a href="../doc/gettingstarted.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.</b>
+                        
+                        Getting started
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="3" data-path="doc/kernels.html">
+            
+                
+                    <a href="../doc/kernels.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.</b>
+                        
+                        Kernels and arguments
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="4" data-path="doc/patterns.html">
+            
+                
+                    <a href="../doc/patterns.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.</b>
+                        
+                        Patterns and specializers
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter active" data-level="5" data-path="doc/lbs.html">
+            
+                
+                    <a href="../doc/lbs.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.</b>
+                        
+                        Load-balancing search
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="6" data-path="doc/api.html">
+            
+                
+                    <a href="../doc/api.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>6.</b>
+                        
+                        API reference
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="7" data-path="doc/usage.html">
+            
+                
+                    <a href="../doc/usage.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>7.</b>
+                        
+                        Usage notes
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="8" data-path="LICENSE.html">
+            
+                
+                    <a href="../LICENSE.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>8.</b>
+                        
+                        License
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="9" data-path="doc/moderngpu_1.0.html">
+            
+                
+                    <a href="../doc/moderngpu_1.0.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>9.</b>
+                        
+                        moderngpu 1.0
+                    </a>
+            
+            
+        </li>
+    
+
+
+            
+            <li class="divider"></li>
+            <li>
+                <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                    Published with GitBook
+                </a>
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header" role="navigation">
+    <!-- Actions Left -->
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="../" >moderngpu</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1" role="main">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="examples-of-automatic-loadbalancing">Examples of automatic load-balancing</h1>
+<p>In the past CUDA programmers were responsible for decomposing their own problem over the regular grid of GPU threads. Let&apos;s say you need to reduce values from many different non-uniformly sized segments. Which processing units load and reduce which values? Do you assign one thread to a segment, or a warp&apos;s worth or a block&apos;s worth of threads? If you settle on a vector width and the variance of the segment size is large, do you waste vector processors by assigning small segments to a large width; do you create load-imbalance by oversubscribing large segments to too-small vectors?</p>
+<p>moderngpu 1.0 introduced the <em>load-balancing search</em> algorithm for dynamically mapping work to processors in a way that doesn&apos;t starve any processors of work or oversubscribe work to too-few cores. However there was a considerable cost to using this mechanism: you had to write your own kernel, allocate shared memory for the load-balancing search, and communicate between threads. In the current version, the composition model has changed, and the high-level transformers take care of all of this. You just provide a lambda and the library calls it with the desired segment information.</p>
+<h2 id="sparse-matrix--vector">Sparse matrix * vector</h2>
+<p>Features demonstrated:</p>
+<ol>
+<li><code>transform_segreduce</code></li>
+</ol>
+<p><strong><code>kernel_segreduce.hxx</code></strong></p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, <span class="hljs-keyword">typename</span> matrix_it,
+  <span class="hljs-keyword">typename</span> columns_it, <span class="hljs-keyword">typename</span> vector_it, <span class="hljs-keyword">typename</span> segments_it, 
+  <span class="hljs-keyword">typename</span> output_it&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">spmv</span><span class="hljs-params">(matrix_it matrix, columns_it columns, vector_it <span class="hljs-built_in">vector</span>,
+  <span class="hljs-keyword">int</span> count, segments_it segments, <span class="hljs-keyword">int</span> num_segments, output_it output,
+  context_t&amp; context)</span> </span>{ 
+
+  <span class="hljs-keyword">typedef</span> <span class="hljs-keyword">typename</span> <span class="hljs-built_in">std</span>::iterator_traits&lt;matrix_it&gt;::value_type <span class="hljs-keyword">type_t</span>;
+
+  transform_segreduce&lt;<span class="hljs-keyword">launch_arg_t</span>&gt;([=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index) {
+    <span class="hljs-keyword">return</span> matrix[index] * ldg(<span class="hljs-built_in">vector</span> + columns[index]);    <span class="hljs-comment">// sparse m * v.</span>
+  }, count, segments, num_segments, output, <span class="hljs-keyword">plus_t</span>&lt;<span class="hljs-keyword">type_t</span>&gt;(), 
+   (<span class="hljs-keyword">type_t</span>)<span class="hljs-number">0</span>, context);
+}
+</code></pre>
+<p>In moderngpu 1.0 the sparse matrix * dense vector operator, <code>spmv</code>, needed a lot of custom programming. But in moderngpu 2.0 it&apos;s just an expression of the <code>transform_segreduce</code> pattern. The user provides a CSR-style segments-descriptor array and an MGPU_DEVICE-tagged lambda to the transformer. This lambda is called once per input element, where it loads one non-zero matrix element, looks up the column index of that matrix element, gathers a vector element at that location, and returns the product. </p>
+<p><code>transform_segreduce</code> is a very intelligent transformer. It automatically distributes the work of function evaluation over the regular grid of GPU threads in a geometry-oblivious way. Matrices with a very large number of non-zero elements per row parallelize just as well as much sparser matrices. Matrices with a large variance in the number of non-zero elements per row parallelize just as well as more uniform systems.</p>
+<p>This new <code>spmv</code> function is efficient, robust, flexible and tunable. Matrices with empty rows are handled just fine--the empty rows of the output are plugged with 0 (although you could pass in any value). The <code>__ldg</code> CUDA intrinsic is used on <code>sm_35</code> and later architectures, but only when <code>vector</code> is a pointer to an arithmetic type, so you can still pass in an iterator and generate the vector values on-the-fly. </p>
+<p>The tuning of the function is also pushed out to the user: pass a <code>launch_arg_t</code> to specialize the kernel over an architecture-specific set of launch parameters, including the block size, grain size, cache ratio and SM occupancy. By moving tuning parameters <em>outside</em> of the function implementation, the user can tweak the parameters for best performance for their specific needs, including generating multiple versions of the same function for inputs with different characteristics.</p>
+<h2 id="interval-move-and-interval-expand">Interval move and interval expand</h2>
+<p>Features demonstrated:</p>
+<ol>
+<li><code>transform_lbs</code></li>
+</ol>
+<p>Interval expand and interval move were introduced in moderngpu 1.0 and written as kernels that used the CTA-level load-balancing search components. <code>interval_expand</code> is like a batched <code>std::fill</code>; it sets all the elements in each segment with a single segment-specific value. <code>interval_move</code> is like a batched <code>std::copy</code>; for each segment it copies a sequence of data from a gather point to a scatter point.</p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, <span class="hljs-keyword">typename</span> input_it, 
+  <span class="hljs-keyword">typename</span> segments_it, <span class="hljs-keyword">typename</span> output_it&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">interval_expand</span><span class="hljs-params">(input_it input, <span class="hljs-keyword">int</span> count, segments_it segments,
+  <span class="hljs-keyword">int</span> num_segments, output_it output, context_t&amp; context)</span> </span>{
+
+  <span class="hljs-keyword">typedef</span> <span class="hljs-keyword">typename</span> <span class="hljs-built_in">std</span>::iterator_traits&lt;input_it&gt;::value_type <span class="hljs-keyword">type_t</span>;
+  transform_lbs&lt;<span class="hljs-keyword">launch_arg_t</span>&gt;(
+    [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> seg, <span class="hljs-keyword">int</span> rank) {
+      output[index] = input[seg];
+    }, 
+    count, segments, num_segments, context
+  );
+}
+
+<span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, 
+  <span class="hljs-keyword">typename</span> input_it, <span class="hljs-keyword">typename</span> segments_it, <span class="hljs-keyword">typename</span> scatter_it,
+  <span class="hljs-keyword">typename</span> gather_it, <span class="hljs-keyword">typename</span> output_it&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">interval_move</span><span class="hljs-params">(input_it input, <span class="hljs-keyword">int</span> count, segments_it segments,
+  <span class="hljs-keyword">int</span> num_segments, scatter_it scatter, gather_it gather, output_it output, 
+  context_t&amp; context)</span> </span>{
+
+  transform_lbs&lt;<span class="hljs-keyword">launch_arg_t</span>&gt;(
+    [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> seg, <span class="hljs-keyword">int</span> rank) {
+      output[scatter[seg] + rank] = input[gather[seg] + rank];
+    }, 
+    count, segments, num_segments, context
+  );
+}
+</code></pre>
+<p>Both functions are succinctly implemented with the new <code>transform_lbs</code> high-level transformer. The user-provided lambda is called once for each work-item and passed the needed context: the index of the work-item within the global operation, the segment of the work-item, and the rank of the work-item within the segment. In the case of <code>interval_expand</code>, <code>index = 110</code>, <code>seg = 4</code>, <code>rank = 20</code> means we need to fill <code>output[110]</code> with the value <code>input[seg]</code>. For <code>interval_move</code> it means we need to copy the 20th item of segment 4 from <code>input[gather[seg] + rank]</code> to <code>output[scatter[seg] + rank]</code>.</p>
+<p><code>transform_lbs</code> with user-provided lambdas is the natural language for segmented operations like <code>interval_move</code>. Indeed, the code is a more readable than a textual description. But there is one drawback to the implementations above; they aren&apos;t as fast as the hand-coded versions in moderngpu 1.0. You see that the fill-value <code>input</code> array is dereferenced once for each item in the same segment in <code>interval_expand</code>, and both <code>scatter</code> and <code>gather</code> are dereferenced for each item in the same segment in <code>interval_move</code>. These are redundant loads and they eat up L2 bandwidth. The hand-coded version cooperatively loaded these terms by segment ID into shared memory, then read the cached values out when storing to output or computing indexing.</p>
+<p>Sacrificing efficiency for convenience is a hard sell, especially in HPC software. How can we cache values that are indexed per-segment and retain the convenience of the <code>transform_lbs</code> interface?</p>
+<p><strong><code>kernel_intervalmove.hxx</code></strong></p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, <span class="hljs-keyword">typename</span> input_it, 
+  <span class="hljs-keyword">typename</span> segments_it, <span class="hljs-keyword">typename</span> output_it&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">interval_expand</span><span class="hljs-params">(input_it input, <span class="hljs-keyword">int</span> count, segments_it segments,
+  <span class="hljs-keyword">int</span> num_segments, output_it output, context_t&amp; context)</span> </span>{
+
+  <span class="hljs-keyword">typedef</span> <span class="hljs-keyword">typename</span> <span class="hljs-built_in">std</span>::iterator_traits&lt;input_it&gt;::value_type <span class="hljs-keyword">type_t</span>;
+  transform_lbs&lt;<span class="hljs-keyword">launch_arg_t</span>&gt;(
+    [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> seg, <span class="hljs-keyword">int</span> rank, tuple&lt;<span class="hljs-keyword">type_t</span>&gt; desc) {
+      output[index] = get&lt;<span class="hljs-number">0</span>&gt;(desc);
+    }, 
+    count, segments, num_segments, make_tuple(input), context
+  );
+}
+
+<span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, 
+  <span class="hljs-keyword">typename</span> input_it, <span class="hljs-keyword">typename</span> segments_it, <span class="hljs-keyword">typename</span> scatter_it,
+  <span class="hljs-keyword">typename</span> gather_it, <span class="hljs-keyword">typename</span> output_it&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">interval_move</span><span class="hljs-params">(input_it input, <span class="hljs-keyword">int</span> count, segments_it segments,
+  <span class="hljs-keyword">int</span> num_segments, scatter_it scatter, gather_it gather, output_it output, 
+  context_t&amp; context)</span> </span>{
+
+  transform_lbs&lt;<span class="hljs-keyword">launch_arg_t</span>&gt;(
+    [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> seg, <span class="hljs-keyword">int</span> rank, tuple&lt;<span class="hljs-keyword">int</span>, <span class="hljs-keyword">int</span>&gt; desc) {
+      output[get&lt;<span class="hljs-number">0</span>&gt;(desc) + rank] = input[get&lt;<span class="hljs-number">1</span>&gt;(desc) + rank];
+    }, 
+    count, segments, num_segments, make_tuple(scatter, gather), context
+  );
+}
+</code></pre>
+<p><code>transform_lbs</code> and the related <code>lbs_segreduce</code> functions are overloaded to take optional <code>mgpu::tuple&lt;&gt;</code> parameters. <code>make_tuple</code> fuses together <em>cacheable iterators</em> pointing to per-segment data. The caching overload of <code>transform_lbs</code> loads from the cacheable iterators through shared memory and passes the values to the lambda, as its tuple-valued fourth parameter.</p>
+<p>In the improved <code>interval_move</code> implementation, the scatter and gather offsets, which are likely <code>const int*</code> types, are fused into a <code>tuple&lt;const int*, const int*&gt;</code> value and passed to <code>transform_lbs</code>. This high-level transformer cooperatively loads one value per tied iterator for each segment spanned by the CTA through shared memory and out into register. These cached values are constructed into a <code>tuple&lt;int, int&gt;</code> and passed to the lambda. <code>interval_move</code>&apos;s lambda uses <code>mgpu::get&lt;&gt;</code> to extract the scatter and gather offsets, which it adds to the work-item&apos;s rank as in the uncached implementation.</p>
+<p>Explicit caching of per-segment values is cooperatively parallel operation, but <code>interval_expand</code> and <code>interval_move</code> include no cooperatively parallel code. They benefit from the feature by way of this improved composition model.</p>
+<h2 id="relational-join">Relational join</h2>
+<p>Features demonstrated:</p>
+<ol>
+<li><code>sorted_search</code></li>
+<li><code>transform_scan</code></li>
+<li><code>transform_lbs</code></li>
+</ol>
+<p>Consider table A joined with table B. We want to record the outer product of all matching keys from A and B.</p>
+<table>
+<thead>
+<tr>
+<th>index</th>
+<th>table A</th>
+<th>table B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>ape</td>
+<td>chicken</td>
+</tr>
+<tr>
+<td>1</td>
+<td>ape</td>
+<td>cow</td>
+</tr>
+<tr>
+<td>2</td>
+<td>kitten</td>
+<td>goat</td>
+</tr>
+<tr>
+<td>3</td>
+<td>kitten</td>
+<td>kitten</td>
+</tr>
+<tr>
+<td>4</td>
+<td>kitten</td>
+<td>kitten</td>
+</tr>
+<tr>
+<td>5</td>
+<td>zebra</td>
+<td>tiger</td>
+</tr>
+<tr>
+<td>6</td>
+<td></td>
+<td>zebra</td>
+</tr>
+</tbody>
+</table>
+<p>inner join table:</p>
+<table>
+<thead>
+<tr>
+<th>index</th>
+<th>A index</th>
+<th>A key</th>
+<th>B index</th>
+<th>B key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>2</td>
+<td>kitten (0)</td>
+<td>3</td>
+<td>kitten (0)</td>
+</tr>
+<tr>
+<td>1</td>
+<td>2</td>
+<td>kitten (0)</td>
+<td>4</td>
+<td>kitten (1)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>3</td>
+<td>kitten (1)</td>
+<td>3</td>
+<td>kitten (0)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>3</td>
+<td>kitten (1)</td>
+<td>4</td>
+<td>kitten (1)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>4</td>
+<td>kitten (2)</td>
+<td>3</td>
+<td>kitten (0)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>4</td>
+<td>kitten (2)</td>
+<td>4</td>
+<td>kitten (1)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>5</td>
+<td>zebra (0)</td>
+<td>6</td>
+<td>zebra (0)</td>
+</tr>
+</tbody>
+</table>
+<p>Joins are a backbone of data science and analytics. They&apos;re something we want in the new version and they&apos;re something we had in 1.0. But the high-level transforms allow for clean and efficient implementations without writing new kernels.</p>
+<table>
+<thead>
+<tr>
+<th>index</th>
+<th>key</th>
+<th>lower bound</th>
+<th>upper bound</th>
+<th>upper - lower</th>
+<th>scan(upper - lower)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>ape</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>1</td>
+<td>ape</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>2</td>
+<td>kitten</td>
+<td>3</td>
+<td>5</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr>
+<td>3</td>
+<td>kitten</td>
+<td>3</td>
+<td>5</td>
+<td>2</td>
+<td>2</td>
+</tr>
+<tr>
+<td>4</td>
+<td>kitten</td>
+<td>3</td>
+<td>5</td>
+<td>2</td>
+<td>4</td>
+</tr>
+<tr>
+<td>5</td>
+<td>zebra</td>
+<td>6</td>
+<td>7</td>
+<td>1</td>
+<td>6</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>7</td>
+</tr>
+</tbody>
+</table>
+<p>First we call <code>sorted_search</code> twice: once to find the lower-bound and once to find the upper-bound of each element in A in B. This is a &quot;find sorted needles in a sorted haystack&quot; operation. The element-wise difference of the upper- and lower-bound indices gives the number of keys in B that match each key in A. We scan this difference to produce a segments-descriptor for load-balancing search, and use <code>transform_lbs</code> to construct an <code>int2</code> array with the (A index, B index) pairs of the inner join.</p>
+<p><strong><code>kernel_join.hxx</code></strong></p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> <span class="hljs-keyword">launch_arg_t</span> = <span class="hljs-keyword">empty_t</span>, 
+  <span class="hljs-keyword">typename</span> a_it, <span class="hljs-keyword">typename</span> b_it, <span class="hljs-keyword">typename</span> <span class="hljs-keyword">comp_t</span>&gt;
+<span class="hljs-keyword">mem_t</span>&lt;int2&gt; inner_join(a_it a, <span class="hljs-keyword">int</span> a_count, b_it b, <span class="hljs-keyword">int</span> b_count, 
+  <span class="hljs-keyword">comp_t</span> comp, <span class="hljs-keyword">context_t</span>&amp; context) {
+
+  <span class="hljs-comment">// Compute lower and upper bounds of a into b.</span>
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; lower(a_count, context);
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; upper(b_count, context);
+  sorted_search&lt;bounds_lower, <span class="hljs-keyword">launch_arg_t</span>&gt;(a, a_count, b, b_count, 
+    lower.data(), comp, context);
+  sorted_search&lt;bounds_upper, <span class="hljs-keyword">launch_arg_t</span>&gt;(a, a_count, b, b_count, 
+    upper.data(), comp, context);
+
+  <span class="hljs-comment">// Compute output ranges by scanning upper - lower. Retrieve the reduction</span>
+  <span class="hljs-comment">// of the scan, which specifies the size of the output array to allocate.</span>
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; scanned_sizes(a_count, context);
+  <span class="hljs-keyword">const</span> <span class="hljs-keyword">int</span>* lower_data = lower.data();
+  <span class="hljs-keyword">const</span> <span class="hljs-keyword">int</span>* upper_data = upper.data();
+
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; count(<span class="hljs-number">1</span>, context);
+  transform_scan([=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index) {
+    <span class="hljs-keyword">return</span> upper_data[index] - lower_data[index];
+  }, a_count, scanned_sizes.data(), <span class="hljs-keyword">plus_t</span>&lt;<span class="hljs-keyword">int</span>&gt;(), count.data(), context);
+
+  <span class="hljs-comment">// Allocate an int2 output array and use load-balancing search to compute</span>
+  <span class="hljs-comment">// the join.</span>
+  <span class="hljs-keyword">int</span> join_count = from_mem(count)[<span class="hljs-number">0</span>];
+  <span class="hljs-keyword">mem_t</span>&lt;int2&gt; output(join_count, context);
+  int2* output_data = output.data();
+
+  <span class="hljs-comment">// Use load-balancing search on the segmens. The output is a pair with</span>
+  <span class="hljs-comment">// a_index = seg and b_index = lower_data[seg] + rank.</span>
+  <span class="hljs-keyword">auto</span> k = [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> seg, <span class="hljs-keyword">int</span> rank, tuple&lt;<span class="hljs-keyword">int</span>&gt; lower) {
+    output_data[index] = make_int2(seg, get&lt;<span class="hljs-number">0</span>&gt;(lower) + rank);
+  };
+  transform_lbs&lt;<span class="hljs-keyword">launch_arg_t</span>&gt;(k, join_count, scanned_sizes.data(), a_count,
+    make_tuple(lower_data), context);
+
+  <span class="hljs-keyword">return</span> output;
+}
+</code></pre>
+<p>The new <code>inner_join</code> implementation joins two tables as represented by sorted arrays. The arrays need not consist of arithmetic types; they only need to be comparable using the passed-in <code>comp</code> object, which returns <code>a &lt; b</code>.</p>
+<p><code>sorted_search</code> takes a <code>bounds_lower</code> or <code>bounds_upper</code> argument for specializing on the search type. We then scan <code>a_count</code> sizes, which are element-wise differences of <code>upper</code> and <code>lower</code> as passed in through a lambda to the moderngpu <code>transform_scan</code> function. The reduction of this scan is returned into GPU-memory, and we load this count into a variable on the host where it&apos;s used for allocating just the right amount of memory for the join.</p>
+<p>Once again <code>transform_lbs</code> provides the parallel intelligence for this operation. The indices for each pair of the inner join are:</p>
+<pre><code>a_index = seg;
+b_index = lower_data[seg] + rank;
+</code></pre><p>As in the <code>interval_move</code> example we choose to cache <code>lower_data[seg]</code> with the tuple-caching mechanism. </p>
+<p>This join implementation is easy to write, obvious on inspection, and robust with respect to the shape of the join. Running-time is linear in the sum of the two load-balancing search arguments: the join count and the size of table A.</p>
+<h2 id="breadthfirst-search">Breadth-first search</h2>
+<p>Features demonstrated:</p>
+<ol>
+<li><code>transform_scan</code></li>
+<li><code>transform_lbs</code></li>
+</ol>
+<p><strong>Note:</strong> To run this demo you&apos;ll need to download the <a href="http://www.cise.ufl.edu/research/sparse/matrices/DIMACS10/coPapersCiteseer.html" target="_blank">coPapersCiteseer</a> graph in the <em>Matrix Market</em> format from the University of Florida Sparse Matrix Collection. Decompress the <code>.mtx</code> file into <code>demo/coPapersCiteseer/coPapersCiteseer.mtx</code>.</p>
+<h4 id="bfscu"><code>bfs.cu</code></h4>
+<pre><code class="lang-cpp"><span class="hljs-comment">// Label vertices that have -1 value to cur_value + 1 if they are adjacent to a </span>
+<span class="hljs-comment">// vertex that is set tocur_value.</span>
+<span class="hljs-comment">// Returns the size of the front for this pass.</span>
+<span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> vertices_it, <span class="hljs-keyword">typename</span> edges_it&gt;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">bfs</span><span class="hljs-params">(vertices_it vertices, <span class="hljs-keyword">int</span> num_vertices, edges_it edges,
+  <span class="hljs-keyword">int</span>* values, <span class="hljs-keyword">int</span> cur_value, context_t&amp; context)</span> </span>{
+
+  <span class="hljs-comment">// Allocate space for load-balancing search segments and total work-items.</span>
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; segments(num_vertices, context);
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; count(<span class="hljs-number">1</span>, context);
+
+  <span class="hljs-comment">// Compute the number of neighbors to explore for each vertex.</span>
+  <span class="hljs-comment">// Emit 0 items if the vertex is not active this pass, otherwise</span>
+  <span class="hljs-comment">// emit vertices[vertex + 1] - vertices[vertex] items, indicating that we</span>
+  <span class="hljs-comment">// need to visit all of the vertex&apos;s neighbors.</span>
+
+  <span class="hljs-comment">// Scan the number of neighbors for each vertex on the frontier.</span>
+  <span class="hljs-keyword">auto</span> segment_sizes = [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> vertex) {
+    <span class="hljs-keyword">int</span> count = <span class="hljs-number">0</span>;
+    <span class="hljs-keyword">if</span>(values[vertex] == cur_value) {
+      <span class="hljs-keyword">int</span> begin = vertices[vertex];
+      <span class="hljs-keyword">int</span> end = vertices[vertex + <span class="hljs-number">1</span>];
+      count = end - begin;
+    }
+    <span class="hljs-keyword">return</span> count;
+  };
+  transform_scan(segment_sizes, num_vertices, segments.data(), <span class="hljs-keyword">plus_t</span>&lt;<span class="hljs-keyword">int</span>&gt;(), 
+    count.data(), context);
+
+  <span class="hljs-comment">// Read out the number of work-items and quit if there are none. That means</span>
+  <span class="hljs-comment">// we&apos;ve visited all vertices connected to a source.</span>
+  <span class="hljs-keyword">int</span> front = from_mem(count)[<span class="hljs-number">0</span>];
+  <span class="hljs-keyword">if</span>(!front) <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+
+  <span class="hljs-comment">// Compare-and-swap cur_value + 1 into values[edges[vertices[seg] + rank]]].</span>
+  <span class="hljs-comment">// get&lt;0&gt;(v) is a cache-optimized copy of vertices[seg]. </span>
+  <span class="hljs-keyword">auto</span> update = [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> seg, <span class="hljs-keyword">int</span> rank, tuple&lt;<span class="hljs-keyword">int</span>&gt; v) {
+    <span class="hljs-comment">// Compare and swap in cur_value + 1 when the old value was -1.</span>
+    <span class="hljs-keyword">int</span> neighbor = edges[get&lt;<span class="hljs-number">0</span>&gt;(v) + rank];
+    atomicCAS(values + neighbor, -<span class="hljs-number">1</span>, cur_value + <span class="hljs-number">1</span>);
+  };
+  transform_lbs(update, front, segments.data(), num_vertices, 
+    make_tuple(vertices), context);
+
+  <span class="hljs-keyword">return</span> front;
+}
+</code></pre>
+<pre><code>NUM VERTICES = 434102    NUM_EDGES = 32073440
+Front for level 0 has 163 edges.
+Front for level 1 has 21112 edges.
+Front for level 2 has 9561 edges.
+Front for level 3 has 98990 edges.
+Front for level 4 has 900032 edges.
+Front for level 5 has 4617596 edges.
+Front for level 6 has 15439710 edges.
+Front for level 7 has 8686685 edges.
+Front for level 8 has 1781177 edges.
+Front for level 9 has 365748 edges.
+Front for level 10 has 113306 edges.
+Front for level 11 has 24539 edges.
+Front for level 12 has 7215 edges.
+Front for level 13 has 5198 edges.
+Front for level 14 has 1871 edges.
+Front for level 15 has 427 edges.
+Front for level 16 has 18 edges.
+Front for level 17 has 17 edges.
+Front for level 18 has 15 edges.
+Front for level 19 has 12 edges.
+Front for level 20 has 5 edges.
+Front for level 21 has 10 edges.
+Front for level 22 has 6 edges.
+Front for level 23 has 11 edges.
+Front for level 24 has 15 edges.
+Front for level 25 has 1 edges.
+Front for level 26 has 0 edges.
+</code></pre><p>The moderngpu 2.0 demo &quot;bfs&quot; includes another practical algorithm has its load-balancing concerns satisfied by the high-level transforms. <a href="https://en.wikipedia.org/wiki/Breadth-first_search" target="_blank">Breadth-first search</a> computes the minimum distance measured in edges for each vertex in a graph to one or more sources. This isn&apos;t an algorithmically efficient implementation--that would require clever management of the vertex frontier. But this is a load-balanced parallel implementation and it helps to demonstrate the facility of <code>transform_lbs</code>.</p>
+<p>Breadth-first search updates an array of unweighted distances. Source vertices have distance 0. Visited vertices are marked by the number of edges to the closest source, and unvisited vertices are marked -1. This implementation of <code>bfs</code> updates the values array by marking unvisited vertices that are one edge away from vertices marked as <code>cur_value</code>.</p>
+<p>Graphs are often encoded with compressed sparse row segment descriptors. The format used to encode sparse matrices helpfully share a format with the segment-descriptors arrays in moderngpu. Although we could feed this segments-descriptor array directly to the load-balancing search, we want to filter it to only process vertices on the frontier. We run <code>transform_scan</code> on the number of <em>active edges</em> for each vertex at each step: 0 edges if the vertex <em>is not</em> on the frontier at that step (i.e. <code>values[vertex] != cur_value</code>) or its full number of edges if the vertex <em>is</em> on the frontier.</p>
+<p><code>transform_lbs</code> calls the provided lambda once for each edge attached to an active vertex. The high-level transform is robust with respect to the degree of the vertex and to the variance of the degree. We use the tuple segment caching mechanism to load the vertex&apos;s offset into the edge array (<code>tuple&lt;int&gt; v</code>), add in the rank of the edge within the vertex, and load from the <code>edge</code> array. This gives us the index of the neighboring vertex. The CUDA intrinsic <code>atomicCAS</code> sets the unweighted distance if and only if that vertex is unvisited.</p>
+<p>A starting point for a more efficient BFS algorithm would be to use the return value of <code>atomicCAS</code> to make a list of vertices on the active front (to reduce or eliminate the cost of the <code>transform_scan</code> which operates over all vertices in the entire graph) or to remove some or all occurrences of visited vertices from the array of edges. moderngpu includes useful functions like <code>bulk_insert</code> and <code>bulk_remove</code> for the parallel array-surgery operations needed for more advanced bfs algorithms. </p>
+<h2 id="attu-station-ak">Attu Station, AK</h2>
+<p>Features demonstrated:</p>
+<ol>
+<li><code>scan</code></li>
+<li><code>interval_expand</code></li>
+<li><code>lbs_segreduce</code></li>
+<li><code>segmented_sort</code> </li>
+</ol>
+<h4 id="citiescu"><code>cities.cu</code></h4>
+<pre><code>29510 cities from 52 states loaded.
+AL          Phenix         Ladonia:   4.21    Smiths Stati:   7.12         Opelika:  24.78
+AK    Attu Station            Adak: 435.04            Atka: 527.73        St. Paul: 712.48
+AZ          Scenic     Littlefield:   6.58      Beaver Dam:   8.91    Grand Canyon:  55.75
+AR        Junction       El Dorado:  13.95        Norphlet:  20.89          Strong:  21.88
+CA         Needles       Bluewater:  48.57       Big River:  48.91          Blythe:  80.15
+CO        Dinosaur         Rangely:  16.66         Maybell:  52.09          Meeker:  60.25
+CT          Sharon       Lakeville:   5.79           Falls:   7.67          Canaan:  12.95
+DE          Delmar          Laurel:   6.95          Bethel:   7.88          Blades:  11.67
+DC      Washington
+FL    Steinhatchee           Cross:  15.98    Horseshoe Be:  17.70    Fanning Spri:  27.97
+GA           Fargo      Homerville:  26.30     Statenville:  26.62          Argyle:  27.09
+HI        Maunaloa        Kualapuu:   9.65      Kaunakakai:  13.89        Ualapu&apos;e:  24.68
+ID          Salmon         Leadore:  43.09         Challis:  49.02         Clayton:  67.93
+IL      Metropolis       Brookport:   3.75           Joppa:   9.71         Belknap:  18.32
+IN    Mount Vernon    Parkers Sett:  12.30     New Harmony:  13.37      Poseyville:  17.20
+IA       New Albin         Lansing:  10.03          Waukon:  18.45      Waterville:  19.95
+KS        Kanorado        Goodland:  17.30     St. Francis:  32.57          Weskan:  32.77
+KY          Albany     Burkesville:  14.43      Monticello:  18.84       Jamestown:  21.32
+LA      Grand Isle    Golden Meado:  19.14        Galliano:  23.26    Port Sulphur:  27.35
+ME         Houlton          Blaine:  26.14       Mars Hill:  27.54    Presque Isle:  39.94
+MD      Manchester       Hampstead:   3.35     Westminster:   8.23     New Windsor:  13.64
+MA      Siasconset       Nantucket:   6.42         Madaket:  11.12         Chatham:  28.24
+MI        Newberry       St. James:  42.24      Manistique:  44.75      St. Ignace:  49.28
+MN    Grand Marais          Lutsen:  17.21         Finland:  48.10      Silver Bay:  54.10
+MS Alcorn State Un     Port Gibson:  10.63         Fayette:  12.42      Morgantown:  24.41
+MO           Salem    Edgar Spring:  18.77         Licking:  20.31          Bunker:  21.72
+MT          Jordan       Fort Peck:  51.91          Nashua:  61.74         Glasgow:  62.00
+NE         Hyannis          Arthur:  29.83          Mullen:  36.97          Seneca:  47.89
+NV          Owyhee    Fort McDermi:  73.38           Osino:  73.93    Paradise Val:  74.52
+NH West Stewartsto       Colebrook:   6.84        Groveton:  26.20       Lancaster:  34.75
+NJ     Port Norris     Laurel Lake:   5.28      Belleplain:   8.98       Millville:   9.67
+NM         Clayton       Grenville:  27.74      Des Moines:  43.95          Folsom:  50.95
+NY      Speculator     North Creek:  20.25       Long Lake:  26.53      Northville:  26.74
+NC       Engelhard       Fairfield:  12.46    Swan Quarter:  18.68        Hatteras:  27.15
+ND         Grenora         Fortuna:  21.27           Alamo:  21.55         Ambrose:  31.14
+OH           Crown         Athalia:   5.60    Proctorville:  11.46      Chesapeake:  14.15
+OK          Kenton            Felt:  25.51           Boise:  27.89           Keyes:  40.02
+OR   Jordan Valley          Adrian:  52.62           Nyssa:  62.16          Harper:  67.03
+PA       Driftwood        Emporium:  12.85    Prospect Par:  12.89       Pine Glen:  17.93
+RI          Greene       Clayville:   4.82    Foster Cente:   5.93         Wyoming:  13.17
+SC  McClellanville         Awendaw:  13.11       Jamestown:  19.00      Georgetown:  22.53
+SD      Camp Crook         Buffalo:  21.02         Prairie:  56.03    Belle Fourch:  61.49
+TN      Copperhill        Ducktown:   2.58          Benton:  19.10          Etowah:  24.69
+TX        Van Horn    Sierra Blanc:  31.49       Valentine:  37.15    Fort Hancock:  62.19
+UT        Wendover          Dugway:  74.97     Grantsville:  80.77     Rush Valley:  87.19
+VT   Beecher Falls          Canaan:   1.93     Island Pond:  23.69      Derby Line:  30.30
+VA        Monterey       Deerfield:  17.54     Craigsville:  24.99    Augusta Spri:  25.11
+WA        Oroville          Loomis:  12.83        Tonasket:  16.40       Riverside:  30.16
+WV      Brandywine        Franklin:   5.31         Whitmer:  21.26          Harman:  25.85
+WI        Tomahawk     Rhinelander:  17.60         Merrill:  20.62    Lake Tomahaw:  23.72
+WY         Mammoth            Alta:  84.55            Cody:  86.25         Ralston:  90.44
+PR         Culebra         Vieques:  14.52       Esperanza:  18.53     Las Croabas:  21.85
+</code></pre><p>The <code>cities.cu</code> demo implements a geographic data sciences query, not too far off from what a skilled SQL user might formulate. We start with a CSV file with American cities and their geodetic locations, sorted by US state. The goal is to find the three closest cities in each state for every city, as a sort of &apos;remoteness&apos; metric. (3 is a template argument here. Any number will work but comparison costs increase quadratically.) The cities are then sorted by the distance to their third-closest city. This is a more robust measure of remoteness than taking simply the shortest pair. Two &quot;census-designated places&quot; may be close together yet very far from any other place. This measure is robust for up to three places in a cluster out by themselves--the third closest to each of those will be outside of the cluster and give truer sense of &quot;remoteness.&quot; </p>
+<p>There are a limitless number of reasonable definitions of a remoteness measure: take the average distance to all other cities in the state, take the sum of the squared distances to all other cities, etc. The beauty of using moderngpu&apos;s high-level transformers is that most of the client code remains the same between these different metrics and only the reduction operator changes.</p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">int</span> count&gt;
+<span class="hljs-keyword">struct</span> <span class="hljs-keyword">best_t</span> {
+  <span class="hljs-keyword">struct</span> <span class="hljs-keyword">term_t</span> {
+    <span class="hljs-keyword">float</span> score;
+    <span class="hljs-keyword">int</span> index;
+  } terms[count];
+
+  <span class="hljs-keyword">best_t</span>() = <span class="hljs-keyword">default</span>;
+
+  <span class="hljs-function">MGPU_HOST_DEVICE <span class="hljs-title">best_t</span><span class="hljs-params">(<span class="hljs-keyword">float</span> score, <span class="hljs-keyword">int</span> index)</span> </span>{
+    fill(terms, <span class="hljs-keyword">term_t</span> { FLT_MAX, -<span class="hljs-number">1</span> });
+    terms[<span class="hljs-number">0</span>] = <span class="hljs-keyword">term_t</span> { score, index };
+  }
+};
+
+<span class="hljs-keyword">struct</span> <span class="hljs-keyword">combine_scores_t</span> {
+  <span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">int</span> count&gt;
+  MGPU_HOST_DEVICE <span class="hljs-keyword">best_t</span>&lt;count&gt; <span class="hljs-keyword">operator</span>()(
+    <span class="hljs-keyword">best_t</span>&lt;count&gt; a, <span class="hljs-keyword">best_t</span>&lt;count&gt; b) <span class="hljs-keyword">const</span> {
+
+    <span class="hljs-keyword">auto</span> rotate = [](<span class="hljs-keyword">best_t</span>&lt;count&gt; x) {
+      <span class="hljs-keyword">best_t</span>&lt;count&gt; y = x;
+      iterate&lt;count - <span class="hljs-number">1</span>&gt;([&amp;](<span class="hljs-keyword">int</span> i) { y.terms[i] = y.terms[i + <span class="hljs-number">1</span>]; });
+      <span class="hljs-keyword">return</span> y;
+    };
+    <span class="hljs-keyword">best_t</span>&lt;count&gt; c;
+
+    iterate&lt;count&gt;([&amp;](<span class="hljs-keyword">int</span> i) {
+      <span class="hljs-keyword">bool</span> p = !(b.terms[<span class="hljs-number">0</span>].score &lt; a.terms[<span class="hljs-number">0</span>].score);
+      c.terms[i] = p ? a.terms[<span class="hljs-number">0</span>] : b.terms[<span class="hljs-number">0</span>];
+      <span class="hljs-keyword">if</span>(p) a = rotate(a); <span class="hljs-keyword">else</span> b = rotate(b);
+    });
+
+    <span class="hljs-keyword">return</span> c;
+  }
+};
+</code></pre>
+<p>Here we define the distance storage type <code>best_t&lt;&gt;</code>. If <code>count = 3</code>, it holds the indices of the three closest cities with their great-circle distances. The reduction operator chooses the three smallest distances from arguments <code>a</code> and <code>b</code>, each with three distances of their own. <code>combine_scores_t</code> is conscientiously designed to avoid dynamic indexing into any of the terms. We want to avoid spilling to high-latency local memory (dynamic indexing causes spilling into local memory), so we employ the compile-time loop-unwinding function <code>iterate&lt;&gt;</code>. We iteratively choose the smallest distance at the front of <code>a</code> or <code>b</code>, rotating forward the remaining distances of the respective argument. In theoretical terms this is an inefficient implementation, but rather than using memory operations it eats into register-register compute throughput which the GPU has in abundance.</p>
+<pre><code class="lang-cpp"><span class="hljs-comment">////////////////////////////////////////////////////////////////////////////////</span>
+<span class="hljs-comment">// Compute the great circle distance between two points.</span>
+
+<span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> <span class="hljs-keyword">real_t</span>&gt;
+<span class="hljs-function">MGPU_HOST_DEVICE real_t <span class="hljs-title">deg_to_rad</span><span class="hljs-params">(real_t deg)</span> </span>{
+  <span class="hljs-keyword">return</span> (<span class="hljs-keyword">real_t</span>)(M_PI / <span class="hljs-number">180</span>) * deg;
+}
+
+<span class="hljs-comment">// https://en.wikipedia.org/wiki/Haversine_formula#The_haversine_formula</span>
+<span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> <span class="hljs-keyword">real_t</span>&gt;
+<span class="hljs-function">MGPU_HOST_DEVICE real_t <span class="hljs-title">hav</span><span class="hljs-params">(real_t theta)</span> </span>{
+  <span class="hljs-keyword">return</span> sq(<span class="hljs-built_in">sin</span>(theta / <span class="hljs-number">2</span>));
+}
+
+<span class="hljs-comment">// https://en.wikipedia.org/wiki/Great-circle_distance#Computational_formulas</span>
+<span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> <span class="hljs-keyword">real_t</span>&gt;
+<span class="hljs-function">MGPU_HOST_DEVICE real_t <span class="hljs-title">earth_distance</span><span class="hljs-params">(real_t lat_a, real_t lon_a, 
+  real_t lat_b, real_t lon_b)</span> </span>{
+
+  lat_a = deg_to_rad(lat_a);
+  lat_b = deg_to_rad(lat_b);
+  lon_a = deg_to_rad(lon_a);
+  lon_b = deg_to_rad(lon_b);
+
+  <span class="hljs-keyword">const</span> <span class="hljs-keyword">real_t</span> earth_radius = <span class="hljs-number">3958.76</span>;  <span class="hljs-comment">// Approx earth radius in miles.</span>
+  <span class="hljs-keyword">real_t</span> arg = hav(lat_b - lat_a) + 
+    <span class="hljs-built_in">cos</span>(lat_a) * <span class="hljs-built_in">cos</span>(lat_b) * hav(lon_b - lon_a);
+  <span class="hljs-keyword">real_t</span> angle = <span class="hljs-number">2</span> * <span class="hljs-built_in">asin</span>(<span class="hljs-built_in">sqrt</span>(arg));
+
+  <span class="hljs-keyword">return</span> angle * earth_radius;
+}
+</code></pre>
+<p>The score we use to rank city-city distances uses this great circle calculation. <code>earth_distance</code> is an ordinary math function tagged with <code>MGPU_HOST_DEVICE</code>, letting us call it from the <code>lbs_segreduce</code> device-tagged lambda. The power of C++11 and the design of moderngpu 2.0 let&apos;s us separate concerns: the numerics know nothing about the high-level transformer and the high-level transformer knows nothing about the numerics. It&apos;s the user&apos;s choice of lambda that brings them together into a single optimized kernel.</p>
+<pre><code class="lang-cpp"><span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">int</span> d&gt;
+<span class="hljs-built_in">std</span>::unique_ptr&lt;query_results&lt;d&gt; &gt;
+compute_distances(<span class="hljs-keyword">const</span> <span class="hljs-keyword">int</span>* cities_per_state, <span class="hljs-keyword">const</span> float2* city_pos, 
+  <span class="hljs-keyword">const</span> <span class="hljs-keyword">state_city_t</span>&amp; db, <span class="hljs-keyword">context_t</span>&amp; context) {
+
+  <span class="hljs-keyword">int</span> num_states = (<span class="hljs-keyword">int</span>)db.states.size();
+  <span class="hljs-keyword">int</span> num_cities = (<span class="hljs-keyword">int</span>)db.cities.size();
+
+  <span class="hljs-comment">// 1: Scan the state counts for state segments.</span>
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; state_segments(num_states, context);
+  scan(cities_per_state, num_states, state_segments.data(), context);
+
+  <span class="hljs-comment">// 2: Use interval_expand to create a city-&gt;city map. This </span>
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; city_to_city_map(num_cities, context);
+  interval_expand(state_segments.data(), num_cities, state_segments.data(),
+    num_states, city_to_city_map.data(), context);
+
+  <span class="hljs-comment">// 3: For each city, store the number of cities in that city&apos;s state. </span>
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; distance_segments(num_cities, context);
+  <span class="hljs-keyword">int</span>* distance_segments_data = distance_segments.data();
+  transform_lbs([=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> seg, <span class="hljs-keyword">int</span> rank, 
+    tuple&lt;<span class="hljs-keyword">int</span>&gt; state_count) {
+    distance_segments_data[index] = get&lt;<span class="hljs-number">0</span>&gt;(state_count) - <span class="hljs-number">1</span>;
+  }, num_cities, state_segments.data(), num_states, 
+    make_tuple(cities_per_state), context);
+
+  <span class="hljs-comment">// 4: Scan the number of interactions for each state for the segment markers</span>
+  <span class="hljs-comment">// for segmented reduction. Recover the number of work-items.</span>
+  scan(distance_segments.data(), num_cities, distance_segments.data(), context);
+
+  <span class="hljs-comment">// 5: Define a lambda that returns the minimum distance between two cities</span>
+  <span class="hljs-comment">// in a best_t&lt;best_count&gt; struct. This is fed to lbs_segreduce to find the</span>
+  <span class="hljs-comment">// best_count-closest cities within each state.</span>
+
+  <span class="hljs-comment">// Compute the number of work-items. Each city performs distance tests on</span>
+  <span class="hljs-comment">// cities_per_state[state] - 1 other cities. The -1 is to avoid computing</span>
+  <span class="hljs-comment">// self-distances.</span>
+  <span class="hljs-keyword">int</span> num_work_items = <span class="hljs-number">0</span>;
+  <span class="hljs-keyword">for</span>(<span class="hljs-keyword">int</span> count : db.cities_per_state)
+    num_work_items += count * (count - <span class="hljs-number">1</span>);
+
+  <span class="hljs-comment">// 6. Define a lambda that returns the distance between two cities.</span>
+  <span class="hljs-comment">// Cache state_segments_data and pos_i.</span>
+  <span class="hljs-keyword">auto</span> compute_score = [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> city_i, <span class="hljs-keyword">int</span> rank, 
+    tuple&lt;<span class="hljs-keyword">int</span>, float2&gt; desc) {
+
+    <span class="hljs-comment">// The position of city_i is cached.</span>
+    float2 pos_i = get&lt;<span class="hljs-number">1</span>&gt;(desc);
+
+    <span class="hljs-comment">// The offset of the first city in this state is cached in desc.</span>
+    <span class="hljs-comment">// Add in the rank to get city_i. </span>
+    <span class="hljs-keyword">int</span> city_j = get&lt;<span class="hljs-number">0</span>&gt;(desc) + rank;
+
+    <span class="hljs-comment">// Advance city_j if city_j &gt;= city_i to avoid self-interaction.</span>
+    <span class="hljs-keyword">if</span>(city_j &gt;= city_i) ++city_j;
+
+    <span class="hljs-comment">// Load the position of city_j and compute the distance to city_i.</span>
+    float2 pos_j = city_pos[city_j];
+    <span class="hljs-keyword">float</span> distance = earth_distance(pos_i.y, pos_i.x, pos_j.y, pos_j.x);
+
+    <span class="hljs-comment">// Set this as the closest distance in the structure.</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">best_t</span>&lt;d&gt;(distance, city_j);
+  };
+
+  <span class="hljs-comment">// Allocate on best_t&lt;&gt; per result.</span>
+  <span class="hljs-built_in">std</span>::unique_ptr&lt;query_results&lt;d&gt; &gt; results(<span class="hljs-keyword">new</span> query_results&lt;d&gt;);
+  results-&gt;distances = <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">best_t</span>&lt;d&gt; &gt;(num_cities, context);
+  results-&gt;indices = <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt;(num_cities, context);
+
+  <span class="hljs-comment">// 7. Call lbs_segreduce to fold all invocations of the </span>
+  <span class="hljs-comment">// Use fewer values per thread than the default lbs_segreduce tuning because</span>
+  <span class="hljs-comment">// best_t&lt;3&gt; is a large type that eats up shared memory.</span>
+  <span class="hljs-keyword">best_t</span>&lt;d&gt; init = <span class="hljs-keyword">best_t</span>&lt;d&gt;();
+  <span class="hljs-built_in">std</span>::fill(init.terms, init.terms + d, <span class="hljs-keyword">typename</span> <span class="hljs-keyword">best_t</span>&lt;d&gt;::<span class="hljs-keyword">term_t</span> { <span class="hljs-number">0</span>, -<span class="hljs-number">1</span> });
+
+  lbs_segreduce&lt;
+    <span class="hljs-keyword">launch_params_t</span>&lt;<span class="hljs-number">128</span>, <span class="hljs-number">3</span>&gt;
+  &gt;(compute_score, num_work_items, distance_segments.data(), num_cities, 
+    make_tuple(city_to_city_map.data(), city_pos), results-&gt;distances.data(), 
+    <span class="hljs-keyword">combine_scores_t</span>(), init, context);
+
+  <span class="hljs-comment">// 8: For each state, sort all cities by the distance of the (d-1`th) closest</span>
+  <span class="hljs-comment">// city.  </span>
+  <span class="hljs-keyword">auto</span> compare = []MGPU_DEVICE(<span class="hljs-keyword">best_t</span>&lt;d&gt; left, <span class="hljs-keyword">best_t</span>&lt;d&gt; right) {
+    <span class="hljs-comment">// Compare the least significant scores in each term.</span>
+    <span class="hljs-keyword">return</span> left.terms[d - <span class="hljs-number">1</span>].score &lt; right.terms[d - <span class="hljs-number">1</span>].score;
+  };
+  segmented_sort_indices&lt;
+    <span class="hljs-keyword">launch_params_t</span>&lt;<span class="hljs-number">128</span>, <span class="hljs-number">3</span>&gt; 
+  &gt;(results-&gt;distances.data(), results-&gt;indices.data(), num_cities, 
+    state_segments.data(), num_states, compare, context);
+
+  <span class="hljs-keyword">return</span> results;
+}
+</code></pre>
+<p><code>compute_distances</code> returns an array with <code>best_t&lt;d&gt;</code> structs for each city sorted in ascending distance of the (d-1&apos;th) interval. This demo function uses several high-level transforms. <code>scan</code> and <code>interval_expand</code> are used together to turn the <code>cities_per_state</code> array (52 elements including District of Columbia and Puerto Rico) into a 29511-element map of cities intto the index of the first city in the same state, <code>city_to_city_map</code>. This provides a starting point inside the load-balancing search segmented reducer for computing the exact city-city distance pair of the work-item.</p>
+<p>We utilize a brute-force all-pairs reducer. <code>transform_lbs</code> is used to record the number of distance calculations per city, <code>cities_per_state[state] - 1</code>, where the array element is loaded using tuple caching. The prefix sum of this generates <code>distance_segments</code>, the segments-descriptor array for the segmented reduction. We require two integers of storage per city. This is on the order of O(n) temporary memory, very storage-efficient compared to the O(n^2) number of distance calculations. </p>
+<p>The operative <code>lbs_segreduce</code> call requires only trivial storage space. Its usage here is as both a mapper and reducer: it expands work-items to compute all 25 million distance calculations, then reduces those results into 29 thousand closest-city tuples. GPUs are often memory capacity-limited devices, and the ability to perform on-the-fly expansions and reductions can be a make-or-break feature.</p>
+<p><code>lbs_segreduce</code> is a different, more fundamentally powerful function than the <code>transform_segreduce</code> used in <a href="sparse-matrix--vector">sparse matrix * vector</a>. The segment ID and rank-within-segment index are delivered to the user-provided lambda. In this query, the segment is the city and the rank is the index of the city within the state to compute the distance with. The rank is added to the iterator-cached <code>city_to_city_map</code> term to produce a global city index. The positions of each city are loaded (one from a cached iterator), the great-circle distance is computed, and a <code>best_t&lt;&gt;</code> structure is returned for reduction.</p>
+<p>Finally, the moderngpu library function <code>segmented_sort_indices</code> sorts each struct of distances and indices by ascending order within each state. The most-connected cities occur first, the most-remote cities last. The demo source writes all 29 thousand cities to a file and prints the most-remote cities to the console.</p>
+<p>By our measure <a href="https://en.wikipedia.org/wiki/Attu_Station,_Alaska" target="_blank">Attu Station, AK</a> is the most remote city in the United States. It&apos;s 435 miles from the nearest census-designated place and 712 miles from the third-nearest place. At the western extent of the Aleutian islands, Attu Station is actually in the eastern hemisphere and much closer to Russia than to the continental United States.</p>
+<p>This demo is a starting point for all sorts of geographic data sciences queries. Moving from census data to Twitter, Instagram or Facebook data, we can imagine huge volumes of geo-tagged data available for accelerated analytics. By using moderngpu&apos;s high-level transforms, the business intelligence is kept inside the user&apos;s reduction operators; the library solves the parallel decomposition challenges of the GPU.</p>
+<h1 id="examples-of-dynamic-work-creation">Examples of dynamic work creation</h1>
+<h2 id="improved-breadthfirst-search">Improved breadth-first search</h2>
+<p>Features demonstrated:</p>
+<ol>
+<li><code>lbs_workcreate</code></li>
+</ol>
+<h4 id="bfs2cu"><code>bfs2.cu</code></h4>
+<pre><code class="lang-cpp"><span class="hljs-keyword">struct</span> <span class="hljs-keyword">workload_t</span> {
+  <span class="hljs-keyword">int</span> count;
+  <span class="hljs-keyword">int</span> num_segments;
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; segments;        <span class="hljs-comment">// scanned sum of active vertex edge counts.</span>
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; edge_indices;    <span class="hljs-comment">// indices into edges array.</span>
+};
+
+<span class="hljs-comment">// Label vertices that have -1 value to cur_value + 1 if they are adjacent to a </span>
+<span class="hljs-comment">// vertex that is set tocur_value.</span>
+<span class="hljs-comment">// Returns the size of the front for this pass.</span>
+<span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> vertices_it, <span class="hljs-keyword">typename</span> edges_it&gt;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">bfs2</span><span class="hljs-params">(vertices_it vertices, <span class="hljs-keyword">int</span> num_vertices, edges_it edges, 
+  <span class="hljs-keyword">int</span>* values, <span class="hljs-keyword">int</span> cur_value, workload_t&amp; wl, context_t&amp; context)</span> </span>{
+
+  <span class="hljs-comment">// Create a dynamic work-creation engine.</span>
+  <span class="hljs-keyword">auto</span> engine = expt::lbs_workcreate(wl.count, wl.segments.data(), 
+    wl.num_segments, context);
+
+  <span class="hljs-comment">// The upsweep attempts atomicCAS. If it succeeds, return the number of </span>
+  <span class="hljs-comment">// edges for that vertex.</span>
+  <span class="hljs-keyword">auto</span> wl2_count = engine.upsweep(
+    [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> seg, <span class="hljs-keyword">int</span> rank, tuple&lt;<span class="hljs-keyword">int</span>&gt; desc) {
+      <span class="hljs-keyword">int</span> neighbor = edges[get&lt;<span class="hljs-number">0</span>&gt;(desc) + rank];
+      <span class="hljs-keyword">int</span> count = <span class="hljs-number">0</span>;
+      <span class="hljs-keyword">if</span>(-<span class="hljs-number">1</span> == atomicCAS(values + neighbor, -<span class="hljs-number">1</span>, cur_value + <span class="hljs-number">1</span>))
+        count = vertices[neighbor + <span class="hljs-number">1</span>] - vertices[neighbor];
+      <span class="hljs-keyword">return</span> count;
+    }, make_tuple(wl.edge_indices.data())
+  );
+
+  <span class="hljs-comment">// The downsweep streams out the new edge pointers.</span>
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; edge_indices(wl2_count.num_segments, context);
+  <span class="hljs-keyword">int</span>* out_edge_indices_data = edge_indices.data();
+  <span class="hljs-keyword">mem_t</span>&lt;<span class="hljs-keyword">int</span>&gt; segments = engine.downsweep(
+    [=]MGPU_DEVICE(<span class="hljs-keyword">int</span> dest_seg, <span class="hljs-keyword">int</span> index, <span class="hljs-keyword">int</span> seg, <span class="hljs-keyword">int</span> rank, tuple&lt;<span class="hljs-keyword">int</span>&gt; desc) {
+      <span class="hljs-comment">// Return the same count as before and store output segment-specific</span>
+      <span class="hljs-comment">// data using dest_index.</span>
+      <span class="hljs-keyword">int</span> neighbor = edges[get&lt;<span class="hljs-number">0</span>&gt;(desc) + rank];
+      <span class="hljs-keyword">int</span> begin = vertices[neighbor];
+      <span class="hljs-keyword">int</span> end = vertices[neighbor + <span class="hljs-number">1</span>];
+
+      out_edge_indices_data[dest_seg] = begin;
+      <span class="hljs-keyword">return</span> end - begin;
+    }, make_tuple(wl.edge_indices.data())
+  );
+
+  <span class="hljs-comment">// Update the workload.</span>
+  wl.count = wl2_count.count;
+  wl.num_segments = wl2_count.num_segments;
+  wl.segments = <span class="hljs-built_in">std</span>::move(segments);
+  wl.edge_indices = <span class="hljs-built_in">std</span>::move(edge_indices);
+}
+</code></pre>
+<pre><code>NUM VERTICES = 434102    NUM_EDGES = 32073440
+Front for level 0 has 163 vertices and 21112 edges.
+Front for level 1 has 165 vertices and 9561 edges.
+Front for level 2 has 1067 vertices and 98990 edges.
+Front for level 3 has 5961 vertices and 900032 edges.
+Front for level 4 has 32678 vertices and 4617596 edges.
+Front for level 5 has 131856 vertices and 15439710 edges.
+Front for level 6 has 155163 vertices and 8686685 edges.
+Front for level 7 has 71401 vertices and 1781177 edges.
+Front for level 8 has 24208 vertices and 365748 edges.
+Front for level 9 has 7670 vertices and 113306 edges.
+Front for level 10 has 2324 vertices and 24539 edges.
+Front for level 11 has 814 vertices and 7215 edges.
+Front for level 12 has 410 vertices and 5198 edges.
+Front for level 13 has 132 vertices and 1871 edges.
+Front for level 14 has 52 vertices and 427 edges.
+Front for level 15 has 7 vertices and 18 edges.
+Front for level 16 has 6 vertices and 17 edges.
+Front for level 17 has 4 vertices and 15 edges.
+Front for level 18 has 4 vertices and 12 edges.
+Front for level 19 has 1 vertices and 5 edges.
+Front for level 20 has 3 vertices and 10 edges.
+Front for level 21 has 2 vertices and 6 edges.
+Front for level 22 has 3 vertices and 11 edges.
+Front for level 23 has 6 vertices and 15 edges.
+Front for level 24 has 1 vertices and 1 edges.
+Front for level 25 has 0 vertices and 0 edges.
+</code></pre><p><code>bfs2.cu</code> is an improved breadth-first search. Like the <a href="#breadth-first-search">naive version</a>, each segment of work represents one vertex on the current level; each work-item represents a neighbor connected to the active-level vertex by an out-going edge. </p>
+<p>The naive version checked each vertex on each iteration to see if it was on the active front, and if it was, emitted its number of out-going edges at work-items. All of these counts were then scanned.</p>
+<p>This improved version uses dynamic work creation to emit a request for new work (on the next round) when the CUDA intrinsic <code>atomicCAS</code> successfully sets the state of a vertex from unvisited to visited. If only 50 vertices are set to the visited state in a round, only 50 segments of work will be created, and no operations with costs that scale with the total number of vertices will be executed. </p>
+<p>Note that the <code>atomicCAS</code> call is only made during the <code>upsweep</code> phase. The actual count of work-items to emit is implicit in the number of out-going edges from that vertex; the <code>atomicCAS</code> really only determines if all those out-going edges materialize to work-items or not.</p>
+<h2 id="bitcompressed-breadthfirst-search">Bit-compressed breadth-first search</h2>
+<p>Features demonstrated:</p>
+<ol>
+<li><code>lbs_workcreate</code></li>
+</ol>
+<h4 id="bfs3cu"><code>bfs3.cu</code></h4>
+<pre><code class="lang-cpp">// Visit all edges for vertices in the frontier and described in the workload_t
+// structure. Overwrite this with a new workload_t structure for the next
+// level in the algorithm.
+// Return the number of vertices in the next level of the frontier and stream
+// their IDs to frontier_vertices.
+
+template&lt;typename vertices_it, typename edges_it&gt;
+int bfs3(vertices_it vertices, edges_it edges, int* visited_bits, 
+  int* frontier_vertices, workload_t&amp; wl, context_t&amp; context) {
+
+  // Create a dynamic work-creation engine.
+  auto engine = expt::lbs_workcreate(wl.count, wl.segments.data(), 
+    wl.num_segments, context);
+
+  // The upsweep attempts atomicOr. If it succeeds, return the number of 
+  // edges for that vertex.
+  auto wl2_count = engine.upsweep(
+    [=]MGPU_DEVICE(int index, int seg, int rank, tuple&lt;int&gt; desc) {
+      int count = 0;
+      int neighbor = edges[get&lt;0&gt;(desc) + rank];
+      int mask = 1&lt;&lt; (31 &amp; neighbor);
+      if(0 == (mask &amp; atomicOr(visited_bits + neighbor / 32, mask)))
+        count = vertices[neighbor + 1] - vertices[neighbor];
+      return count;
+    }, make_tuple(wl.edge_indices.data())
+  );
+
+  // The downsweep streams out the new edge pointers.
+  mem_t&lt;int&gt; edge_indices(wl2_count.num_segments, context);
+  int* out_edge_indices_data = edge_indices.data();
+  mem_t&lt;int&gt; segments = engine.downsweep(
+    [=]MGPU_DEVICE(int dest_seg, int index, int seg, int rank, 
+      tuple&lt;int&gt; desc) {
+      // Return the same count as before and store output segment-specific
+      // data using dest_seg.
+      int neighbor = edges[get&lt;0&gt;(desc) + rank];
+      int begin = vertices[neighbor];
+      int end = vertices[neighbor + 1];
+
+      // Store the pointer into the edges array for the new work segment.
+      out_edge_indices_data[dest_seg] = begin;
+
+      // Stream out the vertex index.
+      frontier_vertices[dest_seg] = neighbor;
+
+      return end - begin;
+    }, make_tuple(wl.edge_indices.data())
+  );
+
+  // Update the workload.
+  wl.count = wl2_count.count;
+  wl.num_segments = wl2_count.num_segments;
+  wl.segments = std::move(segments);
+  wl.edge_indices = std::move(edge_indices);
+
+  return wl.num_segments;
+}
+</code></pre>
+<p>The third demo version of breadth-first search uses the same work-creation mechanism of <code>bfs2.cu</code> but now utilizes the data streaming capability as well. The model for the second implementation was to store the level of each vertex (visited or not) in a contiguous integer array. On the work-creation <em>upsweep</em> phase, an <code>atomicCAS</code> would attempt to store the next level in the search as the vertex&apos;s level. This would succeed only if the vertex hadn&apos;t already been visited. The downsweep phase would then request work for this newly visited vertex.</p>
+<p>While this was an easy model, it was cache-inefficient. The slow part of top-down breadth-first search is the many disorganized atomic operations into an array representing vertex visitation. <code>bfs3.cu</code> improves on the earlier implementations by storing vertex visitation status as a single bit in a <code>visited_bits</code> array. The bit array is initially cleared. Before the BFS loop is started, each source vertex pokes in a bit to prevent itself from being visited from an incoming edge.</p>
+<p>During <em>upsweep</em> the bit corresponding to the vertex for each work-item is atomically set. If this was a successful operation, the upsweep lambda returns the number of outgoing edges of this newly visited vertex, just like <code>bfs2.cu</code>. The <em>downsweep</em> lambda now streams the index of each newly visited vertex into a <code>frontier_vertices</code> array. On return, the caller advances the <code>frontier_vertices</code> pointer by the number of streamed-out vertices.</p>
+<p>The performance advantage of this different implementation is that the region of memory undergoing heavy atomic operations is 32 times smaller, so we can expect much better utilization of the GPU&apos;s limited L2 cache. The convenience advantage is that the IDs of the connected vertices end up sorted by their distance from the source. </p>
+
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="../doc/patterns.html" class="navigation navigation-prev " aria-label="Previous page: Patterns and specializers"><i class="fa fa-angle-left"></i></a>
+        
+        
+        <a href="../doc/api.html" class="navigation navigation-next " aria-label="Next page: API reference"><i class="fa fa-angle-right"></i></a>
+        
+    </div>
+</div>
+
+        
+<script src="../gitbook/app.js"></script>
+
+    
+    <script src="../gitbook/plugins/gitbook-plugin-search/lunr.min.js"></script>
+    
+
+    
+    <script src="../gitbook/plugins/gitbook-plugin-search/search.js"></script>
+    
+
+    
+    <script src="../gitbook/plugins/gitbook-plugin-sharing/buttons.js"></script>
+    
+
+    
+    <script src="../gitbook/plugins/gitbook-plugin-fontsettings/buttons.js"></script>
+    
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"highlight":{},"search":{"maxIndexSize":1000000},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>

@@ -5,9 +5,9 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Introduction | moderngpu</title>
+        <title>License | moderngpu</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
-        <meta name="description" content="Patterns for GPU computing">
+        <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
         
         
@@ -39,8 +39,10 @@
         
     
     
-    <link rel="next" href="./doc/intro.html" />
+    <link rel="next" href="./doc/moderngpu_1.0.html" />
     
+    
+    <link rel="prev" href="./doc/usage.html" />
     
 
         
@@ -49,9 +51,9 @@
         
         
     <div class="book"
-        data-level="0"
-        data-chapter-title="Introduction"
-        data-filepath="README.md"
+        data-level="8"
+        data-chapter-title="License"
+        data-filepath="LICENSE.md"
         data-basepath="."
         data-revision="Sun Apr 24 2016 21:36:48 GMT-0400 (EDT)"
         data-innerlanguage="">
@@ -69,7 +71,7 @@
 
             
     
-        <li class="chapter active" data-level="0" data-path="index.html">
+        <li class="chapter " data-level="0" data-path="index.html">
             
                 
                     <a href="./index.html">
@@ -187,7 +189,7 @@
             
         </li>
     
-        <li class="chapter " data-level="8" data-path="LICENSE.html">
+        <li class="chapter active" data-level="8" data-path="LICENSE.html">
             
                 
                     <a href="./LICENSE.html">
@@ -250,75 +252,30 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="moderngpu-20"><a href="https://www.github.com/moderngpu/moderngpu" target="_blank">moderngpu 2.0</a></h1>
-<p><strong>(c) 2016 <a href="http://twitter.com/moderngpu" target="_blank">Sean Baxter</a></strong> </p>
-<p><strong>You can drop me a line <a href="mailto:moderngpu@gmail.com" target="_blank">here</a></strong></p>
-<p>Full documentation with gitbook coming. Under heavy construction.</p>
-<p><strong>Latest update</strong>:</p>
-<pre><code>2.08 2016 Apr 24 -
-  Restricted pointer promotion on transform functions using variadic arguments.
-  Fixed reduction bug in stream compaction.
-</code></pre><hr>
-<p>moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. </p>
-<h2 id="release-notes">Release notes</h2>
-<pre><code>2.08 2016 Apr 24 -
-  Restricted pointer promotion on transform functions using variadic arguments.
-  Fixed reduction bug in stream compaction.
+                        <h1 id="license">License</h1>
+<pre><code>Copyright (c) 2016, Sean Baxter
+All rights reserved.
 
-2.07 2016 Apr 17 -
-  Added mechanism for passing kernel arguments through variadic parameter pack.
-  Added occupancy calculator in launch_box.hxx.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-2.06 2016 Apr 12 - 
-  Fixed critical kernel versioning bug. Now uses cudaFuncGetAttributes
-  ptxVersion instead of binaryVersion to select launch box parameters.
-  Thanks @antonmks.
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
 
-2.05 2016 Apr 3 -
-  Restructured segmented sort and added segmented_sort_indices.
-  Wrote more robust test_segsort.cu test.
-  Modified cities demo to use segmented_sort_indices.
-  TODO: Segmented sort with bitfield for segmented headers.
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
 
-2.04 2016 Apr 2 -
-  Fixed multiple definition of dummy_k kernel when including 
-    standard_context_t in multiple translation units.
-
-2.03 2016 Apr 2 -
-  Added transform_compact pattern and test_compact.cu.
-
-2.02 2016 Apr 1 -
-  Added dynamic work-creation function lbs_workcreate.
-  Improved ease of calling cta_scan_t.
-  cta_reduce_t now uses shfl for all datatypes and operators on sm_30+.
-
-2.01 2016 Mar 31 -
-  Refactored scan implementation and added scan_event.
-
-2.00 2016 Mar 28 - 
-  moderngpu 2.0 first release.
-
-  Everything rewritten.
-
-  Use -std=c++11 and --expt-extended-lambda to build.
-
-  Developed and tested with CUDA 7.5.17, g++ 4.9.3 on 64-bit linux.
-
-  Tests and samples build on OSX clang-700-1.81.
-
-  Invocations of these kernels with certain arguments can push Visual 
-  Studio 2013 to the breaking point. &quot;Exceeded token length&quot; is a common
-  error when passing iterators to high-level transforms. Users may be better
-  off avoiding Visual Studio until CUDA 8.0 is released with VS 2015 support.
-
-  Visual Studio 2013 has broken constexpr support, so with that version
-  moderngpu chooses to redefine its constexpr functions as macros, injecting
-  them into the global scope. Sorry!
-
-  TODO: Complete kernel unit tests. 
-  TODO: API references.
-  TODO: Multiset operations for feature parity with moderngpu 1.0.
-  TODO: Restore the moderngpu 1.0 text by integrating it with this markdown.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot;
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 </code></pre>
                     
                     </section>
@@ -329,8 +286,10 @@
         </div>
 
         
+        <a href="./doc/usage.html" class="navigation navigation-prev " aria-label="Previous page: Usage notes"><i class="fa fa-angle-left"></i></a>
         
-        <a href="./doc/intro.html" class="navigation navigation-next navigation-unique" aria-label="Next page: Introduction"><i class="fa fa-angle-right"></i></a>
+        
+        <a href="./doc/moderngpu_1.0.html" class="navigation navigation-next " aria-label="Next page: moderngpu 1.0"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>

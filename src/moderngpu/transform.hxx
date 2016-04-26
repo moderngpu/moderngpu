@@ -8,28 +8,6 @@
 
 BEGIN_MGPU_NAMESPACE
 
-// TODO: pass this state instead of tid/cta. This allows us to read in the
-// count from device memory.
-struct cta_state_t {
-  int tid;
-  int cta;
-  size_t index;
-  size_t count;
-};
-
-struct device_size_t {
-  size_t host_size;
-  const size_t* device_size;
-
-  MGPU_HOST_DEVICE operator size_t() const { 
-#ifdef __CUDA_ARCH__
-    return *device_size; 
-#else
-    return host_size;
-#endif
-  }
-};
-
 ////////////////////////////////////////////////////////////////////////////////
 // Launch a grid given a number of CTAs.
 

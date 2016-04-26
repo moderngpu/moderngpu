@@ -63,7 +63,7 @@ T&& forward(typename identity<T>::type&& param) {
 
 enum { warp_size = 32 };
 
-#if _MSC_VER <= 1800      // VS 2013 is terrible.
+#if defined(_MSC_VER) && _MSC_VER <= 1800      // VS 2013 is terrible.
 
 #define is_pow2(x) (0 == ((x) & ((x) - 1)))
 #define div_up(x, y) (((x) + (y) - 1) / (y))

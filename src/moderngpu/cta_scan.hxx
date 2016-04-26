@@ -32,41 +32,7 @@ struct cta_scan_t {
     struct { type_t threads[nt], warps[num_warps]; };
   };
 
-#if __CUDA_ARCH__ < 300  
-
-  //////////////////////////////////////////////////////////////////////////////
-  // Standard CTA scan code that does not use shfl intrinsics. 
-
-  template<typename op_t = plus_t<type_t> >
-  MGPU_DEVICE scan_result_t<type_t> 
-  scan(int tid, type_t x, storage_t& storage, int count = nt, op_t op = op_t(), 
-    type_t init = type_t(), scan_type_t type = scan_type_exc) const {
-
-    int first = 0;
-    storage.data[first + tid] = x;
-    __syncthreads();
-
-    iterate<s_log2(nt)>([&](int pass) {
-      int offset = 1<< pass;
-      if(tid >= offset)
-        x = op(storage.data[first + tid - offset], x);
-      first = nt - first;
-      storage.data[first + tid] = x;
-      __syncthreads();
-    });
-
-    scan_result_t<type_t> result;
-    result.reduction = storage.data[first + count - 1];
-    result.scan = (tid < count) ? 
-      (scan_type_inc == type ? x :
-        (tid ? storage.data[first + tid - 1] : init)) :
-      result.reduction;
-    __syncthreads();
-
-    return result;
-  }
-
-#else
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300  
 
   //////////////////////////////////////////////////////////////////////////////
   // Optimized CTA scan code that uses warp shfl intrinsics.
@@ -117,6 +83,40 @@ struct cta_scan_t {
       tid < count ? scan : reduction, 
       reduction 
     };
+    __syncthreads();
+
+    return result;
+  }
+
+#else
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Standard CTA scan code that does not use shfl intrinsics. 
+
+  template<typename op_t = plus_t<type_t> >
+  MGPU_DEVICE scan_result_t<type_t> 
+  scan(int tid, type_t x, storage_t& storage, int count = nt, op_t op = op_t(), 
+    type_t init = type_t(), scan_type_t type = scan_type_exc) const {
+
+    int first = 0;
+    storage.data[first + tid] = x;
+    __syncthreads();
+
+    iterate<s_log2(nt)>([&](int pass) {
+      int offset = 1<< pass;
+      if(tid >= offset)
+        x = op(storage.data[first + tid - offset], x);
+      first = nt - first;
+      storage.data[first + tid] = x;
+      __syncthreads();
+    });
+
+    scan_result_t<type_t> result;
+    result.reduction = storage.data[first + count - 1];
+    result.scan = (tid < count) ? 
+      (scan_type_inc == type ? x :
+        (tid ? storage.data[first + tid - 1] : init)) :
+      result.reduction;
     __syncthreads();
 
     return result;
@@ -196,16 +196,7 @@ struct cta_scan_t<nt, bool> {
     storage.warps[warp] = popc(bits);
     __syncthreads();
 
-#if __CUDA_ARCH__ < 300
-    if(0 == tid) {
-      // Inclusive scan of partial reductions..
-      int scan = 0;
-      iterate<num_warps>([&](int i) {
-        storage.warps[i] = scan += storage.warps[i];
-      });
-    }
-    __syncthreads();
-#else
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300
     if(tid < num_warps) {
       // Cooperative warp scan of partial reductions.
       int scan = storage.warps[tid];
@@ -213,6 +204,16 @@ struct cta_scan_t<nt, bool> {
         scan = shfl_up_op(scan, 1<< i, plus_t<int>(), num_warps);
       });
       storage.warps[tid] = scan;
+    }
+    __syncthreads();
+#else
+    
+    if(0 == tid) {
+      // Inclusive scan of partial reductions..
+      int scan = 0;
+      iterate<num_warps>([&](int i) {
+        storage.warps[i] = scan += storage.warps[i];
+      });
     }
     __syncthreads();
 

@@ -11,7 +11,7 @@ BEGIN_MGPU_NAMESPACE
 template<int nt, typename type_t>
 struct cta_reduce_t {
 
-#if __CUDA_ARCH__ >= 300
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300
 
   enum { 
     num_sections = warp_size, 

@@ -4,6 +4,7 @@
 #include "meta.hxx"
 #include "tuple.hxx"
 
+#ifdef __CUDA_ARCH__
 #if   __CUDA_ARCH__ == 530
   #define MGPU_SM_TAG sm_53
 #elif __CUDA_ARCH__ >= 520
@@ -22,9 +23,10 @@
   #define MGPU_SM_TAG sm_21
 #elif __CUDA_ARCH__ >= 200
   #define MGPU_SM_TAG sm_20
-#elif defined(__CUDA_ARCH__)
-  #error "Modern GPU v3 does not support builds for sm_1.x"
 #else
+  #error "Modern GPU v3 does not support builds for sm_1.x"
+#endif
+#else // __CUDA_ARCH__
   #define MGPU_SM_TAG sm_00
 #endif
 
@@ -50,7 +52,7 @@ namespace detail {
 template<typename func_t, typename... args_t>
 MGPU_DEVICE void restrict_forward(func_t f, int tid, int cta, int num_ctas,
   args_t... args) {
-#if __CUDA_ARCH__ < 300
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 300
   if(cta < num_ctas) 
 #endif 
     f(tid, cta, args...);
@@ -68,7 +70,7 @@ void launch_box_cta_k(func_t f, int num_ctas, args_t... args) {
   int tid = (params_t::nt - 1) & threadIdx.x;
   int cta = blockIdx.x;
 
-#if __CUDA_ARCH__ < 300
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 300
   cta += gridDim.x * blockIdx.y;
 #endif
 

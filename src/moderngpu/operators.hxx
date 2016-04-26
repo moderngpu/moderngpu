@@ -18,7 +18,7 @@ struct ldg_load_t {
   }
 };
 
-#if __CUDA_ARCH__ >= 350
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 350
 
 template<typename it_t, typename type_t>
 struct ldg_load_t<it_t, type_t, true> {

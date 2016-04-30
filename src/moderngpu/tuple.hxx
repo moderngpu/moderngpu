@@ -18,13 +18,16 @@ struct tuple<arg_t, args_t...> : tuple<args_t...> {
   typedef tuple<args_t...> inner_t;
   arg_t x;
 
+  MGPU_HOST_DEVICE inner_t& inner() { return *this; }
+  MGPU_HOST_DEVICE const inner_t& inner() const { return *this; }
+
   tuple() = default;
   MGPU_HOST_DEVICE tuple(arg_t arg, args_t... args) : 
     x(arg), inner_t(args...) { }
 };
 
 template<typename arg_t>
-struct tuple<arg_t> : tuple<> {
+struct tuple<arg_t> {
   typedef tuple<> inner_t;
   arg_t x;
 
@@ -71,13 +74,10 @@ struct get_tuple_t<i, tuple<arg_t, args_t...> > {
   typedef typename inner_tuple_t::inner_t inner_t;
 
   MGPU_HOST_DEVICE static type_t& get(tuple<arg_t, args_t...>& t) {
-    return get_tuple_t<i - 1, inner_tuple_t>::get(t);
-  }
-  MGPU_HOST_DEVICE static type_t&& get(tuple<arg_t, args_t...>&& t) {
-    return get_tuple_t<i - 1, inner_tuple_t>::get(mgpu::forward<inner_t>(t));
+    return get_tuple_t<i - 1, inner_tuple_t>::get(t.inner());
   }
   MGPU_HOST_DEVICE static const type_t& get(const tuple<arg_t, args_t...>& t) {
-    return get_tuple_t<i - 1, inner_tuple_t>::get(t);
+    return get_tuple_t<i - 1, inner_tuple_t>::get(t.inner());
   }
 };
 template<typename arg_t, typename... args_t>
@@ -150,28 +150,6 @@ struct combine_tuples_t<tuple<a_t...>, tuple<b_t...>, c_t...> {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Element-by-element type conversion of one tuple into another tuple.
-
-template<template<typename> class convert_t, typename... args_t>
-struct tuple_convert_t;
-
-template<template<typename> class convert_t, 
-  typename arg_t, typename... args_t>
-struct tuple_convert_t<convert_t, tuple<arg_t, args_t...> > {
-  typedef typename convert_t<arg_t>::value_type new_t;
-  typedef typename tuple_convert_t<convert_t, tuple<args_t...> >::type_t rhs_t;
-  typedef typename combine_tuples_t<tuple<new_t>, rhs_t>::type type_t;
-};
-
-template<template<typename> class convert_t, typename arg_t>
-struct tuple_convert_t<convert_t, tuple<arg_t> > {
-  typedef typename convert_t<arg_t>::value_type new_t;
-  typedef tuple<new_t> type_t;
-};
-
-template<template<typename> class convert_t>
-struct tuple_convert_t<convert_t, tuple<> > {
-  typedef tuple<> type_t;
-};
 
 template<int i, int j, int count>
 struct tuple_iterate_assign_t {
@@ -278,8 +256,11 @@ MGPU_HOST_DEVICE void tuple_expand(func_t f, tuple<args_t...> tpl) {
 // Convert a tuple<> of pointer/iterator types to a tuple of the equivalent 
 // value types by issuing a load.
 
+template<typename tpl_t> struct tuple_iterator_value_t;
 template<typename... args_t>
-using tuple_iterator_value_t = tuple_convert_t<std::iterator_traits, args_t...>;
+struct tuple_iterator_value_t<tuple<args_t...> > {
+  typedef tuple<typename std::iterator_traits<args_t>::value_type...> type_t;
+};
 
 namespace detail {
 
@@ -307,13 +288,11 @@ load_tuple(tuple<args_t...> it, int index) {
 // Convert a tuple<> of mixed types to a tuple<> of the same mixed types but
 // with restricted pointers.
 
-template<typename arg_t>
-struct restrict_t {
-  typedef typename add_restrict<arg_t>::type value_type;
-};
-
+template<typename tpl_t> struct tuple_restricted_t;
 template<typename... args_t>
-using tuple_restricted_t = tuple_convert_t<restrict_t, args_t...>;
+struct tuple_restricted_t<tuple<args_t>...> {
+  typedef tuple<typename add_restrict<args_t>::type...> type_t;
+};
 
 namespace detail {
 
@@ -383,7 +362,7 @@ operator*(tuple<args_t...> a, tuple<args_t...> b) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tuple comparison operators.
-/*
+
 template<typename... args_t>
 MGPU_HOST_DEVICE bool operator<(tuple<args_t...> a, tuple<args_t...> b) {
   if(get<0>(a) < get<0>(b)) return true;
@@ -429,7 +408,7 @@ MGPU_HOST_DEVICE bool operator==(tuple<> a, tuple<> b) {
 MGPU_HOST_DEVICE bool operator!=(tuple<> a, tuple<> b) {
   return false;
 }
-*/
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // tuple_union_size_t.

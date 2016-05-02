@@ -2,7 +2,7 @@
 #pragma once
 #include "cta_merge.hxx"
 #include "operators.hxx"
-#include "tuple.hxx"
+#include "cpp11.hxx"
 
 BEGIN_MGPU_NAMESPACE
 
@@ -186,52 +186,77 @@ struct cta_load_balance_t {
 
 namespace detail {
 
-template<int nv, typename value_t>
-struct cached_segment_load_storage_t {
-  enum { size = tuple_union_size_t<value_t>::value };
-  char bytes[size * (nv + 1)];
-};
-
-template<int i, int nt, int vt, typename tpl_t, 
-  int size = tuple_size<tpl_t>::value>
+template<int nt, typename pointers_t>
 struct cached_segment_load_t {
-  typedef typename tuple_iterator_value_t<tpl_t>::type_t value_t;
-  typedef cached_segment_load_storage_t<nt * vt, value_t> storage_t;
 
-  MGPU_DEVICE static void load(int tid, range_t range,
-    array_t<int, vt> segments, storage_t& storage, tpl_t iterators, 
-    array_t<value_t, vt>& values) {
+  enum { size = tuple_size<pointers_t>:: value };
+  typedef make_index_sequence<size> seq_t;
+  typedef tuple_iterator_value_t<pointers_t> value_t;
 
-    typedef typename tuple_element<i, value_t>::type type_t;
-    type_t* shared = (type_t*)storage.bytes;
+  template<typename seq_t>
+  struct load_storage_t;
 
-    // Cooperatively load the values into shared memory.
-    shared -= range.begin;
-    auto it_i = get<i>(iterators);
+  template<size_t... seq_i>
+  struct load_storage_t<index_sequence<seq_i...> > {
+    tuple<
+      array_t<typename tuple_element<seq_i, value_t>::type, nt>...
+    > data;
 
-    for(int j = range.begin + tid; j < range.end; j += nt)
-      shared[j] = it_i[j];
-    __syncthreads();
+    MGPU_HOST_DEVICE void store_value(const value_t& value, int index) {
+      swallow(get<seq_i>(data)[index] = get<seq_i>(value)...);
+    }
 
-    // Load the values into register.
-    iterate<vt>([&](int j) {
-      get<i>(values[j]) = shared[segments[j]];
-    });
-    __syncthreads();
+    MGPU_HOST_DEVICE value_t load_value(int index) const {
+      return make_tuple(get<seq_i>(data)[index]...);
+    }
+  };
 
-    cached_segment_load_t<i + 1, nt, vt, tpl_t, size>::load(tid, range, 
-      segments, storage, iterators, values);
+  typedef load_storage_t<seq_t> storage_t;
+
+  template<int vt0, int vt>
+  MGPU_DEVICE static array_t<value_t, vt> load(int tid, int count,
+    range_t range, array_t<int, vt> segments, storage_t& storage, 
+    pointers_t iterators) {
+    
+    array_t<value_t, vt> loaded;
+    if(range.count() <= nt) {
+      // Cached load through shared memory.
+      if(tid < range.count()) {
+        value_t value = mgpu::load(iterators, range.begin + tid);
+        storage.store_value(value, tid);
+      }
+      __syncthreads();
+
+      // Load the values into register.
+      strided_iterate<nt, vt, vt0>([&](int i, int j) {
+        loaded[i] = storage.load_value(segments[i] - range.begin);
+      }, tid, count);
+      __syncthreads();
+
+    } else {
+      // Direct load.
+      strided_iterate<nt, vt, vt0>([&](int i, int j) {
+        loaded[i] = mgpu::load(iterators, segments[i]);      
+      }, tid, count);
+    }
+
+    return loaded;
   }
 };
-template<int nt, int vt, typename tpl_t, int size>
-struct cached_segment_load_t<size, nt, vt, tpl_t, size> {
-  struct storage_t { };
-  template<typename value_t, typename dummy_t>
-  MGPU_DEVICE static void load(int tid, range_t range, 
-    array_t<int, vt> segments, dummy_t& storage, tpl_t iterators, 
-    array_t<value_t, vt>& values) { }
-};
 
+template<int nt>
+struct cached_segment_load_t<nt, tuple<> > {
+  typedef empty_t storage_t;
+  typedef tuple<> value_t;
+
+  template<int vt0, int vt>
+  MGPU_DEVICE static array_t<value_t, vt> load(int tid, int count,
+    range_t range, array_t<int, vt> segments, storage_t& storage,
+    tuple<> iterators) {
+
+    return array_t<value_t, vt>();
+  }
+};
 
 } // namespace detail 
 

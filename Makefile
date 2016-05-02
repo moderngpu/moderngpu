@@ -9,8 +9,7 @@ ARCH=\
   -gencode arch=compute_52,code=compute_52 \
   -gencode arch=compute_52,code=sm_52
 
-
-OPTIONS=-std=c++11 -Xcompiler="-Wundef" -O0 -g -Xcompiler="-Werror" -lineinfo  --expt-extended-lambda -use_fast_math -Xptxas="-v" -I src
+OPTIONS=-std=c++11 -Xcompiler="-Wundef" -O2 -g -Xcompiler="-Werror" -lineinfo  --expt-extended-lambda -use_fast_math -Xptxas="-v" -I src
 
 all: \
 	tests \

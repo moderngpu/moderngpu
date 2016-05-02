@@ -4,7 +4,6 @@
 #include "meta.hxx"
 #include "operators.hxx"
 
-
 BEGIN_MGPU_NAMESPACE
 
 struct cuda_exception_t : std::exception {

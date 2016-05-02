@@ -301,10 +301,10 @@ void spmv(matrix_it matrix, columns_it columns, vector_it vector,
 // lbs_segreduce
 
 template<typename launch_arg_t = empty_t, 
-  typename func_t, typename segments_it, typename tpl_t, typename output_it, 
-  typename op_t, typename type_t, typename... args_t>
+  typename func_t, typename segments_it, typename pointers_t, 
+  typename output_it, typename op_t, typename type_t, typename... args_t>
 void lbs_segreduce(func_t f, int count, segments_it segments,
-  int num_segments, tpl_t caching_iterators, output_it output, op_t op,
+  int num_segments, pointers_t caching_iterators, output_it output, op_t op,
   type_t init, context_t& context, args_t... args) {
 
   typedef typename conditional_typedef_t<launch_arg_t, 
@@ -315,7 +315,7 @@ void lbs_segreduce(func_t f, int count, segments_it segments,
     >
   >::type_t launch_t;
 
-  typedef typename tuple_iterator_value_t<tpl_t>::type_t value_t;
+  typedef tuple_iterator_value_t<pointers_t> value_t;
 
   cta_dim_t cta_dim = launch_t::cta_dim(context);
   int num_ctas = cta_dim.num_ctas(count + num_segments);
@@ -333,9 +333,8 @@ void lbs_segreduce(func_t f, int count, segments_it segments,
     typedef typename launch_t::sm_ptx params_t;
     enum { nt = params_t::nt, vt = params_t::vt, vt0 = params_t::vt0 };
     typedef cta_load_balance_t<nt, vt> load_balance_t;
-    typedef detail::cached_segment_load_t<0, nt, vt, tpl_t> cached_load_t;
-    typedef detail::cta_segreduce_t<nt, vt, type_t> 
-      segreduce_t;
+    typedef detail::cached_segment_load_t<nt, pointers_t> cached_load_t;
+    typedef detail::cta_segreduce_t<nt, vt, type_t> segreduce_t;
 
     __shared__ union {
       typename load_balance_t::storage_t lbs;
@@ -351,9 +350,9 @@ void lbs_segreduce(func_t f, int count, segments_it segments,
 
     // Load from the cached iterators. Use the placement range, not the 
     // merge-path range for situating the segments.
-    array_t<value_t, vt> cached_values;
-    cached_load_t::load(tid, lbs.placement.range.b_range(), lbs.segments,
-      shared.cached, caching_iterators, cached_values);
+    array_t<value_t, vt> cached_values = cached_load_t::template load<vt0>(
+      tid, lbs.merge_range.a_count(), lbs.placement.range.b_range(), 
+      lbs.segments, shared.cached, caching_iterators);
 
     // Call the user-supplied functor f.
     array_t<type_t, vt> strided_values;

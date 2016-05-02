@@ -1,42 +1,112 @@
 // moderngpu copyright (c) 2016, Sean Baxter http://www.moderngpu.com
 #pragma once
-#include "meta.hxx"
-#include "operators.hxx"
 
-// A barebones tuple implementation for CUDA.
+#include "meta.hxx"
 
 BEGIN_MGPU_NAMESPACE
 
-// tuple
+template<typename type_t>
+using decay_t = typename std::decay<type_t>::type;
+
+/////////////////
+// index_sequence
+
+// Improved linear index_sequence from
+// http://talesofcpp.fusionfenix.com/post-22/true-story-efficient-packing
+template<size_t... int_s>
+struct index_sequence { 
+  enum { size = sizeof...(int_s) };
+};
+
+namespace detail {
+template<typename seq_t>
+struct _next;
+
+template<size_t... seq_i>
+struct _next<index_sequence<seq_i...> > {
+  // grow the sequence by one element.
+  typedef index_sequence<seq_i..., sizeof...(seq_i)> type;
+};
+
+template<size_t count>
+struct _make_index_sequence : 
+  _next<typename _make_index_sequence<count - 1>::type> { };
+
+template<> struct _make_index_sequence<0> {
+  typedef index_sequence<> type;
+};
+} // namespace detail
+
+template<size_t count>
+using make_index_sequence = 
+  typename detail::_make_index_sequence<count>::type;
+
+//////////
+// var_and
+
+template<bool... args_b>
+struct var_and;
+
+template<bool arg_a, bool... args_b> 
+struct var_and<arg_a, args_b...> {
+  enum { value = arg_a && var_and<args_b...>::value };
+};
+template<bool arg_a>
+struct var_and<arg_a> {
+  enum { value = arg_a };
+};
+template<>
+struct var_and<> {
+  enum { value = true };
+};
+
+//////////
+// var_or
+
+template<bool... args_b>
+struct var_or;
+
+template<bool arg_a, bool... args_b> 
+struct var_or<arg_a, args_b...> {
+  enum { value = arg_a || var_or<args_b...>::value };
+};
+template<bool arg_a>
+struct var_or<arg_a> {
+  enum { value = arg_a };
+};
+template<>
+struct var_or<> {
+  enum { value = false };
+};
+
+
+
+// Forward declare the tuple.
 template<typename... args_t>
 struct tuple;
 
-template<> struct tuple<> { };
+////////////////
+// tuple_element
+
+template<size_t i, typename tpl_t> 
+struct tuple_element;
+
+template<size_t i, typename arg_t, typename... args_t>
+struct tuple_element<i, tuple<arg_t, args_t...> > : 
+  tuple_element<i - 1, tuple<args_t...> > { };
 
 template<typename arg_t, typename... args_t>
-struct tuple<arg_t, args_t...> : tuple<args_t...> {
-  typedef tuple<args_t...> inner_t;
-  arg_t x;
-
-  MGPU_HOST_DEVICE inner_t& inner() { return *this; }
-  MGPU_HOST_DEVICE const inner_t& inner() const { return *this; }
-
-  tuple() = default;
-  MGPU_HOST_DEVICE tuple(arg_t arg, args_t... args) : 
-    x(arg), inner_t(args...) { }
+struct tuple_element<0, tuple<arg_t, args_t...> > {
+  typedef arg_t type;
 };
 
-template<typename arg_t>
-struct tuple<arg_t> {
-  typedef tuple<> inner_t;
-  arg_t x;
+template<size_t i, typename tpl_t>
+using tuple_element_t = typename tuple_element<i, tpl_t>::type;
 
-  tuple() = default;
-  MGPU_HOST_DEVICE tuple(arg_t arg) : x(arg) { }
-};
-
+/////////////
 // tuple_size
-template<typename... args_t>
+
+template<typename tpl_t>
 struct tuple_size;
 
 template<typename... args_t>
@@ -44,393 +114,272 @@ struct tuple_size<tuple<args_t...> > {
   enum { value = sizeof...(args_t) };
 };
 
-// tuple_element
-template<int i, typename... args_t>
-struct tuple_element;
 
-template<int i, typename arg_t, typename... args_t>
-struct tuple_element<i, tuple<arg_t, args_t...> > {
-  typedef typename tuple_element<i - 1, tuple<args_t...> >::type type;
-};
-template<typename arg_t, typename... args_t>
-struct tuple_element<0, tuple<arg_t, args_t...> > {
-  typedef arg_t type;
-};
-template<typename arg_t>
-struct tuple_element<0, tuple<arg_t> > {
-  typedef arg_t type;
-};
-
-// get
 namespace detail {
 
-template<int i, typename... args_t>
-struct get_tuple_t;
+template<size_t i, typename arg_t, bool is_empty = std::is_empty<arg_t>::value>
+struct tuple_leaf {
+  arg_t x;
 
-template<int i, typename arg_t, typename... args_t>
-struct get_tuple_t<i, tuple<arg_t, args_t...> > {
-  typedef typename tuple_element<i, tuple<arg_t, args_t...> >::type type_t;
-  typedef tuple<args_t...> inner_tuple_t;
-  typedef typename inner_tuple_t::inner_t inner_t;
+  MGPU_HOST_DEVICE arg_t& get() { return x; }
+  MGPU_HOST_DEVICE const arg_t& get() const { return x; }
 
-  MGPU_HOST_DEVICE static type_t& get(tuple<arg_t, args_t...>& t) {
-    return get_tuple_t<i - 1, inner_tuple_t>::get(t.inner());
-  }
-  MGPU_HOST_DEVICE static const type_t& get(const tuple<arg_t, args_t...>& t) {
-    return get_tuple_t<i - 1, inner_tuple_t>::get(t.inner());
-  }
-};
-template<typename arg_t, typename... args_t>
-struct get_tuple_t<0, tuple<arg_t, args_t...> > {
-  MGPU_HOST_DEVICE static arg_t& get(tuple<arg_t, args_t...>& t) {
-    return t.x;
-  }
-  MGPU_HOST_DEVICE static arg_t&& get(tuple<arg_t, args_t...>&& t) {
-    return t.x;
-  }
-  MGPU_HOST_DEVICE static const arg_t& get(const tuple<arg_t, args_t...>& t) {
-    return t.x;
-  }
-};
-template<typename arg_t>
-struct get_tuple_t<0, tuple<arg_t> > {
-  MGPU_HOST_DEVICE static arg_t& get(tuple<arg_t>& t) {
-    return t.x;
-  }
-  MGPU_HOST_DEVICE static arg_t&& get(tuple<arg_t>&& t) {
-    return t.x;
-  }
-  MGPU_HOST_DEVICE static const arg_t& get(const tuple<arg_t>& t) {
-    return t.x;
-  }
+  tuple_leaf() = default;
+  tuple_leaf(const tuple_leaf&) = default;
+
+  template<typename arg2_t,
+    typename = typename std::enable_if<
+      std::is_constructible<arg_t, arg2_t&&>::value
+    >::type
+  > MGPU_HOST_DEVICE 
+  tuple_leaf(arg2_t&& arg) : x(std::forward<arg2_t>(arg)) { }
+
+  template<typename arg2_t,
+    typename = typename std::enable_if<
+      std::is_constructible<arg_t, const arg2_t&>::value
+    >::type
+  > MGPU_HOST_DEVICE  
+  tuple_leaf(const arg2_t& arg) : x(arg) { }
 };
 
+template<size_t i, typename arg_t>
+struct tuple_leaf<i, arg_t, true> : arg_t { 
+  arg_t& get() { return *this; }
+  const arg_t& get() const { return *this; }
+
+  template<typename arg2_t,
+    typename = typename std::enable_if<
+      std::is_constructible<arg_t, const arg2_t&>::value
+    >::type
+  > MGPU_HOST_DEVICE 
+  tuple_leaf(const arg2_t& arg) : arg_t(arg) { }
+};
+
+template<size_t i, typename... args_t>
+struct tuple_impl;
+
+template<size_t i>
+struct tuple_impl<i> { };
+
+template<size_t i, typename arg_t, typename... args_t>
+struct tuple_impl<i, arg_t, args_t...> :
+  tuple_leaf<i, arg_t>,
+  tuple_impl<i + 1, args_t...> {
+
+  typedef tuple_leaf<i, arg_t> head_t;
+  typedef tuple_impl<i + 1, args_t...> tail_t;
+
+  MGPU_HOST_DEVICE  arg_t& head() { return head_t::get(); }
+  MGPU_HOST_DEVICE const arg_t& head() const { return head_t::get(); }
+
+  MGPU_HOST_DEVICE  tail_t& tail() { return *this; }
+  MGPU_HOST_DEVICE  const tail_t& tail() const { return *this; }
+
+  // Constructors.
+  tuple_impl() = default;
+  explicit tuple_impl(const tuple_impl&) = default;
+
+  template<typename... args2_t> MGPU_HOST_DEVICE 
+  explicit tuple_impl(const tuple_impl<i, args2_t...>& rhs) :
+    head_t(rhs.head()), tail_t(rhs.tail()) { }
+
+  template<typename... args2_t> MGPU_HOST_DEVICE  
+  explicit tuple_impl(tuple_impl<i, args2_t...>&& rhs) :
+    head_t(std::move(rhs.head())), 
+    tail_t(std::move(rhs.tail())) { }
+
+  template<typename arg2_t, typename... args2_t,
+    typename = typename std::enable_if<
+      sizeof...(args_t) == sizeof...(args2_t) &&
+      std::is_constructible<arg_t, arg2_t&&>::value &&
+      var_and<std::is_constructible<args_t, args2_t&&>::value...>::value
+    >::type
+  > MGPU_HOST_DEVICE 
+  tuple_impl(arg2_t&& arg, args2_t&&... args) :
+    head_t(std::forward<arg2_t>(arg)), 
+    tail_t(std::forward<args2_t>(args)...) { }
+
+  template<typename arg2_t, typename... args2_t,
+    typename = typename std::enable_if<
+      std::is_constructible<arg_t, const arg2_t&>::value &&
+      var_and<std::is_constructible<args_t, const args2_t&>::value...>::value
+    >::type
+  > MGPU_HOST_DEVICE 
+  tuple_impl(const arg2_t& arg, const args2_t&... args) :
+    head_t(arg), tail_t(args...) { }
+
+  // Assignment
+};
+
+template<size_t i, typename arg_t> MGPU_HOST_DEVICE 
+tuple_leaf<i, arg_t>& get_leaf(tuple_leaf<i, arg_t>& leaf) {
+  return leaf;
 }
 
-template<int i, typename... args_t>
-MGPU_HOST_DEVICE typename tuple_element<i, tuple<args_t...> >::type&
-get(tuple<args_t...>& t) {
-  return detail::get_tuple_t<i, tuple<args_t...> >::get(t);
-}
-template<int i, typename... args_t>
-MGPU_HOST_DEVICE typename tuple_element<i, tuple<args_t...> >::type&&
-get(tuple<args_t...>&& t) {
-  return detail::get_tuple_t<i, tuple<args_t...> >::get(
-    mgpu::forward<tuple<args_t...> >(t)
-  );
-}
-template<int i, typename... args_t>
-MGPU_HOST_DEVICE const typename tuple_element<i, tuple<args_t...> >::type&
-get(const tuple<args_t...>& t) {
-  return detail::get_tuple_t<i, tuple<args_t...> >::get(t);
+template<size_t i, typename arg_t> MGPU_HOST_DEVICE 
+const tuple_leaf<i, arg_t>& get_leaf(const tuple_leaf<i, arg_t>& leaf) {
+  return leaf;
 }
 
-// make_tuple
+} // namespace detail
+
 template<typename... args_t>
-MGPU_HOST_DEVICE tuple<args_t...> make_tuple(args_t... args) {
-  return tuple<args_t...>(args...);
+struct tuple : detail::tuple_impl<0, args_t...> { 
+  typedef detail::tuple_impl<0, args_t...> impl_t;
+
+  tuple() = default;
+  tuple(const tuple&) = default;
+
+  template<typename... args2_t,
+    typename = typename std::enable_if<
+      sizeof...(args2_t) == sizeof...(args_t) &&
+      var_and<std::is_constructible<args_t, const args2_t&>::value...>::value
+    >::type
+  > MGPU_HOST_DEVICE 
+  tuple(const tuple<args2_t...>& rhs) : impl_t(rhs) { }
+  
+  template<typename... args2_t,
+    typename = typename std::enable_if<
+      sizeof...(args2_t) == sizeof...(args_t) &&
+      var_and<std::is_constructible<args_t, args2_t&&>::value...>::value
+    >::type
+  > MGPU_HOST_DEVICE 
+  tuple(args2_t&&... args) : impl_t(std::forward<args2_t>(args)...) { }
+
+  template<typename... args2_t,
+    typename = typename std::enable_if<
+      sizeof...(args2_t) == sizeof...(args_t) &&
+      var_and<std::is_constructible<args_t, const args2_t&>::value...>::value
+    >::type
+  > MGPU_HOST_DEVICE  
+  tuple(const args2_t&... args) : impl_t(args...) { }
+} __attribute__((aligned));
+
+namespace detail {
+
+template<size_t i, typename arg_t> MGPU_HOST_DEVICE 
+arg_t& _get(tuple_leaf<i, arg_t>& leaf) {
+  return leaf.get();
 }
 
-// combine_tuples_t
-template<typename...>
-struct combine_tuples_t;
+template<size_t i, typename arg_t> MGPU_HOST_DEVICE 
+const arg_t& _get(const tuple_leaf<i, arg_t>& leaf) {
+  return leaf.get();
+}
 
-template<> 
-struct combine_tuples_t<> {
-  typedef tuple<> type;
+}
+
+template<size_t i, typename... args_t> MGPU_HOST_DEVICE 
+tuple_element_t<i, tuple<args_t...> >&
+get(tuple<args_t...>& tpl) {
+  return detail::_get<i>(tpl);
+}
+
+template<size_t i, typename... args_t> MGPU_HOST_DEVICE 
+const tuple_element_t<i, tuple<args_t...> >&
+get(const tuple<args_t...>& tpl) {
+  return detail::_get<i>(tpl);
+}
+
+template<size_t i, typename... args_t> MGPU_HOST_DEVICE 
+typename std::add_rvalue_reference<
+  tuple_element_t<i, tuple<args_t...> >
+>::type
+get(tuple<args_t...>&& tpl) {
+  return std::forward<tuple_element_t<i, tuple<args_t...> >&&>(get<i>(tpl));
+}
+
+template<typename... args_t> MGPU_HOST_DEVICE 
+tuple<decay_t<args_t>...> make_tuple(args_t&&... args) {
+  return tuple<decay_t<args_t>...>(std::forward<args_t>(args)...);
+}
+
+template<typename... args_t> MGPU_HOST_DEVICE
+tuple<args_t&&...> forward_as_tuple(args_t&&... args) {
+  return tuple<args_t&&...>(std::forward<args_t>(args)...);
+}
+
+////////////
+// tuple_cat
+
+namespace detail {
+
+template<typename tuple_t>
+struct _make_tuple {
+  typedef typename std::remove_cv<
+    typename std::remove_reference<tuple_t>::type
+  >::type type;
 };
+
+template<typename... tuples_t>
+struct _combine_type;
+
 template<typename... args_t>
-struct combine_tuples_t<tuple<args_t...> > {
+struct _combine_type<tuple<args_t...> > {
   typedef tuple<args_t...> type;
 };
-template<typename... a_t, typename... b_t, typename... c_t>
-struct combine_tuples_t<tuple<a_t...>, tuple<b_t...>, c_t...> {
-  typedef typename combine_tuples_t<tuple<a_t..., b_t...>, c_t...>::type type;
+
+template<typename... args1_t, typename... args2_t, typename... tuples_t>
+struct _combine_type<tuple<args1_t...>, tuple<args2_t...>, tuples_t...> {
+  typedef typename _combine_type<
+    tuple<args1_t..., args2_t...>,
+    tuples_t...
+  >::type type;
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// Element-by-element type conversion of one tuple into another tuple.
-
-template<int i, int j, int count>
-struct tuple_iterate_assign_t {
-  template<typename assign_t, typename input_t, typename output_t, 
-    typename... args_t>
-  MGPU_HOST_DEVICE static void assign(assign_t a, input_t input, 
-    output_t& output, args_t... args) {
-    typename tuple_element<i, input_t>::type lhs = get<i>(input);
-    typename tuple_element<j, output_t>::type& rhs = get<j>(output);
-    a(lhs, rhs, args...);
-    tuple_iterate_assign_t<i + 1, j + 1, count - 1>::assign(a, input, output,
-      args...);
-  }
-};
-template<int i, int j>
-struct tuple_iterate_assign_t<i, j, 0> {
-  template<typename assign_t, typename input_t, typename output_t, 
-    typename... args_t>
-  MGPU_HOST_DEVICE static void assign(assign_t, input_t, output_t&, 
-    args_t...) { }  
+template<typename... tpls_t>
+struct _tuple_cat_ret {
+  typedef typename _combine_type<
+    typename _make_tuple<tpls_t>::type...
+  >::type type;
 };
 
-struct assign_t {
-  template<typename input_it, typename output_it>
-  MGPU_HOST_DEVICE void operator()(input_it input, output_it& output) {
-    output = input;
-  }
-};
+template<typename tpl1_t, typename seq1_t, typename tpl2_t, typename seq2_t>
+struct _tuple_cat;
 
-////////////////////////////////////////////////////////////////////////////////
-// tuple_cat. Glue together any number of tuples.
+template<typename tpl1_t, size_t... seq1_i, typename tpl2_t, size_t... seq2_i>
+struct _tuple_cat<tpl1_t, index_sequence<seq1_i...>, 
+  tpl2_t, index_sequence<seq2_i...> > {
 
-namespace detail {
+  typedef typename _tuple_cat_ret<tpl1_t, tpl2_t>::type ret_t;
 
-template<typename... args_t>
-struct tuple_cat_t;
-
-template<>
-struct tuple_cat_t<tuple<> > {
-  typedef tuple<> type_t;
-  MGPU_HOST_DEVICE static tuple<> cat(tuple<>) { return tuple<>(); }
-};
-
-template<typename... args_t>
-struct tuple_cat_t<tuple<args_t...> > {
-  MGPU_HOST_DEVICE static tuple<args_t...> 
-    cat(tuple<args_t...> tpl) { return tpl; }
-};
-
-template<typename... lhs_t, typename... rhs_t>
-struct tuple_cat_t<tuple<lhs_t...>, tuple<rhs_t...> > {
-  enum { len1 = sizeof...(lhs_t), len2 = sizeof...(rhs_t) };
-  typedef tuple<lhs_t..., rhs_t...> type_t;
-
-  MGPU_HOST_DEVICE static type_t cat(tuple<lhs_t...> lhs, tuple<rhs_t...> rhs) {
-    type_t result;
-    tuple_iterate_assign_t<0, 0, len1>::assign(assign_t(), lhs, result);
-    tuple_iterate_assign_t<0, len1, len2>::assign(assign_t(), rhs, result);
-    return result;
-  }
-};
-
-template<typename... lhs_t, typename... rhs_t, typename... others_t>
-struct tuple_cat_t<tuple<lhs_t...>, tuple<rhs_t...>, others_t...> {
-
-  typedef typename tuple_cat_t<tuple<rhs_t...>, others_t...>::type_t t2_t;
-  typedef typename tuple_cat_t<tuple<lhs_t...>, t2_t>::type_t type_t;
-
-  MGPU_HOST_DEVICE static type_t cat(tuple<lhs_t...> lhs, tuple<rhs_t...> rhs,
-    others_t... others) {
-
-    return tuple_cat_t<tuple<lhs_t...>, t2_t>::cat(
-      lhs,
-      tuple_cat_t<tuple<rhs_t...>, others_t...>::cat(rhs, others...)
+  MGPU_HOST_DEVICE static ret_t cat(tpl1_t&& tpl1, tpl2_t&& tpl2) {
+    return make_tuple(
+      get<seq1_i>(std::forward<tpl1_t>(tpl1))...,
+      get<seq2_i>(std::forward<tpl2_t>(tpl2))...
     );
   }
 };
 
 } // namespace detail
 
-template<typename... args_t>
-MGPU_HOST_DEVICE typename detail::tuple_cat_t<args_t...>::type_t
-tuple_cat(args_t... args) {
-  return detail::tuple_cat_t<args_t...>::cat(args...);
+template<typename tpl1_t> MGPU_HOST_DEVICE
+typename detail::_tuple_cat_ret<tpl1_t>::type
+tuple_cat(tpl1_t&& tpl1) {
+  return std::forward<tpl1_t>(tpl1);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// tuple_expand. Calls a function and passes the provided tuple as unpacked
-// arguments.
+template<typename tpl1_t, typename tpl2_t, typename... tpls_t> MGPU_HOST_DEVICE
+typename detail::_tuple_cat_ret<tpl1_t, tpl2_t, tpls_t...>::type
+tuple_cat(tpl1_t&& tpl1, tpl2_t&& tpl2, tpls_t&&... tpls) {
+  typedef typename detail::_make_tuple<tpl1_t>::type tpl1_stripped;
+  typedef typename detail::_make_tuple<tpl2_t>::type tpl2_stripped;
 
-template<typename func_t, typename... args_t, int... seq_i>
-MGPU_HOST_DEVICE void tuple_expand(func_t f, tuple<args_t...> tpl, 
-  seq_t<seq_i...>) {
-  f(get<seq_i>(tpl)...);
-}
-
-template<typename func_t, typename... args_t>
-MGPU_HOST_DEVICE void tuple_expand(func_t f, tuple<args_t...> tpl) {
-  tuple_expand(f, tpl, typename genseq_t<sizeof...(args_t)>::type_t());
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-// Convert a tuple<> of pointer/iterator types to a tuple of the equivalent 
-// value types by issuing a load.
-
-template<typename tpl_t> struct tuple_iterator_value_t;
-template<typename... args_t>
-struct tuple_iterator_value_t<tuple<args_t...> > {
-  typedef tuple<typename std::iterator_traits<args_t>::value_type...> type_t;
-};
-
-namespace detail {
-
-struct load_tuple_op_t {
-  template<typename input_t, typename output_t>
-  MGPU_HOST_DEVICE void operator()(input_t input, output_t& output, 
-    int index) {
-    output = input[index];
-  }
-};
-
-} // namespace detail
-
-template<typename... args_t>
-MGPU_HOST_DEVICE typename tuple_iterator_value_t<tuple<args_t...> >::type_t
-load_tuple(tuple<args_t...> it, int index) {
-  typedef typename tuple_iterator_value_t<tuple<args_t...> >::type_t value_t;
-  value_t value;
-  tuple_iterate_assign_t<0, 0, sizeof...(args_t)>::assign(
-    detail::load_tuple_op_t(), it, value, index);
-  return value;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Convert a tuple<> of mixed types to a tuple<> of the same mixed types but
-// with restricted pointers.
-
-template<typename tpl_t> struct tuple_restricted_t;
-template<typename... args_t>
-struct tuple_restricted_t<tuple<args_t>...> {
-  typedef tuple<typename add_restrict<args_t>::type...> type_t;
-};
-
-namespace detail {
-
-struct restricted_op_t {
-  template<typename input_t>
-  MGPU_HOST_DEVICE void operator()(input_t input, 
-    typename add_restrict<input_t>::type& output) {
-    output = (typename add_restrict<input_t>::type)input;
-  }  
-};
-
-} // namespace detail
-
-template<typename... args_t>
-MGPU_HOST_DEVICE typename tuple_restricted_t<tuple<args_t...> >::type_t
-restrict_tuple(tuple<args_t...> unrestricted) {
-  typedef typename tuple_restricted_t<tuple<args_t...> >::type_t value_t;
-  value_t restricted;
-  tuple_iterate_assign_t<0, 0, sizeof...(args_t)>::assign(
-    detail::restricted_op_t(), unrestricted, restricted);
-  return restricted;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Provide overloaded operators for tuple<>. Currently only operator+,
-// operator- and operator*.
-
-namespace detail {
-
-template<int i, typename tpl_t, template<class> class op_t, 
-  int size = tuple_size<tpl_t>::value>
-struct tuple_operator_t {
-  MGPU_HOST_DEVICE static void apply(tpl_t& a, tpl_t b) {
-    op_t<typename tuple_element<i, tpl_t>::type> op;
-    get<i>(a) = op(get<i>(a), get<i>(b));
-    tuple_operator_t<i + 1, tpl_t, op_t, size>::apply(a, b);
-  }
-};
-template<typename tpl_t, template<class> class op_t, int size>
-struct tuple_operator_t<size, tpl_t, op_t, size> {
-  MGPU_HOST_DEVICE static void apply(tpl_t& a, tpl_t b) { }
-};
-
-} // namespace detail
-
-template<template<class> class op_t, typename tpl_t>
-MGPU_HOST_DEVICE tpl_t tuple_reduce(tpl_t a, tpl_t b) {
-  detail::tuple_operator_t<0, tpl_t, op_t>::apply(a, b);
-  return a;
-}
-
-template<typename... args_t>
-MGPU_HOST_DEVICE tuple<args_t...> 
-operator+(tuple<args_t...> a, tuple<args_t...> b) {
-  return tuple_reduce<plus_t>(a, b);
-}
-template<typename... args_t>
-MGPU_HOST_DEVICE tuple<args_t...> 
-operator-(tuple<args_t...> a, tuple<args_t...> b) {
-  return tuple_reduce<minus_t>(a, b);
-}
-template<typename... args_t>
-MGPU_HOST_DEVICE tuple<args_t...> 
-operator*(tuple<args_t...> a, tuple<args_t...> b) {
-  return tuple_reduce<multiplies_t>(a, b);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Tuple comparison operators.
-
-template<typename... args_t>
-MGPU_HOST_DEVICE bool operator<(tuple<args_t...> a, tuple<args_t...> b) {
-  if(get<0>(a) < get<0>(b)) return true;
-  if(get<0>(b) < get<0>(a)) return false;
-  return a.inner() < b.inner();
-}
-template<typename... args_t>
-MGPU_HOST_DEVICE bool operator<=(tuple<args_t...> a, tuple<args_t...> b) {
-  return !(b < a);
-}
-template<typename... args_t>
-MGPU_HOST_DEVICE bool operator>(tuple<args_t...> a, tuple<args_t...> b) {
-  return b < a;
-}
-template<typename... args_t>
-MGPU_HOST_DEVICE bool operator>=(tuple<args_t...> a, tuple<args_t...> b) {
-  return !(a < b);
-}
-template<typename... args_t>
-MGPU_HOST_DEVICE bool operator==(tuple<args_t...> a, tuple<args_t...> b) {
-  return (get<0>(a) == get<0>(b)) && (a.inner() == b.inner());
-}
-template<typename... args_t>
-MGPU_HOST_DEVICE bool operator!=(tuple<args_t...> a, tuple<args_t...> b) {
-  return !(a == b);
-}
-
-MGPU_HOST_DEVICE bool operator<(tuple<> a, tuple<> b) {
-  return false;
-}
-MGPU_HOST_DEVICE bool operator<=(tuple<> a, tuple<> b) {
-  return true;
-}
-MGPU_HOST_DEVICE bool operator>(tuple<> a, tuple<> b) {
-  return false;
-}
-MGPU_HOST_DEVICE bool operator>=(tuple<> a, tuple<> b) {
-  return true;
-}
-MGPU_HOST_DEVICE bool operator==(tuple<> a, tuple<> b) {
-  return true;
-}
-MGPU_HOST_DEVICE bool operator!=(tuple<> a, tuple<> b) {
-  return false;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-// tuple_union_size_t.
-// returns the max of the sizeof each element in the tuple.
-template<typename... args_t>
-struct tuple_union_size_t;
-
-template<typename arg_t, typename... args_t>
-struct tuple_union_size_t<tuple<arg_t, args_t...> > {
   enum { 
-    inner_size = tuple_union_size_t<tuple<args_t...> >::value,
-    outer_size = sizeof(arg_t),
-    value = outer_size > inner_size ? outer_size : inner_size
+    size1 = tuple_size<tpl1_stripped>::value, 
+    size2 = tuple_size<tpl2_stripped>::value
   };
-};
-template<typename arg_t>
-struct tuple_union_size_t<tuple<arg_t> > {
-  enum { value = sizeof(arg_t) };
-};
-template<>
-struct tuple_union_size_t<tuple<> > {
-  enum { value = 0 };
-};
+
+  return tuple_cat(
+    detail::_tuple_cat<
+      tpl1_t, make_index_sequence<size1>, 
+      tpl2_t, make_index_sequence<size2> 
+    >::cat(
+      std::forward<tpl1_t>(tpl1), 
+      std::forward<tpl2_t>(tpl2)
+    ), 
+    std::forward<tpls_t>(tpls)...
+  );
+}
 
 END_MGPU_NAMESPACE

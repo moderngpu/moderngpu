@@ -51,16 +51,6 @@ BEGIN_MGPU_NAMESPACE
 template< bool B, class T = void >
 using enable_if_t = typename std::enable_if<B,T>::type;
 
-// Provide perfect forwarding.
-template<typename T>
-struct identity {
-    typedef T type;
-};
-template<typename T>
-T&& forward(typename identity<T>::type&& param) { 
-  return static_cast<typename identity<T>::type&&>(param); 
-}
-
 enum { warp_size = 32 };
 
 #if defined(_MSC_VER) && _MSC_VER <= 1800      // VS 2013 is terrible.
@@ -111,15 +101,18 @@ MGPU_HOST_DEVICE constexpr size_t s_log2(size_t x, size_t p = 0) {
 
 // Apparently not defined by CUDA.
 template<typename real_t>
-MGPU_HOST_DEVICE real_t min(real_t a, real_t b) {
+MGPU_HOST_DEVICE constexpr real_t min(real_t a, real_t b) {
   return (b < a) ? b : a;
 }
 template<typename real_t>
-MGPU_HOST_DEVICE real_t max(real_t a, real_t b) {
+MGPU_HOST_DEVICE constexpr real_t max(real_t a, real_t b) {
   return (a < b) ? b : a;
 }
 
 struct empty_t { };
+
+template<typename... args_t>
+MGPU_HOST_DEVICE void swallow(args_t...) { }
 
 template<typename... base_v>
 struct inherit_t;
@@ -143,19 +136,6 @@ struct conditional_typedef_t {
     type_a, 
     type_b
   >::type type_t;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-// Generate a sequence parameters pack. Useful for tuple_expand.
-
-template<int... seq_i> struct seq_t { };
-
-template<int count, int... seq_i> 
-struct genseq_t : genseq_t<count - 1, count - 1, seq_i...> { };
-
-template<int... seq_i>
-struct genseq_t<0, seq_i...> {
-  typedef seq_t<seq_i...> type_t;
 };
 
 ////////////////////////////////////////////////////////////////////////////////\

@@ -132,23 +132,18 @@ template<typename base_t>
 struct inherit_t<base_t> : base_t { };
 
 ////////////////////////////////////////////////////////////////////////////////
-// Ternary and conditional typedefs. 
-
-// If cond, type_t is type_a. Else type_t is type_b.
-template<bool cond, typename type_a, typename type_b>
-struct ternary_typedef_t {
-  typedef type_a type_t;
-};
-template<typename type_a, typename type_b>
-struct ternary_typedef_t<false, type_a, type_b> {
-  typedef type_b type_t;
-};
+// Conditional typedefs. 
 
 // Typedef type_a if type_a is not empty_t.
 // Otherwise typedef type_b.
 template<typename type_a, typename type_b>
-using conditional_typedef_t = ternary_typedef_t<
-  !std::is_same<type_a, empty_t>::value, type_a, type_b>;
+struct conditional_typedef_t {
+  typedef typename std::conditional<
+    !std::is_same<type_a, empty_t>::value, 
+    type_a, 
+    type_b
+  >::type type_t;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Generate a sequence parameters pack. Useful for tuple_expand.

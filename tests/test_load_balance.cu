@@ -15,8 +15,9 @@ int main(int argc, char** argv) {
     segments_host[i] = i * spacing;
   mem_t<int> segments = to_mem(segments_host, context);
 
-  mem_t<int> lbs = load_balance_search(count, 
-    segments.data(), num_segments, context);
+  mem_t<int> lbs(count, context);
+  load_balance_search(count, segments.data(), num_segments, lbs.data(), 
+    context);
 
   std::vector<int> lbs_host = from_mem(lbs);
   for(size_t i = 0; i < lbs_host.size(); ++i) {

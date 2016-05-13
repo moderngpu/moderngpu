@@ -75,18 +75,14 @@ void transform_lbs(func_t f, int count, segments_it segments,
   );
 }
 
-template<typename segments_it>
-mem_t<int> load_balance_search(int count, segments_it segments, 
-  int num_segments, context_t& context) {
+template<typename launch_arg_t = empty_t, typename segments_it,
+  typename output_it>
+void load_balance_search(int count, segments_it segments, 
+  int num_segments, output_it output, context_t& context) {
 
-  mem_t<int> lbs(count, context);
-  int* lbs_data = lbs.data();
-
-  transform_lbs([=]MGPU_DEVICE(int index, int seg, int rank) {
-    lbs_data[index] = seg;
+  transform_lbs<launch_arg_t>([=]MGPU_DEVICE(int index, int seg, int rank) {
+    output[index] = seg;
   }, count, segments, num_segments, context);
-
-  return lbs;
 }
 
 END_MGPU_NAMESPACE

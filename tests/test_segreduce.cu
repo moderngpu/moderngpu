@@ -25,10 +25,12 @@ void test_segreduce(int count, int num_segments, int seed,
 
   mem_t<int> results(num_segments, context);
 
+  typedef launch_params_t<32 * 6, 7, 6> launch_t;
+
   int init = -1;
   //lbs_segreduce(f, count, segments.data(), num_segments, results.data(),
    // plus_t<int>(), init, context);
-  transform_segreduce([]MGPU_DEVICE(int index) {
+  transform_segreduce<launch_t>([]MGPU_DEVICE(int index) {
     return index % 13; 
   }, count, segments.data(), num_segments, results.data(), 
     plus_t<int>(), init, context

@@ -5,6 +5,8 @@ using namespace mgpu;
 int main(int argc, char** argv) {
   standard_context_t context;
 
+  typedef launch_params_t<128, 7> launch_t;
+
   enum { nt = 128, vt = 11 };
   int count = 12345678;
 
@@ -12,7 +14,7 @@ int main(int argc, char** argv) {
 
     mem_t<int> data = fill_random(0, 100000, count, false, context);
 
-    mergesort(data.data(), count, less_t<int>(), context);
+    mergesort<launch_t>(data.data(), count, less_t<int>(), context);
 
     std::vector<int> ref = from_mem(data);
     std::sort(ref.begin(), ref.end());

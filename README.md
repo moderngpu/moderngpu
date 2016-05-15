@@ -8,15 +8,19 @@ Full documentation with [gitbook](https://moderngpu.github.io) under heavy const
 
 **Latest update**:
 ```
-2.09 2016 May 7 -
-  Greatly improved and more standard tuple class.
-  Optimized tuple value caching for lbs-related functions. 
+2.10 2016 May 15 -
+  Allow for non-pow2 sized launches. Rewrote cta_reduce_t to support these
+  sizes.
 ```
 ---
 moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. 
 
 ## Release notes
 ```
+2.10 2016 May 15 -
+  Allow for non-pow2 sized launches. Rewrote cta_reduce_t to support these
+  sizes.
+
 2.09 2016 May 7 -
   Greatly improved and more standard tuple class.
   Optimized tuple value caching for lbs-related functions. 

@@ -109,6 +109,35 @@ MGPU_HOST_DEVICE int find_log2(int x, bool round_up = false) {
 } 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Divide operators.
+
+MGPU_HOST_DEVICE int mulhi(int a, int b) {
+#ifdef __CUDA_ARCH__
+  return __mulhi(a, b);
+#else
+  union {
+    int64_t x;
+    struct { int low, high; };
+  } product;
+  product.x = (int64_t)a * b;
+  return product.high;
+#endif
+}
+
+MGPU_HOST_DEVICE unsigned umulhi(unsigned a, unsigned b) {
+#ifdef __CUDA_ARCH__
+  return __mulhi(a, b);
+#else
+  union {
+    uint64_t x;
+    struct { unsigned low, high; };
+  } product;
+  product.x = (uint64_t)a * b;
+  return product.high; 
+#endif  
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Wrappers around PTX shfl_up and shfl_down.
 
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300

@@ -382,4 +382,12 @@ tuple_cat(tpl1_t&& tpl1, tpl2_t&& tpl2, tpls_t&&... tpls) {
   );
 }
 
+///////
+// tie
+
+template<typename... args_t>
+MGPU_HOST_DEVICE tuple<args_t&...> tie(args_t&... args) {
+  return tuple<args_t&...>(args...);
+}
+
 END_MGPU_NAMESPACE

@@ -68,20 +68,31 @@ void cta_launch(func_t f, const int* num_tiles, context_t& context,
 // Ordinary transform launch. This uses the standard launch box mechanism 
 // so we can query its occupancy and other things.
 
-template<typename launch_t, typename func_t, typename... args_t>
-void transform(func_t f, size_t count, context_t& context, args_t... args) {
+namespace detail {
 
-  cta_transform<launch_t>([=]MGPU_DEVICE(int tid, int cta, args_t... args) {
+template<typename launch_t>
+struct transform_f {
+  template<typename func_t, typename... args_t>
+  MGPU_DEVICE void operator()(int tid, int cta, func_t f, 
+    size_t count, args_t... args) {
+
     typedef typename launch_t::sm_ptx params_t;
     enum { nt = params_t::nt, vt = params_t::vt, vt0 = params_t::vt0 };
 
-   range_t range = get_tile(cta, nt * vt, count);
+    range_t range = get_tile(cta, nt * vt, count);
 
     strided_iterate<nt, vt, vt0>([=](int i, int j) {
       f(range.begin + j, args...);
-    }, tid, range.count());
+    }, tid, range.count());  
+  }
+};
 
-  }, count, context, args...);
+} 
+
+template<typename launch_t, typename func_t, typename... args_t>
+void transform(func_t f, size_t count, context_t& context, args_t... args) {
+  cta_transform<launch_t>(detail::transform_f<launch_t>(), count, 
+    context, f, count, args...);
 }
 
 template<size_t nt = 128, int vt = 1, typename func_t, typename... args_t>

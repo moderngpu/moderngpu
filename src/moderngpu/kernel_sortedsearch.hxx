@@ -42,7 +42,7 @@ void sorted_search(needles_it needles, int num_needles, haystack_it haystack,
 
     // Merge the values needles and haystack.
     merge_pair_t<type_t, vt> merge = cta_merge_from_mem<bounds, nt, vt>(
-      needles, haystack, range, tid, mgpu::less_t<type_t>(), shared.keys);
+      needles, haystack, range, tid, comp, shared.keys);
 
     // Store the needle indices to shared memory.
     iterate<vt>([&](int i) {

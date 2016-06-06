@@ -36,8 +36,8 @@ int bfs(vertices_it vertices, int num_vertices, edges_it edges,
     }
     return count;
   };
-  transform_scan(segment_sizes, num_vertices, segments.data(), plus_t<int>(), 
-    count.data(), context);
+  transform_scan<int>(segment_sizes, num_vertices, segments.data(), 
+    plus_t<int>(), count.data(), context);
 
   // Read out the number of work-items and quit if there are none. That means
   // we've visited all vertices connected to a source.

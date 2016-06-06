@@ -20,7 +20,7 @@ mem_t<int> merge_sort_partitions(keys_it keys, int count, int coop,
       keys + range.b_begin, range.b_count(), diag, comp);
   };
 
-  return fill_function(k, num_partitions, context);
+  return fill_function<int>(k, num_partitions, context);
 }
 
 // Key-value mergesort.

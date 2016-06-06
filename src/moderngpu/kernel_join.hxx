@@ -26,7 +26,7 @@ mem_t<int2> inner_join(a_it a, int a_count, b_it b, int b_count,
   const int* upper_data = upper.data();
 
   mem_t<int> count(1, context);
-  transform_scan([=]MGPU_DEVICE(int index) {
+  transform_scan<int>([=]MGPU_DEVICE(int index) {
     return upper_data[index] - lower_data[index];
   }, a_count, scanned_sizes.data(), plus_t<int>(), count.data(), context);
 

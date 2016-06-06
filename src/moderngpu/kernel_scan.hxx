@@ -175,23 +175,23 @@ void scan(input_it input, int count, output_it output, context_t& context) {
     discard_iterator_t<type_t>(), context);
 }
 
-template<scan_type_t scan_type = scan_type_exc, 
+template<typename type_t, scan_type_t scan_type = scan_type_exc, 
   typename launch_arg_t = empty_t, typename func_t, typename output_it,
   typename op_t, typename reduction_it>
 void transform_scan_event(func_t f, int count, output_it output, op_t op,
   reduction_it reduction, context_t& context, cudaEvent_t event) {
 
-  scan_event<scan_type, launch_arg_t>(make_load_iterator<decltype(f(0))>(f),
+  scan_event<scan_type, launch_arg_t>(make_load_iterator<type_t>(f),
     count, output, op, reduction, context, event);
 }
 
-template<scan_type_t scan_type = scan_type_exc, 
+template<typename type_t, scan_type_t scan_type = scan_type_exc, 
   typename launch_arg_t = empty_t, typename func_t, typename output_it,
   typename op_t, typename reduction_it>
 void transform_scan(func_t f, int count, output_it output, op_t op,
   reduction_it reduction, context_t& context) {
 
-  transform_scan_event<scan_type, launch_arg_t>(f, count, output, op,
+  transform_scan_event<type_t, scan_type, launch_arg_t>(f, count, output, op,
     reduction, context, 0);
 }
 

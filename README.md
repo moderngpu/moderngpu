@@ -8,9 +8,10 @@ Full documentation with [github wiki](https://github.com/moderngpu/moderngpu/wik
 
 **Latest update**:
 ```
-2.10 2016 May 15 -
-  Allow for non-pow2 sized launches. Rewrote cta_reduce_t to support these
-  sizes.
+2.11 2016 June 6 -
+  Removed decltype() calls on __device__-tagged lambdas. This introduces
+    two breaking changes: transform_scan and fill_function now take explicit
+    types as their first template arguments.
 ```
 ---
 moderngpu is a productivity library for general-purpose computing on GPUs. It is a header-only C++ library written for CUDA. The unique value of the library is in its accelerated primitives for solving irregularly parallel problems. 

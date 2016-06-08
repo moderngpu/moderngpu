@@ -5,35 +5,25 @@ using namespace mgpu;
 int main(int argc, char** argv) {
   standard_context_t context;
 
-  typedef launch_params_t<128, 7> launch_t;
+  // Loop from 1K to 100M.
+  for(int count = 2000; count <= 100000000; count += count / 10) {
+    for(int it = 1; it <= 5; ++it) {
 
-  enum { nt = 128, vt = 11 };
-  int count = 12345678;
+      mem_t<int> data = fill_random(0, 100000, count, false, context);
 
-  for(int it = 1; it <= 5; ++it) {
+      mergesort(data.data(), count, less_t<int>(), context);
 
-    mem_t<int> data = fill_random(0, 100000, count, false, context);
+      std::vector<int> ref = from_mem(data);
+      std::sort(ref.begin(), ref.end());
+      std::vector<int> sorted = from_mem(data);
 
-    mergesort<launch_t>(data.data(), count, less_t<int>(), context);
+      bool success = ref == sorted;
+      
+      printf("%7d: %d %s\n", count, it, success ? "SUCCESS" : "FAILURE");
 
-    std::vector<int> ref = from_mem(data);
-    std::sort(ref.begin(), ref.end());
-    std::vector<int> sorted = from_mem(data);
-
-    bool print_sorted = ref != sorted;
-    if(print_sorted) {
-      for(int i = 0; i < div_up(count, vt); ++i) {
-         printf("%4d: ", vt * i);
-         for(int j = 0; j < vt; ++j)
-           if(vt * i + j < count) printf("%5d ", sorted[vt * i + j]);
-         printf("\n");
-      }
+      if(!success)
+        return 1;
     }
-    
-    printf("%3d %s\n", it, (ref == sorted) ? "SUCCESS" : "FAILURE");
-
-    if(ref != sorted)
-      return 0;
   }
 
   return 0;

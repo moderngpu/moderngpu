@@ -5,8 +5,6 @@ using namespace mgpu;
 int main(int argc, char** argv) {
   standard_context_t context;
 
-  typedef launch_params_t<32 * 5, 7> launch_t;
-
   // Loop from 1K to 100M.
   for(int count = 1000; count <= 100000000; count += count / 10) {
     int a_count = count / 2;
@@ -16,7 +14,7 @@ int main(int argc, char** argv) {
     mem_t<int> b = fill_random(0, count, b_count, true, context);
     mem_t<int> c(count, context);
 
-    merge<launch_t>(a.data(), a_count, b.data(), b_count, c.data(), 
+    merge(a.data(), a_count, b.data(), b_count, c.data(), 
       mgpu::less_t<int>(), context);
 
     // Download the results.

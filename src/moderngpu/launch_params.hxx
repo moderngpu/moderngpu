@@ -67,7 +67,7 @@ void launch_box_cta_k(func_t f, int num_ctas, args_t... args) {
   // Masking threadIdx.x by (nt - 1) may help strength reduction because the
   // compiler now knows the range of tid: (0, nt).
   typedef typename launch_box::sm_ptx params_t;
-  int tid = (int)(threadIdx.x % (uint)params_t::nt);
+  int tid = (int)(threadIdx.x % (unsigned)params_t::nt);
   int cta = blockIdx.x;
 
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 300

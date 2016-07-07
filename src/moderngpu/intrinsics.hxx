@@ -59,7 +59,7 @@ MGPU_HOST_DEVICE int ffs(int x) {
 }
 
 MGPU_HOST_DEVICE unsigned bfe(unsigned x, unsigned bit, unsigned num_bits) {
-  uint result;
+  unsigned result;
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 200
   asm("bfe.u32 %0, %1, %2, %3;" : 
     "=r"(result) : "r"(x), "r"(bit), "r"(num_bits));

@@ -81,11 +81,10 @@ protected:
   cudaEvent_t _timer[2];
   cudaEvent_t _event;
 
-public:
   // Making this a template argument means we won't generate an instance
   // of dummy_k for each translation unit. 
   template<int dummy_arg = 0>
-  standard_context_t(bool print_prop = true) : context_t(), _stream(0) {
+  void init() {
     cudaFuncAttributes attr;
     cudaError_t result = cudaFuncGetAttributes(&attr, dummy_k<0>);
     if(cudaSuccess != result) throw cuda_exception_t(result);
@@ -97,8 +96,14 @@ public:
     
     cudaEventCreate(&_timer[0]);
     cudaEventCreate(&_timer[1]);
-    cudaEventCreate(&_event);
+    cudaEventCreate(&_event);    
+  }
 
+public:
+  standard_context_t(bool print_prop = true, cudaStream_t stream_ = 0) : 
+    context_t(), _stream(stream_) {
+
+    init();
     if(print_prop) {
       printf("%s\n", device_prop_string(_props).c_str());
     }

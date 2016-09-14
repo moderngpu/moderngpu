@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
   // Prepare the fibonacci numbers on the host.
   std::vector<int> input_host(nt);
   for(int i = 0; i < nt; ++i)
-    input_host[i] = (i + 1) * (i + 1);
+    input_host[i] = (i < 2 ? 1 : input_host[i-1] + input_host[i-2]) % 100003;
 
   printf("Reducing: ");
   for(int i : input_host) printf("%d ", i);

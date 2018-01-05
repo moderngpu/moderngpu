@@ -18,8 +18,9 @@ void cta_launch(func_t f, int num_ctas, context_t& context, args_t... args) {
   if(context.ptx_version() < 30 && num_ctas > 65535)
     grid_dim = dim3(256, div_up(num_ctas, 256));
   
-  launch_box_cta_k<launch_box, func_t>
-    <<<grid_dim, cta.nt, 0, context.stream()>>>(f, num_ctas, args...);
+  if(num_ctas)
+    launch_box_cta_k<launch_box, func_t>
+      <<<grid_dim, cta.nt, 0, context.stream()>>>(f, num_ctas, args...);
 }
 
 template<int nt, int vt = 1, typename func_t, typename... args_t>

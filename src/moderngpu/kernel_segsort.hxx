@@ -155,6 +155,7 @@ struct segsort_t {
     ////////////////////////////////////////////////////////////////////////////
     // Execute a partitioning and a merge for each mergesort pass.
 
+    comp_t comp = this->comp;
     int num_ranges = num_ctas;
     int num_partitions = num_ctas + 1;
     int count = this->count;

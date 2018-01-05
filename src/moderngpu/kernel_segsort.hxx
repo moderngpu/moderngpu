@@ -72,7 +72,7 @@ struct segsort_t {
   template<bool sort_indices = false, typename keys_it, typename vals_it, 
     typename segments_it>
   void blocksort_segments(keys_it keys, vals_it vals, segments_it segments, 
-    int num_segments) {
+    int num_segments, comp_t comp) {
 
     // Distribute the segment descriptors to different CTAs.
     mem_t<int> partitions = binary_search_partitions<bounds_lower>(segments, 
@@ -126,7 +126,7 @@ struct segsort_t {
       }
 
       // Blocksort.
-      range_t active;
+      range_t active { };
       kv_array_t<key_t, val_t, vt> sorted = sort_t().block_sort(unsorted,
         tid, tile.count(), head_flags, active, comp, shared.sort);
 
@@ -410,7 +410,7 @@ void segmented_sort(key_t* keys, val_t* vals, int count, seg_it segments,
   detail::segsort_t<launch_arg_t, key_t, val_t, comp_t> 
     segsort(keys, vals, count, comp, context);
 
-  segsort.blocksort_segments(keys, vals, segments, num_segments);
+  segsort.blocksort_segments(keys, vals, segments, num_segments, comp);
   segsort.merge_passes();
 }
 
@@ -424,7 +424,7 @@ void segmented_sort_indices(key_t* keys, int* indices, int count,
     segsort(keys, indices, count, comp, context);
 
   segsort.template blocksort_segments<true>(keys, counting_iterator_t<int>(), 
-    segments, num_segments);
+    segments, num_segments, comp);
   segsort.merge_passes();
 }
 

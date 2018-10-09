@@ -229,10 +229,10 @@ CudaContext::CudaContext(CudaDevice& device, bool newStream, bool standard) :
 	_ownStream = newStream;
 
 	// Allocate 4KB of page-locked memory.
-	cudaError_t error = cudaMallocHost((void**)&_pageLocked, 4096);
+	cudaMallocHost((void**)&_pageLocked, 4096);
 
 	// Allocate an auxiliary stream.
-	error = cudaStreamCreate(&_auxStream);
+	cudaStreamCreate(&_auxStream);
 }
 
 CudaContext::~CudaContext() {

@@ -105,7 +105,9 @@ MGPU_DEVICE uint prmt_ptx(uint a, uint b, uint index) {
 ////////////////////////////////////////////////////////////////////////////////
 // shfl_up
 
-#define MEMBERMASK 0xffffffff
+#ifndef MEMBERMASK
+	#define MEMBERMASK 0xffffffff
+#endif
 
 __device__ __forceinline__ float shfl_up(float var, 
 	unsigned int delta, int width = 32, unsigned mask=MEMBERMASK) {

@@ -105,15 +105,23 @@ MGPU_DEVICE uint prmt_ptx(uint a, uint b, uint index) {
 ////////////////////////////////////////////////////////////////////////////////
 // shfl_up
 
-#define MEMBERMASK 0xffffffff
+#ifndef MEMBERMASK
+	#define MEMBERMASK 0xffffffff
+#endif
+
+#if (__CUDACC_VER_MAJOR__ >= 9 && __CUDA_ARCH__ >= 300) && !defined(USE_SHFL_SYNC)
+  #define USE_SHFL_SYNC
+#endif
 
 __device__ __forceinline__ float shfl_up(float var, 
 	unsigned int delta, int width = 32, unsigned mask=MEMBERMASK) {
 
-#if (__CUDA_ARCH__ >= 300 && __CUDACC_VER_MAJOR__ < 9)
-	var = __shfl_up(var, delta, width);
-#elif __CUDACC_VER_MAJOR__ >= 9
-  	var = __shfl_up_sync(mask, var, delta, width);
+#ifdef USE_SHFL_SYNC
+	var = __shfl_up_sync(mask, var, delta, width);
+#else 
+#if ( __CUDA_ARCH__ >= 300)
+  	var = __shfl_up(var, delta, width);
+#endif
 #endif	
 	return var;
 }
@@ -121,16 +129,18 @@ __device__ __forceinline__ float shfl_up(float var,
 __device__ __forceinline__ double shfl_up(double var, 
 	unsigned int delta, int width = 32, unsigned mask=MEMBERMASK) {
 
-#if (__CUDA_ARCH__ >= 300 && __CUDACC_VER_MAJOR__ < 9)
-	int2 p = mgpu::double_as_int2(var);
-	p.x = __shfl_up(p.x, delta, width);
-	p.y = __shfl_up(p.y, delta, width);
-	var = mgpu::int2_as_double(p);
-#elif __CUDACC_VER_MAJOR__ >= 9
+#ifdef USE_SHFL_SYNC
 	int2 p = mgpu::double_as_int2(var);
 	p.x = __shfl_up_sync(mask, p.x, delta, width);
-        p.y = __shfl_up_sync(mask, p.y, delta, width);
+	p.y = __shfl_up_sync(mask, p.y, delta, width);
 	var = mgpu::int2_as_double(p);
+#else
+#if ( __CUDA_ARCH__ >= 300)
+	int2 p = mgpu::double_as_int2(var);
+	p.x = __shfl_up(p.x, delta, width);
+        p.y = __shfl_up(p.y, delta, width);
+	var = mgpu::int2_as_double(p);
+#endif
 #endif
 	return var;
 }
@@ -138,9 +148,20 @@ __device__ __forceinline__ double shfl_up(double var,
 ////////////////////////////////////////////////////////////////////////////////
 // shfl_add
 
-MGPU_DEVICE int shfl_add(int x, int offset, int width = WARP_SIZE) {
+MGPU_DEVICE int shfl_add(int x, 
+		int offset, int width = WARP_SIZE, unsigned threadmask=MEMBERMASK) {
 	int result = 0;
-#if __CUDA_ARCH__ >= 300
+#ifdef USE_SHFL_SYNC
+	int mask = (WARP_SIZE - width)<< 8;
+	asm(
+		"{.reg .s32 r0;"
+		".reg .pred p;"
+		"shfl.sync.up.b32 r0|p, %1, %2, %3, %4;"
+		"@p add.s32 r0, r0, %5;"
+		"mov.s32 %0, r0; }"
+		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(threadmask), "r"(x));
+#else
+#if ( __CUDA_ARCH__ >= 300)
 	int mask = (WARP_SIZE - width)<< 8;
 	asm(
 		"{.reg .s32 r0;"
@@ -150,12 +171,24 @@ MGPU_DEVICE int shfl_add(int x, int offset, int width = WARP_SIZE) {
 		"mov.s32 %0, r0; }"
 		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(x));
 #endif
+#endif
 	return result;
 }
 
-MGPU_DEVICE int shfl_max(int x, int offset, int width = WARP_SIZE) {
+MGPU_DEVICE int shfl_max(int x, 
+		int offset, int width = WARP_SIZE, unsigned threadmask=MEMBERMASK) {
 	int result = 0;
-#if __CUDA_ARCH__ >= 300
+#ifdef USE_SHFL_SYNC
+	int mask = (WARP_SIZE - width)<< 8;
+	asm(
+		"{.reg .s32 r0;"
+		".reg .pred p;"
+		"shfl.sync.up.b32 r0|p, %1, %2, %3, %4;"
+		"@p max.s32 r0, r0, %5;"
+		"mov.s32 %0, r0; }"
+		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(threadmask), "r"(x));
+#else
+#if ( __CUDA_ARCH__ >= 300)
 	int mask = (WARP_SIZE - width)<< 8;
 	asm(
 		"{.reg .s32 r0;"
@@ -164,6 +197,7 @@ MGPU_DEVICE int shfl_max(int x, int offset, int width = WARP_SIZE) {
 		"@p max.s32 r0, r0, %4;"
 		"mov.s32 %0, r0; }"
 		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(x));
+#endif
 #endif
 	return result;
 }

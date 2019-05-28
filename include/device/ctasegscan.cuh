@@ -51,12 +51,12 @@ MGPU_DEVICE int DeviceFindSegScanDelta(int tid, bool flag, int* delta_shared) {
 	uint warpMask = 0xffffffff>> (31 - lane);		// inclusive search
 	uint ctaMask = 0x7fffffff>> (31 - lane);		// exclusive search
 
-	uint warpBits = __ballot(flag);
+	uint warpBits = ballot(flag);
 	delta_shared[warp] = warpBits;
 	__syncthreads();
 
 	if(tid < NumWarps) {
-		uint ctaBits = __ballot(0 != delta_shared[tid]);
+		uint ctaBits = ballot(0 != delta_shared[tid]);
 		int warpSegment = 31 - clz(ctaMask & ctaBits);
 		int start = (-1 != warpSegment) ? 
 			(31 - clz(delta_shared[warpSegment]) + 32 * warpSegment) : 0;

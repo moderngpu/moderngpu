@@ -149,6 +149,8 @@ struct cta_segsort_t {
     int ranges[nt];
   };
 
+  static_assert(is_pow2(nt), "cta_segsort_t requires pow2 number of threads");
+
   template<typename comp_t>
   MGPU_DEVICE kv_array_t<key_t, val_t, vt>
   merge_pass(kv_array_t<key_t, val_t, vt> x, int tid, int count, 

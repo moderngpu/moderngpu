@@ -3,6 +3,10 @@
 
 #include "operators.hxx"
 
+#ifndef __CUDACC__
+#error "You must compile this file with nvcc. You must."
+#endif
+
 BEGIN_MGPU_NAMESPACE
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -10,7 +14,7 @@ BEGIN_MGPU_NAMESPACE
 
 // Reverse the bits in an integer.
 MGPU_HOST_DEVICE unsigned brev(unsigned x) { 
-#if __CUDA_ARCH__ >= 200
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 200
   unsigned y = __brev(x);
 #else
   unsigned y = 0;
@@ -22,7 +26,7 @@ MGPU_HOST_DEVICE unsigned brev(unsigned x) {
 
 // Count number of bits in a register.
 MGPU_HOST_DEVICE int popc(unsigned x) {
-#if __CUDA_ARCH__ >= 200
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 200
   return __popc(x);
 #else
   int c;
@@ -34,7 +38,7 @@ MGPU_HOST_DEVICE int popc(unsigned x) {
 
 // Count leading zeros - start from most significant bit.
 MGPU_HOST_DEVICE int clz(int x) {
-#if __CUDA_ARCH__ >= 200
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 200
   return __clz(x);
 #else
   for(int i = 31; i >= 0; --i)
@@ -45,7 +49,7 @@ MGPU_HOST_DEVICE int clz(int x) {
 
 // Find first set - start from least significant bit. LSB is 1. ffs(0) is 0.
 MGPU_HOST_DEVICE int ffs(int x) {
-#if __CUDA_ARCH__ >= 200
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 200
   return __ffs(x);
 #else
   for(int i = 0; i < 32; ++i)
@@ -55,8 +59,8 @@ MGPU_HOST_DEVICE int ffs(int x) {
 }
 
 MGPU_HOST_DEVICE unsigned bfe(unsigned x, unsigned bit, unsigned num_bits) {
-  uint result;
-#if __CUDA_ARCH__ >= 200
+  unsigned result;
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 200
   asm("bfe.u32 %0, %1, %2, %3;" : 
     "=r"(result) : "r"(x), "r"(bit), "r"(num_bits));
 #else
@@ -68,7 +72,7 @@ MGPU_HOST_DEVICE unsigned bfe(unsigned x, unsigned bit, unsigned num_bits) {
 MGPU_HOST_DEVICE unsigned bfi(unsigned x, unsigned y, unsigned bit, 
   unsigned num_bits) {
   unsigned result;
-#if __CUDA_ARCH__ >= 200
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 200
   asm("bfi.b32 %0, %1, %2, %3, %4;" : 
     "=r"(result) : "r"(x), "r"(y), "r"(bit), "r"(num_bits));
 #else
@@ -82,7 +86,7 @@ MGPU_HOST_DEVICE unsigned bfi(unsigned x, unsigned y, unsigned bit,
 
 MGPU_HOST_DEVICE unsigned prmt(unsigned a, unsigned b, unsigned index) {
   unsigned result;
-#if __CUDA_ARCH__ >= 200
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 200
   asm("prmt.b32 %0, %1, %2, %3;" : "=r"(result) : "r"(a), "r"(b), "r"(index));
 #else
   result = 0;
@@ -105,9 +109,38 @@ MGPU_HOST_DEVICE int find_log2(int x, bool round_up = false) {
 } 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Divide operators.
+
+MGPU_HOST_DEVICE int mulhi(int a, int b) {
+#ifdef __CUDA_ARCH__
+  return __mulhi(a, b);
+#else
+  union {
+    int64_t x;
+    struct { int low, high; };
+  } product;
+  product.x = (int64_t)a * b;
+  return product.high;
+#endif
+}
+
+MGPU_HOST_DEVICE unsigned umulhi(unsigned a, unsigned b) {
+#ifdef __CUDA_ARCH__
+  return __mulhi(a, b);
+#else
+  union {
+    uint64_t x;
+    struct { unsigned low, high; };
+  } product;
+  product.x = (uint64_t)a * b;
+  return product.high; 
+#endif  
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Wrappers around PTX shfl_up and shfl_down.
 
-#if __CUDA_ARCH__ >= 300
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300
 
 template<typename type_t>
 MGPU_DEVICE type_t shfl_up(type_t x, int offset, int width = warp_size) { 

@@ -74,11 +74,8 @@ std::vector<type_t> from_mem(const mem_t<type_t>& mem) {
   return host;
 }
 
-template<typename func_t>
-auto fill_function(func_t f, size_t count, context_t& context) -> 
-  mem_t<decltype(f(0))> {
-
-  typedef decltype(f(0)) type_t;
+template<typename type_t, typename func_t>
+mem_t<type_t> fill_function(func_t f, size_t count, context_t& context) {
   mem_t<type_t> mem(count, context);
   type_t* p = mem.data();
   transform([=]MGPU_DEVICE(int index) {

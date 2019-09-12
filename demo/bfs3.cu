@@ -46,10 +46,9 @@ int bfs3(vertices_it vertices, edges_it edges, int* visited_bits,
 
   // The downsweep streams out the new edge pointers.
   mem_t<int> edge_indices(wl2_count.num_segments, context);
-  int* out_edge_indices_data = edge_indices.data();
   mem_t<int> segments = engine.downsweep(
     [=]MGPU_DEVICE(int dest_seg, int index, int seg, int rank, 
-      tuple<int> desc) {
+      tuple<int> desc, int* out_edge_indices) {
       // Return the same count as before and store output segment-specific
       // data using dest_seg.
       int neighbor = edges[get<0>(desc) + rank];
@@ -57,13 +56,13 @@ int bfs3(vertices_it vertices, edges_it edges, int* visited_bits,
       int end = vertices[neighbor + 1];
 
       // Store the pointer into the edges array for the new work segment.
-      out_edge_indices_data[dest_seg] = begin;
+      out_edge_indices[dest_seg] = begin;
 
       // Stream out the vertex index.
       frontier_vertices[dest_seg] = neighbor;
 
       return end - begin;
-    }, make_tuple(wl.edge_indices.data())
+    }, make_tuple(wl.edge_indices.data()), edge_indices.data()
   );
 
   // Update the workload.

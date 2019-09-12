@@ -8,6 +8,8 @@
 #include <cfloat>
 #include <cstdint>
 
+#ifdef __CUDACC__
+
 #ifndef MGPU_HOST_DEVICE
   #define MGPU_HOST_DEVICE __forceinline__ __device__ __host__
 #endif
@@ -27,6 +29,12 @@
   #define MGPU_LAMBDA __device__
 #endif
 
+#else // #ifndef __CUDACC__
+
+#define MGPU_HOST_DEVICE
+
+#endif // #ifdef __CUDACC__
+
 #ifndef PRAGMA_UNROLL
 #ifdef __CUDA_ARCH__
   #define PRAGMA_UNROLL #pragma PRAGMA_UNROLL
@@ -45,7 +53,7 @@ using enable_if_t = typename std::enable_if<B,T>::type;
 
 enum { warp_size = 32 };
 
-#if _MSC_VER <= 1800      // VS 2013 is terrible.
+#if defined(_MSC_VER) && _MSC_VER <= 1800      // VS 2013 is terrible.
 
 #define is_pow2(x) (0 == ((x) & ((x) - 1)))
 #define div_up(x, y) (((x) + (y) - 1) / (y))
@@ -93,15 +101,18 @@ MGPU_HOST_DEVICE constexpr size_t s_log2(size_t x, size_t p = 0) {
 
 // Apparently not defined by CUDA.
 template<typename real_t>
-MGPU_HOST_DEVICE real_t min(real_t a, real_t b) {
+MGPU_HOST_DEVICE constexpr real_t min(real_t a, real_t b) {
   return (b < a) ? b : a;
 }
 template<typename real_t>
-MGPU_HOST_DEVICE real_t max(real_t a, real_t b) {
+MGPU_HOST_DEVICE constexpr real_t max(real_t a, real_t b) {
   return (a < b) ? b : a;
 }
 
 struct empty_t { };
+
+template<typename... args_t>
+MGPU_HOST_DEVICE void swallow(args_t...) { }
 
 template<typename... base_v>
 struct inherit_t;
@@ -113,28 +124,59 @@ struct inherit_t<base_t, base_v...> :
 template<typename base_t>
 struct inherit_t<base_t> : base_t { };
 
+////////////////////////////////////////////////////////////////////////////////
+// Conditional typedefs. 
+
 // Typedef type_a if type_a is not empty_t.
 // Otherwise typedef type_b.
-template<typename type_a, typename type_b,
-  bool is_empty = std::is_same<type_a, empty_t>::value>
+template<typename type_a, typename type_b>
 struct conditional_typedef_t {
-  typedef type_a type_t;
-};
-template<typename type_a, typename type_b>
-struct conditional_typedef_t<type_a, type_b, true> {
-  typedef type_b type_t;
-};
-
-// If cond, type_t is type_a. Else type_t is type_b.
-template<bool cond, typename type_a, typename type_b>
-struct ternary_typedef_t {
-  typedef type_a type_t;
-};
-template<typename type_a, typename type_b>
-struct ternary_typedef_t<false, type_a, type_b> {
-  typedef type_b type_t;
+  typedef typename std::conditional<
+    !std::is_same<type_a, empty_t>::value, 
+    type_a, 
+    type_b
+  >::type type_t;
 };
 
+////////////////////////////////////////////////////////////////////////////////
+// Code to treat __restrict__ as a CV qualifier.
+
+template<typename arg_t>
+struct is_restrict {
+  enum { value = false };
+};
+template<typename arg_t>
+struct is_restrict<arg_t __restrict__> {
+  enum { value = true };
+};
+
+// Add __restrict__ only to pointers.
+template<typename arg_t>
+struct add_restrict {
+  typedef arg_t type;
+};
+template<typename arg_t>
+struct add_restrict<arg_t*> {
+  typedef arg_t* __restrict__ type;
+};
+
+template<typename arg_t>
+struct remove_restrict {
+  typedef arg_t type;
+};
+template<typename arg_t>
+struct remove_restrict<arg_t __restrict__> {
+  typedef arg_t type;
+};
+
+template<typename arg_t>
+MGPU_HOST_DEVICE typename add_restrict<arg_t>::type make_restrict(arg_t x) {
+  typename add_restrict<arg_t>::type y = x;
+  return y;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Template unrolled looping construct.
 
 template<int i, int count, bool valid = (i < count)>
 struct iterate_t {
@@ -171,8 +213,9 @@ MGPU_HOST_DEVICE void fill(type_t(&x)[count], type_t val) {
   iterate<count>([&](int i) { x[i] = val; });
 }
 
+#ifdef __CUDACC__
+
 // Invoke unconditionally.
-#pragma nv_exec_check_disable
 template<int nt, int vt, typename func_t>
 MGPU_DEVICE void strided_iterate(func_t f, int tid) {
   iterate<vt>([=](int i) { f(i, nt * i + tid); });
@@ -182,7 +225,7 @@ MGPU_DEVICE void strided_iterate(func_t f, int tid) {
 template<int nt, int vt, int vt0 = vt, typename func_t>
 MGPU_DEVICE void strided_iterate(func_t f, int tid, int count) {
   // Unroll the first vt0 elements of each thread.
-  if(count >= nt * vt0) {
+  if(vt0 > 1 && count >= nt * vt0) {
     strided_iterate<nt, vt0>(f, tid);    // No checking
   } else {
     iterate<vt0>([=](int i) {
@@ -200,5 +243,7 @@ template<int vt, typename func_t>
 MGPU_DEVICE void thread_iterate(func_t f, int tid) {
   iterate<vt>([=](int i) { f(i, vt * tid + i); });
 }
+
+#endif // ifdef __CUDACC__
 
 END_MGPU_NAMESPACE

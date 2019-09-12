@@ -2,7 +2,9 @@
 #pragma once
 
 #include "meta.hxx"
+#include "tuple.hxx"
 
+#ifdef __CUDA_ARCH__
 #if   __CUDA_ARCH__ == 530
   #define MGPU_SM_TAG sm_53
 #elif __CUDA_ARCH__ >= 520
@@ -21,9 +23,10 @@
   #define MGPU_SM_TAG sm_21
 #elif __CUDA_ARCH__ >= 200
   #define MGPU_SM_TAG sm_20
-#elif defined(__CUDA_ARCH__)
-  #error "Modern GPU v3 does not support builds for sm_1.x"
 #else
+  #error "Modern GPU v3 does not support builds for sm_1.x"
+#endif
+#else // __CUDA_ARCH__
   #define MGPU_SM_TAG sm_00
 #endif
 
@@ -42,16 +45,36 @@ struct MGPU_ALIGN(8) cta_dim_t {
   }
 };
 
+namespace detail {
+
+// Due to a bug in the compiler we need to expand make_restrict() before
+// branching on cta < num_ctas.
+template<typename func_t, typename... args_t>
+MGPU_DEVICE void restrict_forward(func_t f, int tid, int cta, int num_ctas,
+  args_t... args) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 300
+  if(cta < num_ctas) 
+#endif 
+    f(tid, cta, args...);
+}
+
+}
+
 // Generic thread cta kernel.
 template<typename launch_box, typename func_t, typename... args_t>
 __global__ MGPU_LAUNCH_BOUNDS(launch_box)
-void launch_box_cta_k(func_t f, args_t... args) {
+void launch_box_cta_k(func_t f, int num_ctas, args_t... args) {
   // Masking threadIdx.x by (nt - 1) may help strength reduction because the
   // compiler now knows the range of tid: (0, nt).
   typedef typename launch_box::sm_ptx params_t;
-  int tid = (params_t::nt - 1) & threadIdx.x;
+  int tid = (int)(threadIdx.x % (unsigned)params_t::nt);
   int cta = blockIdx.x;
-  f(tid, cta, args...);
+
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 300
+  cta += gridDim.x * blockIdx.y;
+#endif
+
+  detail::restrict_forward(f, tid, cta, num_ctas, make_restrict(args)...);
 }
 
 // Dummy kernel for retrieving PTX version.
@@ -63,16 +86,16 @@ struct launch_cta_t {
   enum { nt = nt_, vt = vt_, vt0 = vt0_, occ = occ_ };
 };
 
-#define DEF_ARCH_STRUCT(ver) \
-  template<typename params_t, typename base_t = empty_t> \
-  struct arch_##ver : base_t { \
-    typedef params_t sm_##ver; \
- \
-    template<typename new_base_t> \
-    using rebind = arch_##ver<params_t, new_base_t>; \
-  }; \
-  \
-  template<int nt, int vt = 1, int vt0 = vt, int occ = 0> \
+#define DEF_ARCH_STRUCT(ver)                                                  \
+  template<typename params_t, typename base_t = empty_t>                      \
+  struct arch_##ver : base_t {                                                \
+    typedef params_t sm_##ver;                                                \
+                                                                              \
+    template<typename new_base_t>                                             \
+    using rebind = arch_##ver<params_t, new_base_t>;                          \
+  };                                                                          \
+                                                                              \
+  template<int nt, int vt = 1, int vt0 = vt, int occ = 0>                     \
   using arch_##ver##_cta = arch_##ver<launch_cta_t<nt, vt, vt0, occ> >;
 
 DEF_ARCH_STRUCT(20)

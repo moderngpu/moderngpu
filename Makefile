@@ -4,14 +4,14 @@
 # Generate SASS for important minor versions.
 # Generate PTX for the last named architecture for future support.
 ARCH=\
+  -gencode arch=compute_20,code=compute_20 \
   -gencode arch=compute_20,code=sm_20 \
-  -gencode arch=compute_30,code=sm_30 \
+  -gencode arch=compute_35,code=compute_35 \
   -gencode arch=compute_35,code=sm_35 \
- 	-gencode arch=compute_50,code=sm_50 \
-	-gencode arch=compute_52,code=sm_52 \
-	-gencode arch=compute_52,code=compute_52
+  -gencode arch=compute_52,code=compute_52 \
+  -gencode arch=compute_52,code=sm_52
 
-OPTIONS=-std=c++11 -O2 -g -Xcompiler="-Werror" -lineinfo  --expt-extended-lambda -use_fast_math -Xptxas="-v" -I src
+OPTIONS=-std=c++11 -Xcompiler="-Wundef" -O2 -g -Xcompiler="-Werror" -lineinfo  --expt-extended-lambda -use_fast_math -Xptxas="-v" -I src
 
 all: \
 	tests \

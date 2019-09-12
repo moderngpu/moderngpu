@@ -8,14 +8,17 @@ int main(int argc, char** argv) {
 
   standard_context_t context;
 
+  typedef launch_params_t<32 * 6, 11> launch_t;
+
   for(int count = 1000; count < 23456789; count += count / 100) {
-    mem_t<int> input = fill_random(0, 100, count, false, context);
+    mem_t<int> input = // fill_random(0, 100, count, false, context);
+      fill(1, count, context);
     const int* input_data = input.data();
 
     mem_t<int> reduction(1, context);
 
-    // reduce()
-    reduce(input_data, count, reduction.data(), plus_t<int>(), context);
+    reduce<launch_t>(input_data, count, reduction.data(), plus_t<int>(), 
+      context);
     context.synchronize();
     std::vector<int> result1 = from_mem(reduction);
 
@@ -34,7 +37,7 @@ int main(int argc, char** argv) {
       printf("transform_reduce: %d\n", result2[0]);
       printf("std::accumulate:  %d\n", ref);
       printf("ERROR AT COUNT = %d\n", count);
-      exit(0);
+      exit(1);
     } else
       printf("Reduction for count %d success\n", count);
   }

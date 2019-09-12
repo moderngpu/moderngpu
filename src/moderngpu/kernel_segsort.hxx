@@ -83,6 +83,7 @@ struct segsort_t {
     // Block sort the input. The position of the first and last segment 
     // descriptors are stored to merge_ranges.
 
+    comp_t comp = this->comp;
     int count = this->count;
     key_t* keys_blocksort = this->keys_blocksort;
     val_t* vals_blocksort = this->vals_blocksort;
@@ -126,7 +127,7 @@ struct segsort_t {
       }
 
       // Blocksort.
-      range_t active;
+      range_t active { };
       kv_array_t<key_t, val_t, vt> sorted = sort_t().block_sort(unsorted,
         tid, tile.count(), head_flags, active, comp, shared.sort);
 
@@ -155,6 +156,7 @@ struct segsort_t {
     ////////////////////////////////////////////////////////////////////////////
     // Execute a partitioning and a merge for each mergesort pass.
 
+    comp_t comp = this->comp;
     int num_ranges = num_ctas;
     int num_partitions = num_ctas + 1;
     int count = this->count;

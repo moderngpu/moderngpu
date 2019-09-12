@@ -58,26 +58,24 @@ MGPU_HOST_DEVICE merge_range_t compute_merge_range(int a_count, int b_count,
   return merge_range_t { mp0, mp1, diag0 - mp0, diag1 - mp1 };
 }
 
-// TODO: Modify load_two_streams_mem to take merge_range_t.
 
+// Specialization that emits just one LD instruction. Can only reliably used
+// with raw pointer types. Fixed not to use pointer arithmetic so that 
+// we don't get undefined behaviors with unaligned types.
 template<int nt, int vt, typename type_t>
-MGPU_DEVICE array_t<type_t, vt> load_two_streams_reg(const type_t* a, 
-  int a_count, const type_t* b, int b_count, int tid) {
+MGPU_DEVICE array_t<type_t, vt> 
+load_two_streams_reg(const type_t* a, int a_count, 
+  const type_t* b, int b_count, int tid) {
 
-  // Locate the start of the b array from the start of the a array, and
-  // subtract a_count. This lets us index into a to read both a and b values.
-  ptrdiff_t b_offset = b - a - a_count;
-  int total = a_count + b_count;
-
+  b -= a_count;
   array_t<type_t, vt> x;
   strided_iterate<nt, vt>([&](int i, int index) {
-    if(index >= a_count) index += b_offset;
-    x[i] = a[index];
-  }, tid, total);
+    const type_t* p = (index >= a_count) ? b : a;
+    x[i] = p[index];
+  }, tid, a_count + b_count);
 
-  return x;
+  return x;  
 }
-
 
 template<int nt, int vt, typename type_t, typename a_it, typename b_it>
 MGPU_DEVICE 

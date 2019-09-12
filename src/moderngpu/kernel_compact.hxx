@@ -64,7 +64,7 @@ public:
 
       // Reduce the values and store to global memory.
       int total_stream = reduce_t().reduce(tid, popc(stream_bits), 
-        shared.reduce, false);
+        shared.reduce, nt, plus_t<int>(), false);
 
       bits_data[nt * cta + tid] = stream_bits;
       if(!tid) cta_offsets_data[cta] = total_stream;

@@ -192,7 +192,7 @@ struct cta_scan_t<nt, bool> {
     int lane = (warp_size - 1) & tid;
     int warp = tid / warp_size;
 
-    int bits = __ballot(x);
+    int bits = ballot(x);
     storage.warps[warp] = popc(bits);
     __syncthreads();
 

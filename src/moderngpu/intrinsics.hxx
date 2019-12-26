@@ -165,7 +165,7 @@ MGPU_HOST_DEVICE unsigned umulhi(unsigned a, unsigned b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300
 
 template<typename type_t>
-MGPU_DEVICE type_t shfl_up(type_t x, int offset, int width = warp_size, unsigned mask = MEMBERMASK) { 
+MGPU_DEVICE type_t shfl_up(type_t x, int offset, int width = warp_size) { 
   enum { num_words = div_up(sizeof(type_t), sizeof(int)) };
   union {
     int x[num_words];
@@ -176,7 +176,7 @@ MGPU_DEVICE type_t shfl_up(type_t x, int offset, int width = warp_size, unsigned
   iterate<num_words>([&](int i) {
     #ifdef USE_SHFL_SYNC
     if (i < width) {
-      mask = __activemask();
+      unsigned mask = __activemask();
       u.x[i] = __shfl_up_sync(mask, u.x[i], offset);
     }
     #else
@@ -187,7 +187,7 @@ MGPU_DEVICE type_t shfl_up(type_t x, int offset, int width = warp_size, unsigned
 }
 
 template<typename type_t>
-MGPU_DEVICE type_t shfl_down(type_t x, int offset, int width = warp_size, unsigned mask = MEMBERMASK) { 
+MGPU_DEVICE type_t shfl_down(type_t x, int offset, int width = warp_size) { 
   enum { num_words = div_up(sizeof(type_t), sizeof(int)) };
   union {
     int x[num_words];
@@ -198,7 +198,7 @@ MGPU_DEVICE type_t shfl_down(type_t x, int offset, int width = warp_size, unsign
   iterate<num_words>([&](int i) {
     #ifdef USE_SHFL_SYNC
     if (i < width) {
-      mask = __activemask();
+      unsigned mask = __activemask();
       u.x[i] = __shfl_down_sync(mask, u.x[i], offset);
     }
     #else
@@ -210,7 +210,7 @@ MGPU_DEVICE type_t shfl_down(type_t x, int offset, int width = warp_size, unsign
 
 template<typename type_t, typename op_t> 
 MGPU_DEVICE type_t shfl_up_op(type_t x, int offset, op_t op, 
-  int width = warp_size, unsigned mask = MEMBERMASK) {
+  int width = warp_size) {
 
   type_t y = shfl_up(x, offset, width);
   int lane = (width - 1) & threadIdx.x;
@@ -220,7 +220,7 @@ MGPU_DEVICE type_t shfl_up_op(type_t x, int offset, op_t op,
 
 template<typename type_t, typename op_t> 
 MGPU_DEVICE type_t shfl_down_op(type_t x, int offset, op_t op, 
-  int width = warp_size, unsigned mask = MEMBERMASK) {
+  int width = warp_size) {
 
   type_t y = shfl_down(x, offset, width);
   int lane = (width - 1) & threadIdx.x;
@@ -231,7 +231,7 @@ MGPU_DEVICE type_t shfl_down_op(type_t x, int offset, op_t op,
 #ifdef USE_SHFL_SYNC
 #define SHFL_OP_MACRO(dir, is_up, ptx_type, r, c_type, ptx_op, c_op) \
 MGPU_DEVICE inline c_type shfl_##dir##_op(c_type x, int offset, \
-  c_op<c_type> op, int width = warp_size, unsigned fullmask=MEMBERMASK) { \
+  c_op<c_type> op, int width = warp_size) { \
   c_type result = x; \
   int mask = (warp_size - width)<< 8 | (is_up ? 0 : (width - 1)); \
   int lane = threadIdx.x & (warp_size - 1); \
@@ -290,7 +290,7 @@ SHFL_OP_MACRO(down, false, f32, f, float, max, minimum_t)
 #ifdef USE_SHFL_SYNC
 #define SHFL_OP_64b_MACRO(dir, is_up, ptx_type, r, c_type, ptx_op, c_op) \
 MGPU_DEVICE inline c_type shfl_##dir##_op(c_type x, int offset, \
-  c_op<c_type> op, int width = warp_size, unsigned fullmask=MEMBERMASK) { \
+  c_op<c_type> op, int width = warp_size) { \
   c_type result = x; \
   int mask = (warp_size - width)<< 8 | (is_up ? 0 : (width - 1)); \
   int lane = threadIdx.x & (warp_size - 1); \

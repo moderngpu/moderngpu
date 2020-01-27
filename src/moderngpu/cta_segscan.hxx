@@ -36,7 +36,8 @@ struct cta_segscan_t {
     __syncthreads();
 
     if(tid < num_warps) {
-      int cta_bits = ballot(0 != storage.delta[tid]);
+      unsigned mask = __activemask();
+      int cta_bits = ballot(0 != storage.delta[tid], mask);
       int warp_segment = 31 - clz(cta_mask & cta_bits);
       int start = (-1 != warp_segment) ?
         (31 - clz(storage.delta[warp_segment]) + 32 * warp_segment) : 0;

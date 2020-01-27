@@ -175,7 +175,10 @@ MGPU_DEVICE type_t shfl_up(type_t x, int offset, int width = warp_size) {
 
   iterate<num_words>([&](int i) {
     #ifdef USE_SHFL_SYNC
-    u.x[i] = __shfl_up_sync(u.x[i], offset, width);
+    if (i < width) {
+      unsigned mask = __activemask();
+      u.x[i] = __shfl_up_sync(mask, u.x[i], offset);
+    }
     #else
     u.x[i] = __shfl_up(u.x[i], offset, width);
     #endif
@@ -194,7 +197,10 @@ MGPU_DEVICE type_t shfl_down(type_t x, int offset, int width = warp_size) {
 
   iterate<num_words>([&](int i) {
     #ifdef USE_SHFL_SYNC
-    u.x[i] = __shfl_down_sync(u.x[i], offset, width);
+    if (i < width) {
+      unsigned mask = __activemask();
+      u.x[i] = __shfl_down_sync(mask, u.x[i], offset);
+    }
     #else
     u.x[i] = __shfl_down(u.x[i], offset, width);
     #endif
@@ -222,13 +228,15 @@ MGPU_DEVICE type_t shfl_down_op(type_t x, int offset, op_t op,
   return x;
 }
 
-
 #ifdef USE_SHFL_SYNC
 #define SHFL_OP_MACRO(dir, is_up, ptx_type, r, c_type, ptx_op, c_op) \
 MGPU_DEVICE inline c_type shfl_##dir##_op(c_type x, int offset, \
-  c_op<c_type> op, int width = warp_size, unsigned threadmask=MEMBERMASK) { \
-  c_type result = c_type(); \
+  c_op<c_type> op, int width = warp_size) { \
+  c_type result = x; \
   int mask = (warp_size - width)<< 8 | (is_up ? 0 : (width - 1)); \
+  int lane = threadIdx.x & (warp_size - 1); \
+  if (lane < width) { \
+  unsigned threadmask = __activemask(); \
   asm( \
     "{.reg ."#ptx_type" r0;" \
     ".reg .pred p;" \
@@ -236,6 +244,7 @@ MGPU_DEVICE inline c_type shfl_##dir##_op(c_type x, int offset, \
     "@p "#ptx_op"."#ptx_type" r0, r0, %5;" \
     "mov."#ptx_type" %0, r0; }" \
     : "="#r(result) : #r(x), "r"(offset), "r"(mask), "r"(threadmask), #r(x)); \
+  } \
   return result; \
 }
 #else
@@ -281,9 +290,12 @@ SHFL_OP_MACRO(down, false, f32, f, float, max, minimum_t)
 #ifdef USE_SHFL_SYNC
 #define SHFL_OP_64b_MACRO(dir, is_up, ptx_type, r, c_type, ptx_op, c_op) \
 MGPU_DEVICE inline c_type shfl_##dir##_op(c_type x, int offset, \
-  c_op<c_type> op, int width = warp_size, unsigned threadmask=MEMBERMASK) { \
-  c_type result = c_type(); \
+  c_op<c_type> op, int width = warp_size) { \
+  c_type result = x; \
   int mask = (warp_size - width)<< 8 | (is_up ? 0 : (width - 1)); \
+  int lane = threadIdx.x & (warp_size - 1); \
+  if (lane < width) { \
+  unsigned threadmask = __activemask(); \
   asm( \
     "{.reg ."#ptx_type" r0;" \
     ".reg .u32 lo;" \
@@ -297,6 +309,7 @@ MGPU_DEVICE inline c_type shfl_##dir##_op(c_type x, int offset, \
     "mov."#ptx_type" %0, r0; }" \
     : "="#r(result) : #r(x), "r"(offset), "r"(mask), "r"(threadmask), #r(x) \
   ); \
+  } \
   return result; \
 }
 #else

@@ -5,7 +5,17 @@
 #include "tuple.hxx"
 
 #ifdef __CUDA_ARCH__
-#if   __CUDA_ARCH__ == 530
+#if   __CUDA_ARCH__ == 750
+  #define MGPU_SM_TAG sm_75
+#elif __CUDA_ARCH__ >= 700
+  #define MGPU_SM_TAG sm_70
+#elif __CUDA_ARCH__ == 620
+  #define MGPU_SM_TAG sm_62
+#elif __CUDA_ARCH__ >= 610
+  #define MGPU_SM_TAG sm_61
+#elif __CUDA_ARCH__ >= 600
+  #define MGPU_SM_TAG sm_60
+#elif __CUDA_ARCH__ == 530
   #define MGPU_SM_TAG sm_53
 #elif __CUDA_ARCH__ >= 520
   #define MGPU_SM_TAG sm_52
@@ -107,6 +117,11 @@ DEF_ARCH_STRUCT(37)
 DEF_ARCH_STRUCT(50)
 DEF_ARCH_STRUCT(52)
 DEF_ARCH_STRUCT(53)
+DEF_ARCH_STRUCT(60)
+DEF_ARCH_STRUCT(61)
+DEF_ARCH_STRUCT(62)
+DEF_ARCH_STRUCT(70)
+DEF_ARCH_STRUCT(75)
 
 #undef DEF_ARCH_STRUCT
 

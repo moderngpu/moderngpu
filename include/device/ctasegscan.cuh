@@ -56,7 +56,7 @@ MGPU_DEVICE int DeviceFindSegScanDelta(int tid, bool flag, int* delta_shared) {
 	__syncthreads();
 
 	if(tid < NumWarps) {
-		uint ctaBits = ballot(0 != delta_shared[tid]);
+		uint ctaBits = ballot(0 != delta_shared[tid], (1 << NumWarps) - 1);
 		int warpSegment = 31 - clz(ctaMask & ctaBits);
 		int start = (-1 != warpSegment) ? 
 			(31 - clz(delta_shared[warpSegment]) + 32 * warpSegment) : 0;

@@ -99,6 +99,12 @@ MGPU_HOST_DEVICE constexpr size_t s_log2(size_t x, size_t p = 0) {
   #define MGPU_ALIGN(x) __attribute__((aligned(x)))
 #endif
 
+#ifdef _MSC_VER
+  #define MGPU_ALIGN_MAX __declspec(align)
+#else
+  #define MGPU_ALIGN_MAX __attribute__((aligned))
+#endif
+
 // Apparently not defined by CUDA.
 template<typename real_t>
 MGPU_HOST_DEVICE constexpr real_t min(real_t a, real_t b) {

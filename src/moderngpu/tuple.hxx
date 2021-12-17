@@ -253,7 +253,7 @@ struct tuple : detail::tuple_impl<0, args_t...> {
     >::type
   > MGPU_HOST_DEVICE  
   tuple(const args2_t&... args) : impl_t(args...) { }
-} __attribute__((aligned));
+} MGPU_ALIGN_MAX;
 
 namespace detail {
 

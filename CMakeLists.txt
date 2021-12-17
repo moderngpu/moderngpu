@@ -50,7 +50,7 @@ set_target_properties(MODERNGPU
         CUDA_EXTENSIONS OFF
         CUDA_RESOLVE_DEVICE_SYMBOLS ON
         CUDA_SEPARABLE_COMPILATION ON
-        CUDA_ARCHITECTURES 60 61 70 75 80 86 # Set required architecture.
+        CUDA_ARCHITECTURES 60 61 70 75 80 # Set required architecture.
         # CUDA_PTX_COMPILATION ON # Can only be applied to OBJ.
 )
 

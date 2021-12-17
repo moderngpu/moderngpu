@@ -4,8 +4,6 @@
 # Generate SASS for important minor versions.
 # Generate PTX for the last named architecture for future support.
 ARCH=\
-  -gencode arch=compute_20,code=compute_20 \
-  -gencode arch=compute_20,code=sm_20 \
   -gencode arch=compute_35,code=compute_35 \
   -gencode arch=compute_35,code=sm_35 \
   -gencode arch=compute_52,code=compute_52 \

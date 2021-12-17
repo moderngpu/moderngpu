@@ -7,7 +7,7 @@
 std::unique_ptr<graph_t> load_graph(const char* name) {
 
   FILE* f = fopen(name, "r");
-  if(!f) return false;
+  if(!f) return nullptr;
 
   char line[100];
   while(fgets(line, 100, f) && '%' == line[0]);

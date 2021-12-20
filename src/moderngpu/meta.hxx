@@ -151,10 +151,11 @@ template<typename arg_t>
 struct is_restrict {
   enum { value = false };
 };
-template<typename arg_t>
-struct is_restrict<arg_t __restrict__> {
-  enum { value = true };
-};
+
+// template<typename arg_t>
+// struct is_restrict<arg_t __restrict__> {
+//   enum { value = true };
+// };
 
 // Add __restrict__ only to pointers.
 template<typename arg_t>
@@ -170,10 +171,11 @@ template<typename arg_t>
 struct remove_restrict {
   typedef arg_t type;
 };
-template<typename arg_t>
-struct remove_restrict<arg_t __restrict__> {
-  typedef arg_t type;
-};
+
+// template<typename arg_t>
+// struct remove_restrict<arg_t __restrict__> {
+//   typedef arg_t type;
+// };
 
 template<typename arg_t>
 MGPU_HOST_DEVICE typename add_restrict<arg_t>::type make_restrict(arg_t x) {

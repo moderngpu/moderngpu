@@ -100,7 +100,7 @@ MGPU_HOST_DEVICE constexpr size_t s_log2(size_t x, size_t p = 0) {
 #endif
 
 #ifdef _MSC_VER
-  #define MGPU_ALIGN_MAX __declspec(align(8192))
+  #define MGPU_ALIGN_MAX // __declspec(align(8192))
 #else
   #define MGPU_ALIGN_MAX __attribute__((aligned))
 #endif

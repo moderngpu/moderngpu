@@ -147,16 +147,6 @@ struct conditional_typedef_t {
 ////////////////////////////////////////////////////////////////////////////////
 // Code to treat __restrict__ as a CV qualifier.
 
-template<typename arg_t>
-struct is_restrict {
-  enum { value = false };
-};
-
-// template<typename arg_t>
-// struct is_restrict<arg_t __restrict__> {
-//   enum { value = true };
-// };
-
 // XXX: Results in a bug w/ MSC.
 // Add __restrict__ only to pointers.
 template<typename arg_t>
@@ -167,17 +157,6 @@ template<typename arg_t>
 struct add_restrict<arg_t*> {
   typedef arg_t* __restrict__ type;
 };
-
-template<typename arg_t>
-struct remove_restrict {
-  typedef arg_t type;
-};
-
-// XXX: Results in a bug w/ MSC.
-// template<typename arg_t>
-// struct remove_restrict<arg_t __restrict__> {
-//   typedef arg_t type;
-// };
 
 template<typename arg_t>
 MGPU_HOST_DEVICE typename add_restrict<arg_t>::type make_restrict(arg_t x) {

@@ -88,7 +88,6 @@ target_include_directories(MODERNGPU
 ############ TARGET LINK LIBRARIES #################
 ####################################################
 target_link_libraries(MODERNGPU
-    # INTERFACE curand
     INTERFACE cuda
 )
 
@@ -132,20 +131,18 @@ target_compile_options(MODERNGPU INTERFACE
 ####################################################
 option(MODERNGPU_BUILD_DEMO
   "If on, builds the moderngpu demo."
-  OFF)
+  ON)
 
 option(MODERNGPU_BUILD_TUTORIAL
   "If on, builds the moderngpu tutorials."
-  OFF)
+  ON)
 
 # Subdirectories for examples, testing and documentation
 if(MODERNGPU_BUILD_DEMO)
-    message(ERROR "Not implemented yet")
     add_subdirectory(demo)
 endif(MODERNGPU_BUILD_DEMO)
 
 if(MODERNGPU_BUILD_TUTORIAL)
-    message(ERROR "Not implemented yet")
     add_subdirectory(tutorial)
 endif(MODERNGPU_BUILD_TUTORIAL)
 

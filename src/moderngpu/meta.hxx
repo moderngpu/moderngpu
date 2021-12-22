@@ -100,7 +100,7 @@ MGPU_HOST_DEVICE constexpr size_t s_log2(size_t x, size_t p = 0) {
 #endif
 
 #ifdef _MSC_VER
-  #define MGPU_ALIGN_MAX __declspec(align)
+  #define MGPU_ALIGN_MAX __declspec(align(8192))
 #else
   #define MGPU_ALIGN_MAX __attribute__((aligned))
 #endif
@@ -157,6 +157,7 @@ struct is_restrict {
 //   enum { value = true };
 // };
 
+// XXX: Results in a bug w/ MSC.
 // Add __restrict__ only to pointers.
 template<typename arg_t>
 struct add_restrict {
@@ -172,6 +173,7 @@ struct remove_restrict {
   typedef arg_t type;
 };
 
+// XXX: Results in a bug w/ MSC.
 // template<typename arg_t>
 // struct remove_restrict<arg_t __restrict__> {
 //   typedef arg_t type;

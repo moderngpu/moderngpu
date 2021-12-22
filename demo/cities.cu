@@ -262,7 +262,7 @@ int main(int argc, char** argv) {
   std::vector<int> indices = from_mem(results->indices);
 
   // Print the state, city, and its d-closest cities in the same state.
-  auto print_city([&](best_t<d> distance, int state, int city, FILE* f) {
+  auto print_city = [&](best_t<d> distance, int state, int city, FILE* f) {
     fprintf(f, "%2s %15.15s", db.states[state].c_str(), 
       db.cities[city].city_name.c_str());   // print the state and city name.
 
@@ -274,7 +274,7 @@ int main(int argc, char** argv) {
           db.cities[term.index].city_name.c_str(), term.score);
     }
     fprintf(f, "\n");
-  });
+  };
 
   int num_states = (int)db.states.size();
   for(int state = 0, city = 0; state < num_states; ++state) {

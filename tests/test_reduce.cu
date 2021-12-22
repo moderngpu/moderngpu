@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
 
   for(int count = 1000; count < 23456789; count += count / 100) {
     mem_t<int> input = // fill_random(0, 100, count, false, context);
-      fill(1, count, context);
+    fill(1, count, context);
     const int* input_data = input.data();
 
     mem_t<int> reduction(1, context);
@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
     // transform_reduce()
     // construct a lambda that returns input_data[index].
     auto f = [=]MGPU_DEVICE(int index) { return input_data[index]; };
-    //transform_reduce(f, count, reduction.data(), plus_t<int>(), context);
+    transform_reduce(f, count, reduction.data(), plus_t<int>(), context);
     std::vector<int> result2 = from_mem(reduction);
 
     // host reduce using std::accumulate.

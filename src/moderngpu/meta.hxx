@@ -37,7 +37,7 @@
 
 #ifndef PRAGMA_UNROLL
 #ifdef __CUDA_ARCH__
-  #define PRAGMA_UNROLL #pragma PRAGMA_UNROLL
+  #define PRAGMA_UNROLL #pragma unroll
 #else
   #define PRAGMA_UNROLL
 #endif
@@ -93,10 +93,20 @@ MGPU_HOST_DEVICE constexpr size_t s_log2(size_t x, size_t p = 0) {
 
 #endif
 
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
+
 #ifdef _MSC_VER
   #define MGPU_ALIGN(x) __declspec(align(x))
 #else
   #define MGPU_ALIGN(x) __attribute__((aligned(x)))
+#endif
+
+#ifdef _MSC_VER
+  #define MGPU_ALIGN_MAX // __declspec(align(8192))
+#else
+  #define MGPU_ALIGN_MAX __attribute__((aligned))
 #endif
 
 // Apparently not defined by CUDA.
@@ -141,15 +151,7 @@ struct conditional_typedef_t {
 ////////////////////////////////////////////////////////////////////////////////
 // Code to treat __restrict__ as a CV qualifier.
 
-template<typename arg_t>
-struct is_restrict {
-  enum { value = false };
-};
-template<typename arg_t>
-struct is_restrict<arg_t __restrict__> {
-  enum { value = true };
-};
-
+// XXX: Results in a bug w/ MSC.
 // Add __restrict__ only to pointers.
 template<typename arg_t>
 struct add_restrict {
@@ -158,15 +160,6 @@ struct add_restrict {
 template<typename arg_t>
 struct add_restrict<arg_t*> {
   typedef arg_t* __restrict__ type;
-};
-
-template<typename arg_t>
-struct remove_restrict {
-  typedef arg_t type;
-};
-template<typename arg_t>
-struct remove_restrict<arg_t __restrict__> {
-  typedef arg_t type;
 };
 
 template<typename arg_t>

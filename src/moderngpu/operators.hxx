@@ -49,37 +49,37 @@ MGPU_HOST_DEVICE void swap(type_t& a, type_t& b) {
 // Device-side comparison operators.
 
 template<typename type_t>
-struct less_t : public std::binary_function<type_t, type_t, bool> {
+struct less_t /*: public std::binary_function<type_t, type_t, bool>*/ {
   MGPU_HOST_DEVICE bool operator()(type_t a, type_t b) const {
     return a < b;
   }
 };
 template<typename type_t>
-struct less_equal_t : public std::binary_function<type_t, type_t, bool> {
+struct less_equal_t /*: public std::binary_function<type_t, type_t, bool>*/ {
   MGPU_HOST_DEVICE bool operator()(type_t a, type_t b) const {
     return a <= b;
   }
 };
 template<typename type_t>
-struct greater_t : public std::binary_function<type_t, type_t, bool> {
+struct greater_t /*: public std::binary_function<type_t, type_t, bool>*/ {
   MGPU_HOST_DEVICE bool operator()(type_t a, type_t b) const {
     return a > b;
   }
 };
 template<typename type_t>
-struct greater_equal_t : public std::binary_function<type_t, type_t, bool> {
+struct greater_equal_t /*: public std::binary_function<type_t, type_t, bool>*/ {
   MGPU_HOST_DEVICE bool operator()(type_t a, type_t b) const {
     return a >= b;
   }
 };
 template<typename type_t>
-struct equal_to_t : public std::binary_function<type_t, type_t, bool> {
+struct equal_to_t /*: public std::binary_function<type_t, type_t, bool>*/ {
   MGPU_HOST_DEVICE bool operator()(type_t a, type_t b) const {
     return a == b;
   }
 };
 template<typename type_t>
-struct not_equal_to_t : public std::binary_function<type_t, type_t, bool> {
+struct not_equal_to_t /*: public std::binary_function<type_t, type_t, bool>*/ {
   MGPU_HOST_DEVICE bool operator()(type_t a, type_t b) const {
     return a != b;
   }
@@ -89,35 +89,35 @@ struct not_equal_to_t : public std::binary_function<type_t, type_t, bool> {
 // Device-side arithmetic operators.
 
 template<typename type_t>
-struct plus_t : public std::binary_function<type_t, type_t, type_t> {
+struct plus_t /*: public std::binary_function<type_t, type_t, type_t>*/ {
 	MGPU_HOST_DEVICE type_t operator()(type_t a, type_t b) const {
     return a + b;
   }
 };
 
 template<typename type_t>
-struct minus_t : public std::binary_function<type_t, type_t, type_t> {
+struct minus_t /*: public std::binary_function<type_t, type_t, type_t>*/ {
 	MGPU_HOST_DEVICE type_t operator()(type_t a, type_t b) const {
     return a - b;
   }
 };
 
 template<typename type_t>
-struct multiplies_t : public std::binary_function<type_t, type_t, type_t> {
+struct multiplies_t /*: public std::binary_function<type_t, type_t, type_t>*/ {
   MGPU_HOST_DEVICE type_t operator()(type_t a, type_t b) const {
     return a * b;
   }
 };
 
 template<typename type_t>
-struct maximum_t  : public std::binary_function<type_t, type_t, type_t> {
+struct maximum_t  /*: public std::binary_function<type_t, type_t, type_t>*/ {
   MGPU_HOST_DEVICE type_t operator()(type_t a, type_t b) const {
     return max(a, b);
   }
 };
 
 template<typename type_t>
-struct minimum_t  : public std::binary_function<type_t, type_t, type_t> {
+struct minimum_t  /*: public std::binary_function<type_t, type_t, type_t>*/ {
   MGPU_HOST_DEVICE type_t operator()(type_t a, type_t b) const {
     return min(a, b);
   }

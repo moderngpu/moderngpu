@@ -9,7 +9,7 @@ BEGIN_MGPU_NAMESPACE
 struct launch_box_default_t {
   typedef launch_cta_t<0, 0, 0> sm_00;
   typedef empty_t sm_20, sm_21, sm_30, sm_32, sm_35, sm_37, sm_50, sm_52, sm_53,
-    sm_60, sm_61, sm_62, sm_70, sm_75;
+    sm_60, sm_61, sm_62, sm_70, sm_75, sm_80, sm_86;
 
   template<typename new_base_t>
   using rebind = launch_box_default_t;
@@ -41,15 +41,19 @@ struct launch_box_t : inherit_t<params_v..., launch_box_default_t> {
   INHERIT_LAUNCH_PARAMS(62, 60)
   INHERIT_LAUNCH_PARAMS(70, 62)
   INHERIT_LAUNCH_PARAMS(75, 70)
+  INHERIT_LAUNCH_PARAMS(80, 75)
+  INHERIT_LAUNCH_PARAMS(86, 80)
 
   // Overwrite the params defined for sm_00 so that the host-side compiler
   // has all expected symbols available to it.
-  typedef sm_75 sm_00;
+  typedef sm_86 sm_00;
   typedef MGPU_LAUNCH_PARAMS(launch_box_t) sm_ptx;
 
   static cta_dim_t cta_dim(int ptx_version) {
     // Ptx version from cudaFuncGetAttributes.
-    if     (ptx_version == 75) return cta_dim_t { sm_75::nt, sm_75::vt };
+    if     (ptx_version == 86) return cta_dim_t { sm_86::nt, sm_86::vt };
+    else if(ptx_version == 80) return cta_dim_t { sm_80::nt, sm_80::vt };
+    else if(ptx_version == 75) return cta_dim_t { sm_75::nt, sm_75::vt };
     else if(ptx_version >= 70) return cta_dim_t { sm_70::nt, sm_70::vt };
     else if(ptx_version == 62) return cta_dim_t { sm_62::nt, sm_62::vt };
     else if(ptx_version >= 61) return cta_dim_t { sm_61::nt, sm_61::vt };

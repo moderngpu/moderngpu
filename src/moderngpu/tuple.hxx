@@ -224,7 +224,7 @@ const tuple_leaf<i, arg_t>& get_leaf(const tuple_leaf<i, arg_t>& leaf) {
 } // namespace detail
 
 template<typename... args_t>
-struct tuple : detail::tuple_impl<0, args_t...> { 
+struct MGPU_ALIGN_MAX tuple : detail::tuple_impl<0, args_t...> { 
   typedef detail::tuple_impl<0, args_t...> impl_t;
 
   tuple() = default;
@@ -253,7 +253,7 @@ struct tuple : detail::tuple_impl<0, args_t...> {
     >::type
   > MGPU_HOST_DEVICE  
   tuple(const args2_t&... args) : impl_t(args...) { }
-} MGPU_ALIGN_MAX;
+};
 
 namespace detail {
 

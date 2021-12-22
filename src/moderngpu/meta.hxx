@@ -93,6 +93,10 @@ MGPU_HOST_DEVICE constexpr size_t s_log2(size_t x, size_t p = 0) {
 
 #endif
 
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
+
 #ifdef _MSC_VER
   #define MGPU_ALIGN(x) __declspec(align(x))
 #else

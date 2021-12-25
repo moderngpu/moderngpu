@@ -11,7 +11,7 @@ BEGIN_MGPU_NAMESPACE
 
 template<bounds_t bounds, typename a_keys_it, typename b_keys_it,
   typename comp_t>
-mem_t<int> merge_path_partitions(a_keys_it a, int64_t a_count, b_keys_it b,
+mem_t<typename std::iterator_traits<a_keys_it>::value_type> merge_path_partitions(a_keys_it a, int64_t a_count, b_keys_it b,
   int64_t b_count, int64_t spacing, comp_t comp, context_t& context) {
 
   typedef typename std::iterator_traits<a_keys_it>::value_type int_t;

@@ -11,7 +11,7 @@ MGPU_HOST_DEVICE int_t merge_path(a_keys_it a_keys, int_t a_count,
   b_keys_it b_keys, int_t b_count, int_t diag, comp_t comp) {
 
   typedef typename std::iterator_traits<a_keys_it>::value_type type_t;
-  int_t begin = max(0, diag - b_count);
+  int_t begin = max(int_t(0), (int_t)(diag - b_count));
   int_t end = min(diag, a_count);
 
   while(begin < end) {

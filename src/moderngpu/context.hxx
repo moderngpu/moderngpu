@@ -24,11 +24,13 @@ inline std::string device_prop_string(cudaDeviceProp prop) {
   if(cudaSuccess != result) throw cuda_exception_t(result);  
 
   int memoryClockRate;
-  cudaDeviceGetAttribute(&memoryClockRate, cudaDevAttrMemoryClockRate, ordinal);
+  result = cudaDeviceGetAttribute(&memoryClockRate, cudaDevAttrMemoryClockRate, ordinal);
+  if(cudaSuccess != result) throw cuda_exception_t(result);
   double memBandwidth = (memoryClockRate * 1000.0) * (prop.memoryBusWidth / 8 * 2) / 1.0e9;
 
   int clockRate;
-  cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, ordinal);
+  result = cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, ordinal);
+  if(cudaSuccess != result) throw cuda_exception_t(result);
 
   std::string s = detail::stringprintf(
     "%s : %8.3lf Mhz   (Ordinal %d)\n"

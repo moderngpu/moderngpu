@@ -29,3 +29,6 @@ bin/
 
 # Ignore build directory
 build
+
+# Ignore CodeQL temporary files
+_codeql_detected_source_root

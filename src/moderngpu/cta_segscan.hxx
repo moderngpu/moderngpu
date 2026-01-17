@@ -81,7 +81,7 @@ struct cta_segscan_t {
     iterate<s_log2(nt)>([&](int pass) {
       int offset = 1<< pass;
       if(tid_delta >= offset)
-        x = op(x, storage.values[first + tid - offset]);
+        x = op(storage.values[first + tid - offset], x);
       first = nt - first;
       storage.values[first + tid] = x;
       __syncthreads();

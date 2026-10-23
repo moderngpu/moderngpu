@@ -19,9 +19,9 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    # Steps represent a sequence of tasks that are executed as part of the job
     steps:
-      # Fetch CUDA toolkit using Jimver/cuda-toolkit@v0.2.5
+      # Fetch CUDA toolkit using Jimver/cuda-toolkit@master
       - name: Fetch CUDA toolkit
         uses: Jimver/cuda-toolkit@master
         id: cuda-toolkit
@@ -29,19 +29,21 @@ jobs:
           cuda: '13.1.0'
           linux-local-args: '["--toolkit"]'
 
-      # Runs a single command using the runners shell
+      # Verify the compiler before configuring CMake.
       - name: Check nvcc version
         run: nvcc -V
-        
+
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v6
-      
+
       - name: Configure cmake
-        # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-        # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-        run: cmake -B ${{github.workspace}}/build #-DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} 
-        
+        # CUDA 13.1 no longer accepts the legacy SM 60 target used by the
+        # project default. Keep the upstream CI architecture explicit while
+        # leaving MODERNGPU_CUDA_ARCHITECTURES configurable for consumers.
+        run: |
+          cmake -B ${{github.workspace}}/build \
+            -DMODERNGPU_CUDA_ARCHITECTURES=75
+
       - name: Build all applications
-        # Build your program with the given configuration
-        run: cmake --build ${{github.workspace}}/build # --config ${{env.BUILD_TYPE}}
-      
+        # Build your program with the configuration selected above.
+        run: cmake --build ${{github.workspace}}/build

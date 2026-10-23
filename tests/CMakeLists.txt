@@ -8,7 +8,7 @@ foreach(SOURCE_FILE ${TEST_SOURCES})
     get_target_property(MODERNGPU_ARCHITECTURES MODERNGPU CUDA_ARCHITECTURES)
     set_target_properties(${TEST_NAME} 
         PROPERTIES 
-            CUDA_ARCHITECTURES ${MODERNGPU_ARCHITECTURES}
+            CUDA_ARCHITECTURES "${MODERNGPU_ARCHITECTURES}"
     ) # XXX: Find a better way to inherit MODERNGPU properties.
     message(STATUS "Example Added: ${TEST_NAME}")
 endforeach(SOURCE_FILE ${TEST_SOURCES})

@@ -1,0 +1,92 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  configure-build:
+    name: CUDA ${{ matrix.build_type }} / demos=${{ matrix.demos }} / tutorials=${{ matrix.tutorials }}
+    runs-on: ubuntu-22.04
+    container:
+      image: nvidia/cuda:12.6.3-devel-ubuntu22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release, Debug]
+        demos: [OFF, ON]
+        tutorials: [OFF, ON]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y cmake ninja-build
+
+      - name: Check CUDA toolchain
+        run: nvcc --version
+
+      - name: Configure
+        env:
+          LIBRARY_PATH: /usr/local/cuda/lib64/stubs
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DMODERNGPU_BUILD_DEMO=${{ matrix.demos }} \
+            -DMODERNGPU_BUILD_TUTORIAL=${{ matrix.tutorials }} \
+            -DMODERNGPU_BUILD_TESTS=ON \
+            -DMODERNGPU_CUDA_ARCHITECTURES=75
+
+      - name: Build all targets, including tests
+        env:
+          LIBRARY_PATH: /usr/local/cuda/lib64/stubs
+        run: cmake --build build --parallel
+
+      - name: Verify test executables were produced
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d build/bin
+          mapfile -t test_bins < <(find build/bin -maxdepth 1 -type f -executable -printf '%f\n' | sort)
+          if [ "${#test_bins[@]}" -eq 0 ]; then
+            echo "::error::No test executables were produced by the test build."
+            exit 1
+          fi
+          printf 'Built test executable: %s\n' "${test_bins[@]}"
+
+      - name: Install package to staging prefix
+        env:
+          LIBRARY_PATH: /usr/local/cuda/lib64/stubs
+        run: cmake --install build --prefix "${{ github.workspace }}/stage"
+
+      - name: Configure and build external package consumer
+        env:
+          LIBRARY_PATH: /usr/local/cuda/lib64/stubs
+          CMAKE_PREFIX_PATH: ${{ github.workspace }}/stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p package-consumer
+          cat > package-consumer/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.19)
+          project(ModerngpuPackageConsumer LANGUAGES CXX CUDA)
+          find_package(Moderngpu CONFIG REQUIRED)
+          add_executable(moderngpu_package_consumer main.cu)
+          target_link_libraries(moderngpu_package_consumer PRIVATE Moderngpu::MODERNGPU)
+          EOF
+          cat > package-consumer/main.cu <<'EOF'
+          #include <moderngpu/context.hxx>
+          int main() { return 0; }
+          EOF
+          cmake -S package-consumer -B package-consumer/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_CUDA_ARCHITECTURES=75 \
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/stage"
+          cmake --build package-consumer/build --parallel

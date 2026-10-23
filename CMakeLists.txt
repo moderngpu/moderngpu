@@ -14,146 +14,102 @@ project(MODERNGPU
     LANGUAGES CXX CUDA
 )
 
-# begin /* Dependencies directory */
-set(PROJECT_DEPS_DIR externals)
-# end /* Dependencies directory */
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
-## Set the directory where the binaries will be stored
+set(PROJECT_DEPS_DIR externals)
+
 set(EXECUTABLE_OUTPUT_PATH
   ${PROJECT_BINARY_DIR}/bin
   CACHE PATH
   "Directory where all executables will be stored")
-
-## Set the directory where the libraries will be stored
 set(LIBRARY_OUTPUT_PATH
   ${PROJECT_BINARY_DIR}/lib
   CACHE PATH
-  "Directory where all the libraries will be stored")
-
-## Export compile commands
+  "Directory where all libraries will be stored")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-############ ADD LIBRARY: MODERNGPU (HEADER-ONLY) ############
 add_library(MODERNGPU INTERFACE)
+set(MODERNGPU_SRC ${PROJECT_SOURCE_DIR}/src)
 
-####################################################
-############### SET TARGET PROPERTIES ##############
-####################################################
-set_target_properties(MODERNGPU 
+set(MODERNGPU_CUDA_ARCHITECTURES "60;61;70;75;80" CACHE STRING
+    "CUDA architectures generated for moderngpu consumers")
+option(MODERNGPU_BUILD_DEMO "Build moderngpu demos" ON)
+option(MODERNGPU_BUILD_TUTORIAL "Build moderngpu tutorials" ON)
+option(MODERNGPU_BUILD_TESTS "Build moderngpu unit tests" ON)
+
+set_target_properties(MODERNGPU
     PROPERTIES
         CXX_STANDARD 11
         CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS OFF # Should this be turned on for MSVC?
+        CXX_EXTENSIONS OFF
         CUDA_STANDARD 11
         CUDA_STANDARD_REQUIRED ON
         CUDA_EXTENSIONS OFF
         CUDA_RESOLVE_DEVICE_SYMBOLS ON
         CUDA_SEPARABLE_COMPILATION ON
-        CUDA_ARCHITECTURES 60 61 70 75 80 # Set required architecture.
-        # CUDA_PTX_COMPILATION ON # Can only be applied to OBJ.
+        CUDA_ARCHITECTURES "${MODERNGPU_CUDA_ARCHITECTURES}"
 )
 
-# Use for later.
-get_target_property(MODERNGPU_ARCHITECTURES 
-    MODERNGPU 
-        CUDA_ARCHITECTURES
-)
-
-####################################################
-############ TARGET COMPILER DEFINITIONS ###########
-####################################################
-target_compile_definitions(MODERNGPU
-  INTERFACE 
-      MODERNGPUVERSION=${MODERNGPU_VERSION}
-    #   MGPU_SM_TAG=${MODERNGPU_ARCHITECTURES}
-)
-
-####################################################
-############ TARGET COMPILE FEATURES ###############
-####################################################
-# Turn C++ Standard 17 ON.
+target_compile_definitions(MODERNGPU INTERFACE MODERNGPUVERSION=${MODERNGPU_VERSION})
 target_compile_features(MODERNGPU INTERFACE cxx_std_11)
-
-####################################################
-############ TARGET INCLUDE DIRECTORIES ############
-####################################################
-set(MODERNGPU_SRC ${PROJECT_SOURCE_DIR}/src)
-target_include_directories(MODERNGPU
-    INTERFACE ${MODERNGPU_SRC}
-    INTERFACE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+target_include_directories(MODERNGPU INTERFACE
+    $<BUILD_INTERFACE:${MODERNGPU_SRC}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    $<BUILD_INTERFACE:${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}>
 )
+target_link_libraries(MODERNGPU INTERFACE cuda)
 
-####################################################
-############ TARGET LINK LIBRARIES #################
-####################################################
-target_link_libraries(MODERNGPU
-    INTERFACE cuda
-)
-
-####################################################
-################# TARGET SOURCES ###################
-####################################################
-# target_sources(MODERNGPU
-#     INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/path/to/file.cpp"
-# )
-
-####################################################
-############## SET CXX & CUDA FLAGS ################
-####################################################
-set(CXX_FLAGS 
+set(CXX_FLAGS
   $<$<CXX_COMPILER_ID:MSVC>:-D_SCL_SECURE_NO_WARNINGS>
   $<$<CXX_COMPILER_ID:GNU>:-Werror -Wundef>
 )
-
 set(CUDA_FLAGS
-  --expt-extended-lambda 
+  --expt-extended-lambda
   --expt-relaxed-constexpr
   --use_fast_math
   --ptxas-options -v
   --generate-line-info
-  $<$<CXX_COMPILER_ID:GNU>:-O3> # Host optimize-level
-  # --verbose
-  # --debug # Host debug
-  # --device-debug # Device debug
+  $<$<CXX_COMPILER_ID:GNU>:-O3>
 )
-
-####################################################
-############ TARGET COMPILE OPTIONS ################
-####################################################
-target_compile_options(MODERNGPU INTERFACE 
+target_compile_options(MODERNGPU INTERFACE
     $<$<COMPILE_LANGUAGE:CXX>:${CXX_FLAGS}>
     $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_FLAGS}>
 )
 
-####################################################
-############# BUILD DEMO APPLICATIONS ##############
-####################################################
-option(MODERNGPU_BUILD_DEMO
-  "If on, builds the moderngpu demo."
-  ON)
-
-option(MODERNGPU_BUILD_TUTORIAL
-  "If on, builds the moderngpu tutorials."
-  ON)
-
-# Subdirectories for examples, testing and documentation
 if(MODERNGPU_BUILD_DEMO)
     add_subdirectory(demo)
-endif(MODERNGPU_BUILD_DEMO)
-
+endif()
 if(MODERNGPU_BUILD_TUTORIAL)
     add_subdirectory(tutorial)
-endif(MODERNGPU_BUILD_TUTORIAL)
-
-####################################################
-################ BUILD UNIT TESTS  #################
-####################################################
-option(MODERNGPU_BUILD_TESTS
-    "If on, builds the unit tests."
-    ON)
-
-# Subdirectories for examples, testing and documentation
+endif()
 if(MODERNGPU_BUILD_TESTS)
     add_subdirectory(tests)
-endif(MODERNGPU_BUILD_TESTS)
+endif()
+
+# ModernGPU public headers include .hxx files, so install them alongside
+# .h/.hpp headers for downstream find_package() consumers.
+install(DIRECTORY ${MODERNGPU_SRC}/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hxx")
+install(TARGETS MODERNGPU EXPORT ModerngpuTargets)
+install(EXPORT ModerngpuTargets
+    FILE ModerngpuTargets.cmake
+    NAMESPACE Moderngpu::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Moderngpu)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ModerngpuConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/ModerngpuConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Moderngpu
+)
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/ModerngpuConfigVersion.cmake
+    VERSION ${MODERNGPU_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/ModerngpuConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/ModerngpuConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Moderngpu
+)

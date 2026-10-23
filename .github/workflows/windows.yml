@@ -1,46 +1,39 @@
-# Gunrock/Essentials Windows Workflow
+# ModernGPU Windows CUDA build workflow
 name: Windows
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the master and dev branch
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
-    runs-on: windows-latest
+    runs-on: windows-2022
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Fetch CUDA toolkit using Jimver/cuda-toolkit@v0.2.5
       - name: Fetch CUDA toolkit
         uses: Jimver/cuda-toolkit@master
         id: cuda-toolkit
         with:
           cuda: '13.1.0'
-          linux-local-args: '["--toolkit"]'
 
-      # Runs a single command using the runners shell
       - name: Check nvcc version
         run: nvcc -V
-        
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+
       - uses: actions/checkout@v6
-      
-      - name: Configure cmake
-        # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-        # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-        run: cmake -B ${{github.workspace}}/build #-DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-        
-      - name: Build all applications
-        # Build your program with the given configuration
-        run: cmake --build ${{github.workspace}}/build # --config ${{env.BUILD_TYPE}}
+
+      # CUDA 13.1 supports the Visual Studio 2022 host compiler. Initialize
+      # the runner's VS2022 environment explicitly and use Ninja so CMake
+      # does not perform Visual Studio CUDA-toolset discovery.
+      - name: Configure and build with MSVC environment
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vsPath = & $vswhere -latest -products * -property installationPath
+          if (-not $vsPath) { throw 'Visual Studio installation not found' }
+          $devCmd = Join-Path $vsPath 'Common7/Tools/VsDevCmd.bat'
+          if (-not (Test-Path $devCmd)) { throw "VsDevCmd.bat not found: $devCmd" }
+
+          cmd /c "`"$devCmd`" -arch=x64 && where cl && where link && cmake -S `"${{ github.workspace }}`" -B `"${{ github.workspace }}/build`" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_COMPILER=`"%CUDA_PATH%\bin\nvcc.exe`" -DCMAKE_CUDA_HOST_COMPILER=cl.exe -DCMAKE_CUDA_ARCHITECTURES=75 -DMODERNGPU_CUDA_ARCHITECTURES=75 -DMODERNGPU_BUILD_DEMO=OFF -DMODERNGPU_BUILD_TUTORIAL=OFF -DMODERNGPU_BUILD_TESTS=ON && cmake --build `"${{ github.workspace }}/build`" --parallel"
